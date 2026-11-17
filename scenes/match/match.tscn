@@ -45,6 +45,23 @@ layout_mode = 2
 size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 22
 
+[node name="ScoreBox" type="VBoxContainer" parent="Margin/VBox/TopBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="ScoreLabel" type="Label" parent="Margin/VBox/TopBar/ScoreBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.85, 0.35, 1)
+theme_override_font_sizes/font_size = 26
+horizontal_alignment = 1
+
+[node name="BoutLabel" type="Label" parent="Margin/VBox/TopBar/ScoreBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+horizontal_alignment = 1
+
 [node name="RunInfoLabel" type="Label" parent="Margin/VBox/TopBar"]
 unique_name_in_owner = true
 layout_mode = 2

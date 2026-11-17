@@ -9,3 +9,5 @@ extends Resource
 @export_range(0.0, 1.0, 0.05) var mistake_chance := 0.3
 @export var gold_reward := 10
 @export var is_boss := false
+## Eigenes Punkteziel; 0 = Standardziel der Etage (Run.SCORE_TARGETS).
+@export var score_target := 0

@@ -16,6 +16,10 @@ const START_LIVES := 3
 const BASE_HAND_SIZE := 6
 const NORMAL_FIGHTS := 3 # danach folgt der Boss
 const GOLD_REWARD_OPTION := 15
+## Punkteziel pro Etage (wie die Blinds bei Balatro). Letzter Eintrag = Boss.
+## Gibt es mehr Etagen als Einträge, wird der letzte Wert weiter gesteigert.
+const SCORE_TARGETS: Array[int] = [300, 380, 450, 550]
+const SCORE_TARGET_GROWTH := 1.25
 
 var rng := RandomNumberGenerator.new()
 var seed_value := 0
@@ -54,7 +58,28 @@ func player_hand_size() -> int:
 	return size
 
 
+## Punkteziel für die aktuelle Etage.
+func score_target(floor_i := floor_index) -> int:
+	var opponent := encounters[floor_i] if floor_i < encounters.size() else null
+	if opponent != null and opponent.score_target > 0:
+		return opponent.score_target
+	var idx := SCORE_TARGETS.size() - 1 if opponent != null and opponent.is_boss else floor_i
+	if idx < SCORE_TARGETS.size():
+		return SCORE_TARGETS[idx]
+	var extra := idx - SCORE_TARGETS.size() + 1
+	return int(SCORE_TARGETS[-1] * pow(SCORE_TARGET_GROWTH, extra))
+
+
+## Start-Mult pro Runde (1 + Boni aus Relikten).
+func base_mult() -> int:
+	var m := 1
+	for r in relics:
+		m += r.bonus_mult
+	return m
+
+
 ## Wird von der Match-Szene aufgerufen, sobald ein Duell vorbei ist.
+## `loser` ist OPPONENT, wenn das Punkteziel erreicht wurde, sonst PLAYER.
 func on_match_finished(loser: int) -> void:
 	match loser:
 		DurakMatch.OPPONENT:

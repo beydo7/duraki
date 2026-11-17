@@ -23,7 +23,8 @@ func _render() -> void:
 		var o := Run.encounters[i]
 		var label := Label.new()
 		var marker := "✓" if i < Run.floor_index else ("►" if i == Run.floor_index else "·")
-		label.text = "%s  %s%s" % [marker, o.display_name, "  (Boss)" if o.is_boss else ""]
+		label.text = "%s  %s%s   –   Ziel: %d Punkte" % [
+			marker, o.display_name, "  (Boss)" if o.is_boss else "", Run.score_target(i)]
 		if i < Run.floor_index:
 			label.modulate = Color(1, 1, 1, 0.5)
 		%EncounterList.add_child(label)

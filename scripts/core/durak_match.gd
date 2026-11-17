@@ -12,6 +12,8 @@ extends RefCounted
 signal changed
 signal message(text: String)
 signal bout_ended(defended: bool)
+## Wird für jede gespielte Karte gesendet (für Wertung, Joker, Effekte).
+signal card_played(who: int, card: Card, as_attack: bool)
 signal finished(loser: int)
 
 const PLAYER := 0
@@ -129,6 +131,7 @@ func attack(card: Card) -> bool:
 	hand(attacker).erase(card)
 	attack_cards.append(card)
 	defense_cards.append(null)
+	card_played.emit(attacker, card, true)
 	message.emit("%s %s %s." % [name_of(attacker), "legst" if attacker == PLAYER else "legt", card])
 	changed.emit()
 	return true
@@ -140,6 +143,7 @@ func defend(card: Card) -> bool:
 	var idx := unbeaten_index()
 	hand(defender()).erase(card)
 	defense_cards[idx] = card
+	card_played.emit(defender(), card, false)
 	message.emit("%s %s %s mit %s." % [
 		name_of(defender()), "schlägst" if defender() == PLAYER else "schlägt", attack_cards[idx], card])
 	_auto_pass_if_stuck()
@@ -165,6 +169,18 @@ func pass_bout() -> bool:
 	discard_pile.append_array(table_cards())
 	_end_bout(true)
 	return true
+
+
+## Beendet das Duell sofort (z. B. wenn das Punkteziel erreicht ist).
+func force_finish(p_loser: int, text := "") -> void:
+	if is_over:
+		return
+	is_over = true
+	loser = p_loser
+	if not text.is_empty():
+		message.emit(text)
+	finished.emit(loser)
+	changed.emit()
 
 
 # --- Intern -------------------------------------------------------------------
@@ -195,7 +211,7 @@ func _refill(p: int) -> void:
 
 
 func _check_end() -> void:
-	if not deck.is_empty():
+	if is_over or not deck.is_empty():
 		return
 	var player_out := player_hand.is_empty()
 	var opponent_out := opponent_hand.is_empty()

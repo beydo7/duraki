@@ -8,6 +8,7 @@ const LOG_LINES := 6
 var duel: DurakMatch
 var ai: SimpleAI
 var opponent: OpponentData
+var score: ScoreTracker
 var _ai_pending := false
 var _log: PackedStringArray = []
 
@@ -22,17 +23,34 @@ func _ready() -> void:
 
 	ai = SimpleAI.new(Run.rng, opponent.mistake_chance)
 	duel = DurakMatch.new()
+	var target := Run.score_target() if Run.current_opponent() != null else Run.SCORE_TARGETS[0]
+	score = ScoreTracker.new(target, Run.base_mult())
+	score.attach(duel) # vor den UI-Signalen verbinden, damit zuerst gewertet wird
+	score.changed.connect(_render_score)
+	score.bout_scored.connect(func(_points: int, text: String) -> void: _on_message(text))
+	score.target_reached.connect(_on_target_reached)
 	duel.changed.connect(_on_changed)
 	duel.message.connect(_on_message)
 	duel.finished.connect(_on_finished)
 
 	%TakeButton.pressed.connect(func() -> void: duel.take())
 	%PassButton.pressed.connect(func() -> void: duel.pass_bout())
-	%ContinueButton.pressed.connect(func() -> void: Run.on_match_finished(duel.loser))
+	%ContinueButton.pressed.connect(func() -> void: Run.on_match_finished(_result()))
 
 	if not opponent.taunt.is_empty():
 		_on_message("%s: „%s“" % [opponent.display_name, opponent.taunt])
+	_on_message("Punkteziel: %d" % score.target)
 	duel.start(Run.rng, Run.player_hand_size(), opponent.hand_size)
+	_render_score()
+
+
+## Für den Run zählt nur das Punkteziel: erreicht → Gegner verliert.
+func _result() -> int:
+	return DurakMatch.OPPONENT if score.reached_target() else DurakMatch.PLAYER
+
+
+func _on_target_reached() -> void:
+	duel.force_finish(DurakMatch.OPPONENT, "Punkteziel erreicht!")
 
 
 func _on_changed() -> void:
@@ -77,6 +95,7 @@ func _render() -> void:
 	var opp_cards := duel.opponent_hand.size()
 	%OpponentLabel.text = "%s  –  %d Karten" % [opponent.display_name, opp_cards]
 	%RunInfoLabel.text = "Leben: %d   Gold: %d" % [Run.lives, Run.gold]
+	_render_score()
 
 	_clear(%OpponentHand)
 	for i in opp_cards:
@@ -115,12 +134,25 @@ func _render() -> void:
 	%StatusLabel.text = _status_text(my_turn, defending)
 
 
+func _render_score() -> void:
+	if score == null:
+		return
+	%ScoreLabel.text = "%d / %d" % [score.total, score.target]
+	if duel != null and duel.is_over:
+		%BoutLabel.text = score.last_text
+	elif score.chips > 0:
+		%BoutLabel.text = "Runde: %d Chips × %d Mult" % [score.chips, score.mult]
+	else:
+		%BoutLabel.text = "Noch %d Punkte" % score.remaining()
+
+
 func _status_text(my_turn: bool, defending: bool) -> String:
 	if duel.is_over:
-		match duel.loser:
-			DurakMatch.OPPONENT: return "Gewonnen! %s ist der Durak." % opponent.display_name
-			DurakMatch.PLAYER: return "Verloren – du bist der Durak."
-			_: return "Unentschieden."
+		if score.reached_target():
+			return "Gewonnen! Punkteziel erreicht (%d / %d)." % [score.total, score.target]
+		if duel.loser == DurakMatch.PLAYER:
+			return "Verloren – du bist der Durak und hast das Ziel verfehlt."
+		return "Verloren – Ziel verfehlt (%d / %d)." % [score.total, score.target]
 	if not my_turn:
 		return "%s ist am Zug …" % opponent.display_name
 	if defending:

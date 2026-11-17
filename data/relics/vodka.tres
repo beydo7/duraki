@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="RelicData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/relic_data.gd" id="1_rel"]
+
+[resource]
+script = ExtResource("1_rel")
+id = &"vodka"
+display_name = "Wodka"
+description = "+1 Mult in jeder Runde."
+hand_size_bonus = 0
+bonus_gold_per_win = 0
+extra_lives = 0
+bonus_mult = 1

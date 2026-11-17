@@ -11,3 +11,5 @@ extends Resource
 @export var hand_size_bonus := 0
 @export var bonus_gold_per_win := 0
 @export var extra_lives := 0
+## Start-Mult jeder Runde (wie ein Joker bei Balatro).
+@export var bonus_mult := 0
