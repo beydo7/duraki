@@ -14,6 +14,12 @@ signal message(text: String)
 signal bout_ended(defended: bool)
 ## Wird für jede gespielte Karte gesendet (für Wertung, Joker, Effekte).
 signal card_played(who: int, card: Card, as_attack: bool)
+## Jemand hat Karten vom Stapel gezogen.
+signal cards_drawn(who: int, count: int)
+## Der Verteidiger nimmt die Tischkarten auf.
+signal cards_taken(who: int, count: int)
+## Bito: die Tischkarten gehen auf den Ablagestapel.
+signal cards_discarded(count: int)
 signal finished(loser: int)
 
 const PLAYER := 0
@@ -156,7 +162,9 @@ func take() -> bool:
 	if not can_take():
 		return false
 	message.emit("%s %s die Karten." % [name_of(defender()), "nimmst" if defender() == PLAYER else "nimmt"])
-	hand(defender()).append_array(table_cards())
+	var taken := table_cards()
+	hand(defender()).append_array(taken)
+	cards_taken.emit(defender(), taken.size())
 	_end_bout(false)
 	return true
 
@@ -166,7 +174,9 @@ func pass_bout() -> bool:
 	if not can_pass():
 		return false
 	message.emit("Bito – die Karten gehen weg.")
-	discard_pile.append_array(table_cards())
+	var cleared := table_cards()
+	discard_pile.append_array(cleared)
+	cards_discarded.emit(cleared.size())
 	_end_bout(true)
 	return true
 
@@ -205,8 +215,12 @@ func _end_bout(defended: bool) -> void:
 
 func _refill(p: int) -> void:
 	var h := hand(p)
+	var drawn := 0
 	while h.size() < hand_sizes[p] and not deck.is_empty():
 		h.append(deck.draw())
+		drawn += 1
+	if drawn > 0:
+		cards_drawn.emit(p, drawn)
 	DurakRules.sort_hand(h, trump_suit)
 
 
