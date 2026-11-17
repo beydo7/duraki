@@ -1,7 +1,7 @@
 # Duraki
 
 Ein Roguelike auf Basis des Kartenspiels **Durak**.
-
+a
 ## Über das Projekt
 
 Duraki verbindet das klassische Durak mit Roguelike-Elementen: Runs, Fortschritt und wachsende Herausforderungen.
