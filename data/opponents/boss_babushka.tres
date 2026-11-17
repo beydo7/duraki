@@ -10,3 +10,7 @@ hand_size = 7
 mistake_chance = 0.0
 gold_reward = 30
 is_boss = true
+mask_color = Color(0.88, 0.82, 0.72, 1)
+body_color = Color(0.3, 0.05, 0.06, 1)
+eye_color = Color(1, 0.15, 0.08, 1)
+figure_scale = 1.3
