@@ -1,0 +1,60 @@
+class_name SimpleAI
+extends RefCounted
+## Einfache Gegner-KI: spielt möglichst billige Karten, schont Trümpfe.
+## `mistake_chance` macht schwächere Gegner unberechenbarer.
+
+var rng: RandomNumberGenerator
+var mistake_chance := 0.0
+
+
+func _init(p_rng: RandomNumberGenerator, p_mistake_chance := 0.0) -> void:
+	rng = p_rng
+	mistake_chance = p_mistake_chance
+
+
+## Führt genau eine Aktion aus, wenn `me` am Zug ist.
+func take_turn(duel: DurakMatch, me: int) -> void:
+	if duel.current_actor() != me:
+		return
+	if me == duel.defender():
+		_defend(duel)
+	else:
+		_attack(duel)
+
+
+func _defend(duel: DurakMatch) -> void:
+	var options := _sorted(duel.legal_defenses(), duel)
+	if options.is_empty():
+		duel.take()
+		return
+	duel.defend(_pick(options))
+
+
+func _attack(duel: DurakMatch) -> void:
+	var options := _sorted(duel.legal_attacks(), duel)
+	if options.is_empty():
+		duel.pass_bout()
+		return
+	if duel.attack_cards.is_empty():
+		duel.attack(_pick(options))
+		return
+	# Nachlegen nur mit billigen Karten (oder wenn der Stapel leer ist).
+	var cheapest := options[0]
+	var cheap := cheapest.suit != duel.trump_suit and cheapest.rank <= 10
+	if cheap or duel.deck.is_empty():
+		duel.attack(cheapest)
+	else:
+		duel.pass_bout()
+
+
+func _pick(options: Array[Card]) -> Card:
+	if rng.randf() < mistake_chance:
+		return options[rng.randi_range(0, options.size() - 1)]
+	return options[0]
+
+
+func _sorted(cards: Array[Card], duel: DurakMatch) -> Array[Card]:
+	var result := cards.duplicate()
+	result.sort_custom(func(a: Card, b: Card) -> bool:
+		return DurakRules.card_value(a, duel.trump_suit) < DurakRules.card_value(b, duel.trump_suit))
+	return result

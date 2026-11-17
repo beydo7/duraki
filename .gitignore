@@ -1,0 +1,18 @@
+# Godot 4
+.godot/
+/android/
+
+# Exporte
+/build/
+/export/
+*.pck
+*.exe
+*.zip
+
+# Godot-Binary nicht ins Repo
+Godot_v*
+
+# System
+.DS_Store
+Thumbs.db
+desktop.ini
