@@ -22,11 +22,10 @@ if not defined GODOT_EXE for %%G in (godot.exe) do if not "%%~$PATH:G"=="" set "
 if not defined GODOT_EXE goto :not_found
 if not exist "%GODOT_EXE%" goto :not_found
 
-rem Beim ersten Start (oder nach dem Loeschen von .godot) einmal importieren.
-if not exist ".godot\global_script_class_cache.cfg" (
-    echo Erster Start: Projekt wird importiert, bitte kurz warten ...
-    "%GODOT_EXE%" --headless --path "%CD%" --import
-)
+rem Vor jedem Start importieren, damit neue/geaenderte Skripte und Klassen
+rem (class_name) erkannt werden. Dauert nur ein paar Sekunden.
+echo Projekt wird aktualisiert, bitte kurz warten ...
+"%GODOT_EXE%" --headless --path "%CD%" --import >nul 2>&1
 
 start "" "%GODOT_EXE%" --path "%CD%" %*
 exit /b 0
