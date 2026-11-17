@@ -9,7 +9,6 @@ var duel: DurakMatch
 var ai: SimpleAI
 var opponent: OpponentData
 var score: ScoreTracker
-var sfx: CardSfx
 var _ai_pending := false
 var _log: PackedStringArray = []
 
@@ -34,13 +33,6 @@ func _ready() -> void:
 	duel.message.connect(_on_message)
 	duel.finished.connect(_on_finished)
 
-	sfx = CardSfx.new()
-	add_child(sfx)
-	duel.cards_drawn.connect(func(_who: int, count: int) -> void: sfx.play_deal(count))
-	duel.card_played.connect(func(_who: int, _card: Card, _attack: bool) -> void: sfx.play_place())
-	duel.cards_taken.connect(func(_who: int, _count: int) -> void: sfx.play_take())
-	duel.cards_discarded.connect(func(_count: int) -> void: sfx.play_bito())
-
 	%TakeButton.pressed.connect(func() -> void: duel.take())
 	%PassButton.pressed.connect(func() -> void: duel.pass_bout())
 	%ContinueButton.pressed.connect(func() -> void: Run.on_match_finished(_result()))
@@ -48,7 +40,6 @@ func _ready() -> void:
 	if not opponent.taunt.is_empty():
 		_on_message("%s: „%s“" % [opponent.display_name, opponent.taunt])
 	_on_message("Punkteziel: %d" % score.target)
-	sfx.play_shuffle()
 	duel.start(Run.rng, Run.player_hand_size(), opponent.hand_size)
 	_render_score()
 
