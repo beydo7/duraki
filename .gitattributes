@@ -1,0 +1,11 @@
+# Einheitliche Zeilenenden, damit Windows/Mac/Linux keine Diffs erzeugen
+* text=auto eol=lf
+
+# Binärdateien
+*.png binary
+*.jpg binary
+*.ogg binary
+*.wav binary
+*.mp3 binary
+*.ttf binary
+*.otf binary

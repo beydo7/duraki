@@ -17,7 +17,23 @@ Duraki verbindet das klassische Durak mit Roguelike-Elementen: Runs, Fortschritt
 
 ## Setup
 
-_Folgt, sobald die Engine bzw. der Tech-Stack feststeht._
+Engine: **Godot 4.4+** (GDScript, Renderer: Compatibility)
+
+1. [Godot 4](https://godotengine.org/download) installieren (Standard-Version, nicht .NET).
+2. Repo klonen: `git clone https://github.com/beydo7/duraki.git`
+3. In Godot **Importieren** → `project.godot` im Repo-Ordner auswählen.
+4. Mit **F5** starten.
+
+## Projektstruktur
+
+```
+scenes/          Szenen (.tscn)
+scripts/         GDScript-Code
+  cards/         Karten- und Deck-Logik (Durak-Regeln)
+assets/          Grafiken, Schriften, Audio
+```
+
+Der Ordner `.godot/` wird lokal erzeugt und ist per `.gitignore` ausgeschlossen.
 
 ## Lizenz
 
