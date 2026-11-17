@@ -30,6 +30,19 @@ Duraki verbindet das klassische Durak mit Roguelike-Elementen: Du kämpfst dich 
 3. Godot starten → **Importieren** → `project.godot` im Repo-Ordner auswählen.
 4. Mit **F5** starten.
 
+### Schnell testen ohne Editor
+
+Doppelklick auf **`Spiel_starten.bat`** startet das Spiel direkt. Godot wird automatisch gefunden, wenn die exe in einem Ordner `Godot` neben dem Projektordner liegt:
+
+```
+Duraki\
+  Godot\Godot_v4.7.2-stable_win64.exe
+  duraki\            ← dieses Repo
+    Spiel_starten.bat
+```
+
+Liegt Godot woanders, die Umgebungsvariable `GODOT` auf den Pfad der exe setzen. Beim allerersten Start importiert das Skript das Projekt einmal (dauert ein paar Sekunden).
+
 Einzelne Szenen lassen sich mit **F6** direkt starten (z. B. `scenes/match/match.tscn` startet ein Duell gegen einen Testgegner).
 
 ## Projektstruktur

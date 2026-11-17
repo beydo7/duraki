@@ -1,6 +1,10 @@
 # Einheitliche Zeilenenden (Windows/Linux/Mac)
 * text=auto eol=lf
 
+# Windows-Skripte brauchen CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
 *.png binary
 *.jpg binary
 *.ogg binary
