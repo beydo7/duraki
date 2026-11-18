@@ -17,7 +17,7 @@ const PLAYER_HAND_TILT := 50.0
 const HAND_ROW_THRESHOLD := 22
 const HAND_MAX_WIDTH := 0.82
 const OPP_HAND_POS := Vector3(0.0, 0.97, -0.36)
-const OPP_HAND_TILT := -68.0
+const OPP_HAND_TILT := 68.0
 const TABLE_ROW_Z := -0.07
 
 const TABLE_CARD_SCALE := 1.3

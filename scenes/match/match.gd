@@ -2,10 +2,19 @@ extends Control
 ## Duell-Szene: verbindet DurakMatch (Logik) mit der 3D-Welt (TableWorld),
 ## dem HUD und der KI.
 
-## Normale Bedenkzeit des Gegners (Sekunden, zufällig dazwischen).
-const AI_DELAY := Vector2(0.9, 1.5)
-## Bedenkzeit, wenn er entscheiden muss, ob er nachlegt oder Bito sagt.
-const AI_THINK_DELAY := Vector2(2.0, 3.4)
+## Bedenkzeiten (Sekunden, zufällig dazwischen): sofort, kurz, lang.
+const DELAY_QUICK := Vector2(0.45, 0.8)
+const DELAY_SHORT := Vector2(1.0, 1.8)
+const DELAY_LONG := Vector2(2.0, 3.6)
+## Wahrscheinlichkeiten [sofort, kurz, lang] je nach Situation.
+const ODDS_DECISION := [0.2, 0.45, 0.35] # Nachlegen oder Bito? Schlagen oder nehmen?
+const ODDS_NORMAL := [0.5, 0.35, 0.15]
+const THINK_TEXT := [
+	"%s überlegt …",
+	"%s starrt auf den Tisch …",
+	"%s mustert seine Karten …",
+	"%s trommelt mit den Fingern …",
+]
 const LOG_LINES := 7
 
 var duel: DurakMatch
@@ -15,6 +24,7 @@ var score: ScoreTracker
 var world: TableWorld
 var _ai_pending := false
 var _thinking := false
+var _think_style := 0
 var _log: PackedStringArray = []
 
 
@@ -35,6 +45,11 @@ func _ready() -> void:
 	duel = DurakMatch.new()
 	var target := Run.score_target() if Run.current_opponent() != null else Run.SCORE_TARGETS[0]
 	score = ScoreTracker.new(target, Run.base_mult())
+	score.suit_chip_bonus = Run.suit_chip_bonus
+	score.trump_mult_bonus = Run.trump_mult_bonus
+	score.gold_found.connect(func(amount: int) -> void:
+		Run.add_gold(amount)
+		_on_message("Glückskarte: +%d Gold" % amount))
 	score.attach(duel) # vor den UI-Signalen verbinden, damit zuerst gewertet wird
 	score.changed.connect(_render_score)
 	score.bout_scored.connect(func(_points: int, text: String) -> void: _on_message(text))
@@ -60,7 +75,7 @@ func _ready() -> void:
 	if not opponent.taunt.is_empty():
 		_on_message("%s: „%s“" % [opponent.display_name, opponent.taunt])
 	_on_message("Punkteziel: %d" % score.target)
-	duel.start(Run.rng, Run.player_hand_size(), opponent.hand_size)
+	duel.start(Run.rng, Run.player_hand_size(), opponent.hand_size, Run.apply_card_enhancements)
 	_render_score()
 
 
@@ -83,18 +98,27 @@ func _run_ai_turn() -> void:
 	if _ai_pending:
 		return
 	_ai_pending = true
-	var delay := AI_DELAY
-	# Alles abgewehrt? Dann überlegt er sichtbar, ob er noch etwas nachlegt.
-	if duel.attacker == DurakMatch.OPPONENT and not duel.attack_cards.is_empty() \
-			and not duel.defense_cards.has(null):
-		_thinking = true
-		world.figure.think(true)
-		delay = AI_THINK_DELAY
-		_render()
+	# Wichtige Entscheidung? (als Angreifer: nachlegen oder Bito,
+	# als Verteidiger: schlagen oder aufnehmen)
+	var decision := false
+	if duel.attacker == DurakMatch.OPPONENT:
+		decision = not duel.attack_cards.is_empty() and not duel.defense_cards.has(null)
+	else:
+		decision = duel.legal_defenses().size() > 0
+	var odds: Array = ODDS_DECISION if decision else ODDS_NORMAL
 	# eigener Zufall, damit Runs mit gleichem Seed gleich ablaufen
+	var roll := randf()
+	var delay := DELAY_QUICK
+	if roll >= odds[0]:
+		delay = DELAY_SHORT if roll < odds[0] + odds[1] else DELAY_LONG
+		_thinking = true
+		_think_style = randi_range(0, THINK_TEXT.size() - 1)
+		world.figure.think(_think_style)
+		_render()
 	await get_tree().create_timer(randf_range(delay.x, delay.y)).timeout
-	_thinking = false
-	world.figure.think(false)
+	if _thinking:
+		_thinking = false
+		world.figure.stop_thinking()
 	_ai_pending = false
 	if duel.current_actor() == DurakMatch.OPPONENT:
 		ai.take_turn(duel, DurakMatch.OPPONENT)
@@ -168,7 +192,7 @@ func _status_text(my_turn: bool, defending: bool) -> String:
 		return "Verloren – Ziel verfehlt (%d / %d)." % [score.total, score.target]
 	if not my_turn:
 		if _thinking:
-			return "%s überlegt, ob er noch etwas nachlegt …" % opponent.display_name
+			return THINK_TEXT[_think_style] % opponent.display_name
 		return "%s ist am Zug …" % opponent.display_name
 	if defending:
 		return "Verteidige dich – klicke eine Karte zum Schlagen oder nimm alles."

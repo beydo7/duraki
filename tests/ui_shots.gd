@@ -26,8 +26,10 @@ func _run() -> void:
 	Run.goto(Run.SCENE_MAP)
 	await _wait_shot("2_map")
 	Run.last_gold_reward = 8
-	Run.goto(Run.SCENE_REWARD)
-	await _wait_shot("3_reward")
+	Run.last_interest = 2
+	Run.gold = 14
+	Run.open_shop()
+	await _wait_shot("3_shop")
 	Run.won_run = false
 	Run.goto(Run.SCENE_RUN_END)
 	await _wait_shot("4_end")

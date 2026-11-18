@@ -17,6 +17,10 @@ const COLOR_BACK := Color("3b2a6e")
 const COLOR_BACK_BORDER := Color("e9dcc0")
 const COLOR_RED := Color("a3221c")
 const COLOR_BLACK := Color("171512")
+const INDEX_FONT := preload("res://assets/fonts/DejaVuSans-Bold.ttf")
+## Färbung der Vorderseite + Etikettfarbe je Card.Enhancement
+const ENH_FACE := [Color("e9e1cc"), Color("f3dc9a"), Color("cfe6f3"), Color("d3eccb")]
+const ENH_TAG := [Color.WHITE, Color("9a6a08"), Color("2c6e9e"), Color("2f7a3c")]
 
 var card: Card
 var is_trump := false
@@ -56,7 +60,8 @@ func _build() -> void:
 	# Vorderseite: Rand (gold bei Trumpf) + Innenfläche
 	_border_mat = _mat(COLOR_TRUMP if is_trump else COLOR_FACE.darkened(0.08), 0.8)
 	_add_quad(Vector2(WIDTH, HEIGHT), THICKNESS * 0.5 + 0.0002, _border_mat, false)
-	_face_mat = _mat(COLOR_FACE, 0.85)
+	var enh := card.enhancement if card != null else Card.Enhancement.NONE
+	_face_mat = _mat(ENH_FACE[enh], 0.85)
 	_add_quad(Vector2(WIDTH - 0.008, HEIGHT - 0.008), THICKNESS * 0.5 + 0.0004, _face_mat, false)
 
 	# Rückseite: heller Rand + dunkelrotes Feld mit Rautenmuster
@@ -76,15 +81,28 @@ func _build() -> void:
 		center.position = Vector3(0, y, 0.008)
 		add_child(center)
 		# Rang oben links und (gedreht) unten rechts
-		# Ecke oben links ist bei überlappenden Karten immer sichtbar → groß
-		for corner in [Vector3(-WIDTH * 0.335, y, -HEIGHT * 0.3), Vector3(WIDTH * 0.335, y, HEIGHT * 0.3)]:
-			var l := _label("%s\n%s" % [rank, suit], 150, color, false, 0.0002)
+		# Ecke oben links ist bei überlappenden Karten immer sichtbar → groß, fett,
+		# unabhängig vom Licht und mit Rand in Papierfarbe
+		var corners := [Vector3(-WIDTH * 0.5 + 0.017, y + 0.0002, -HEIGHT * 0.5 + 0.03),
+			Vector3(WIDTH * 0.5 - 0.017, y + 0.0002, HEIGHT * 0.5 - 0.03)]
+		for corner: Vector3 in corners:
+			var l := _label("%s\n%s" % [rank, suit], 170, color, false, 0.0002)
+			l.font = INDEX_FONT
+			l.shaded = false
+			l.outline_size = 18
+			l.outline_modulate = ENH_FACE[enh]
+			l.line_spacing = -46
 			l.position = corner
 			if corner.z > 0:
 				l.rotate_y(PI)
-			l.line_spacing = -40
 			add_child(l)
 			_labels.append(l)
+		if enh != Card.Enhancement.NONE:
+			var tag := _label(Card.ENHANCEMENT_TAGS[enh], 90, ENH_TAG[enh], false, 0.0002)
+			tag.font = INDEX_FONT
+			tag.shaded = false
+			tag.position = Vector3(0, y + 0.0002, HEIGHT * 0.5 - 0.016)
+			add_child(tag)
 		_labels.append(center)
 
 	# Klickfläche

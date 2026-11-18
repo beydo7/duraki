@@ -25,6 +25,15 @@ var _slump := 0.0
 var _laugh := 0.0
 var _think := 0.0
 var _think_target := 0.0
+var _think_style := ThinkStyle.CHIN
+
+## Verschiedene Arten zu überlegen.
+enum ThinkStyle {
+	CHIN,  ## Hand ans Kinn, Finger tippen
+	STARE, ## beugt sich vor und starrt auf den Tisch, Augen glühen auf
+	CARDS, ## mustert die eigenen Karten, Kopf wiegt hin und her
+	DRUM,  ## trommelt mit beiden Händen auf den Tisch
+}
 
 
 func setup(data: OpponentData) -> OpponentFigure:
@@ -53,9 +62,14 @@ func recoil() -> void:
 	_recoil = 1.0
 
 
-## Überlegt (schaut auf den Tisch, Hand ans Kinn). Mit false wieder beenden.
-func think(on := true) -> void:
-	_think_target = 1.0 if on else 0.0
+## Überlegt in einem bestimmten Stil (siehe ThinkStyle).
+func think(style: int = ThinkStyle.CHIN) -> void:
+	_think_style = style
+	_think_target = 1.0
+
+
+func stop_thinking() -> void:
+	_think_target = 0.0
 
 
 ## Hat verloren.
@@ -78,15 +92,15 @@ func _process(delta: float) -> void:
 		_slump = minf(_slump + delta, 2.0)
 
 	var breath := sin(_t * 1.6) * 0.012
-	var lean := sin(_gesture * PI) * 0.12 - _recoil * 0.10 + minf(_slump, 1.0) * 0.18 + _think * 0.08
+	var lean := sin(_gesture * PI) * 0.12 - _recoil * 0.10 + minf(_slump, 1.0) * 0.18 + _think * _style_lean()
 	_torso.rotation.x = lean
 	_torso.scale = Vector3(1.0, 1.0 + breath, 1.0)
 
 	var shake := sin(_t * 38.0) * 0.03 * _laugh
 	_head.rotation = Vector3(
-		sin(_t * 0.7) * 0.05 + minf(_slump, 1.0) * 0.35 - _recoil * 0.2 + _think * 0.32,
-		sin(_t * 0.45) * 0.12 * (1.0 - _think) + sin(_t * 0.6) * 0.25 * _think + shake,
-		sin(_t * 0.9) * 0.04 + _recoil * 0.15 + _think * 0.12)
+		sin(_t * 0.7) * 0.05 + minf(_slump, 1.0) * 0.35 - _recoil * 0.2 + _think * _head_pitch(),
+		sin(_t * 0.45) * 0.12 * (1.0 - _think) + _think * _head_yaw() + shake,
+		sin(_t * 0.9) * 0.04 + _recoil * 0.15 + _think * _head_roll())
 
 	for i in _hands.size():
 		var side := -1.0 if i == 0 else 1.0
@@ -94,14 +108,14 @@ func _process(delta: float) -> void:
 		if i == 1:
 			off += Vector3(-0.08, 0.05, 0.18) * sin(_gesture * PI)
 		off += Vector3(side * 0.04, 0.06, -0.08) * _recoil
-		if i == 1:
-			# Hand ans Kinn, Finger tippen
-			off += Vector3(-0.1, 0.42 + sin(_t * 9.0) * 0.008, -0.2) * _think
+		off += _hand_think_offset(i) * _think
 		_hands[i].position = _hand_rest[i] + off
 
 	_update_arms()
 
 	var glow := 1.2 + sin(_t * 2.3) * 0.4 + _laugh * 3.0
+	if _think_style == ThinkStyle.STARE:
+		glow += _think * 2.5
 	_eye_mat.emission_energy_multiplier = glow * (0.3 if _slump > 0.0 else 1.0)
 
 
@@ -208,6 +222,57 @@ func _build() -> void:
 		add_child(arm)
 		_arms.append(arm)
 	_update_arms()
+
+
+# --- Denk-Stile -----------------------------------------------------------------
+
+func _style_lean() -> float:
+	match _think_style:
+		ThinkStyle.STARE: return 0.13
+		ThinkStyle.CARDS: return 0.05
+		ThinkStyle.DRUM: return 0.04
+	return 0.08
+
+
+func _head_pitch() -> float:
+	match _think_style:
+		ThinkStyle.STARE: return 0.42
+		ThinkStyle.CARDS: return 0.5
+		ThinkStyle.DRUM: return 0.15
+	return 0.32
+
+
+func _head_yaw() -> float:
+	match _think_style:
+		ThinkStyle.STARE: return sin(_t * 0.3) * 0.05
+		ThinkStyle.CARDS: return sin(_t * 1.4) * 0.22
+		ThinkStyle.DRUM: return sin(_t * 0.5) * 0.35
+	return sin(_t * 0.6) * 0.25
+
+
+func _head_roll() -> float:
+	match _think_style:
+		ThinkStyle.CARDS: return sin(_t * 1.4 + 1.0) * 0.12
+		ThinkStyle.DRUM: return 0.0
+		ThinkStyle.STARE: return 0.0
+	return 0.12
+
+
+func _hand_think_offset(i: int) -> Vector3:
+	match _think_style:
+		ThinkStyle.CHIN:
+			if i == 1:
+				return Vector3(-0.1, 0.42 + sin(_t * 9.0) * 0.008, -0.2)
+		ThinkStyle.STARE:
+			# Hände flach auf den Tisch, leicht nach vorne
+			return Vector3(0, -0.02, 0.06)
+		ThinkStyle.CARDS:
+			# Karten näher ans Gesicht ziehen
+			return Vector3(0, 0.08, -0.06)
+		ThinkStyle.DRUM:
+			var phase := _t * 11.0 + i * PI
+			return Vector3(0, maxf(0.0, sin(phase)) * 0.035, 0.03)
+	return Vector3.ZERO
 
 
 ## Arme als Kapsel zwischen Schulter (bewegt sich mit dem Oberkörper) und Hand.

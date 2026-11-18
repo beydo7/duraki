@@ -44,9 +44,14 @@ var is_over := false
 var loser := NO_LOSER
 
 
-func start(rng: RandomNumberGenerator, player_hand_size := 6, opponent_hand_size := 6) -> void:
+## `deck_setup` (optional) bekommt die Karten des frisch gemischten Stapels,
+## z. B. um gekaufte Verbesserungen anzuwenden.
+func start(rng: RandomNumberGenerator, player_hand_size := 6, opponent_hand_size := 6,
+		deck_setup := Callable()) -> void:
 	deck = Deck.new()
 	deck.shuffle(rng)
+	if deck_setup.is_valid():
+		deck_setup.call(deck.cards)
 	trump_card = deck.bottom_card()
 	trump_suit = trump_card.suit
 	hand_sizes = [player_hand_size, opponent_hand_size]

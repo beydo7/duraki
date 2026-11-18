@@ -14,6 +14,7 @@ func _init() -> void:
 	test_score_values()
 	test_score_bout()
 	test_score_target_ends_match()
+	test_enhancements()
 	print("\n%d Checks, %d Fehler" % [_checks, _failures])
 	quit(1 if _failures > 0 else 0)
 
@@ -141,3 +142,26 @@ func test_score_target_ends_match() -> void:
 		steps += 1
 	check(duel.is_over and tracker.reached_target(), "Punkteziel beendet das Duell")
 	check(duel.loser == DurakMatch.OPPONENT, "erreichtes Ziel zählt als Sieg")
+
+
+func test_enhancements() -> void:
+	var tracker := ScoreTracker.new(999)
+	var glass := Card.new(Card.Suit.HEARTS, 10)
+	glass.enhancement = Card.Enhancement.GLASS
+	check(tracker.card_chips(glass) == 20, "Glaskarte: doppelte Chips")
+	tracker.suit_chip_bonus = {Card.Suit.HEARTS: 3}
+	check(tracker.card_chips(Card.new(Card.Suit.HEARTS, 6)) == 9, "Herz-Schliff: +3 Chips")
+	check(tracker.card_chips(Card.new(Card.Suit.SPADES, 6)) == 6, "Schliff gilt nur für seine Farbe")
+	# Verbesserungen landen beim Mischen auf der richtigen Karte
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 5
+	var duel := DurakMatch.new()
+	duel.start(rng, 6, 6, func(cards: Array[Card]) -> void:
+		for c in cards:
+			if c.suit == Card.Suit.CLUBS and c.rank == 14:
+				c.enhancement = Card.Enhancement.GOLD)
+	var found := false
+	for c in duel.deck.cards + duel.player_hand + duel.opponent_hand:
+		if c.suit == Card.Suit.CLUBS and c.rank == 14:
+			found = c.enhancement == Card.Enhancement.GOLD
+	check(found, "Kartenverbesserung wird beim Start angewendet")

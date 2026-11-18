@@ -13,8 +13,20 @@ const RANK_NAMES := {
 const SUIT_SYMBOLS := ["♥", "♦", "♣", "♠"]
 const SUIT_NAMES := ["Herz", "Karo", "Kreuz", "Pik"]
 
+## Verbesserungen, die man im Shop für einzelne Karten kaufen kann.
+enum Enhancement { NONE, GOLD, GLASS, LUCKY }
+const ENHANCEMENT_NAMES := ["", "Goldkarte", "Glaskarte", "Glückskarte"]
+const ENHANCEMENT_TEXT := [
+	"",
+	"+2 Mult, wenn du sie spielst.",
+	"Doppelte Chips, wenn du sie spielst.",
+	"+3 Gold, wenn du sie spielst.",
+]
+const ENHANCEMENT_TAGS := ["", "GOLD", "GLAS", "GLÜCK"]
+
 var suit: Suit
 var rank: int
+var enhancement := Enhancement.NONE
 
 
 func _init(p_suit: Suit = Suit.HEARTS, p_rank: int = MIN_RANK) -> void:
@@ -24,6 +36,11 @@ func _init(p_suit: Suit = Suit.HEARTS, p_rank: int = MIN_RANK) -> void:
 
 func is_red() -> bool:
 	return suit == Suit.HEARTS or suit == Suit.DIAMONDS
+
+
+## Eindeutiger Schlüssel für Farbe + Rang (z. B. für gekaufte Verbesserungen).
+func key() -> String:
+	return "%d:%d" % [suit, rank]
 
 
 func get_label() -> String:

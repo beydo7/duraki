@@ -22,6 +22,11 @@ func _detach() -> void:
 	Run.start_new_run(4242)
 	await get_tree().create_timer(0.5).timeout
 	Run.floor_index = Run.encounters.size() - 1 if "boss" in OS.get_cmdline_user_args() else 0
+	if "enh" in OS.get_cmdline_user_args():
+		# ein paar verbesserte Karten zum Ansehen
+		for suit in 4:
+			for rank in [7, 10, 12, 14]:
+				Run.card_enhancements["%d:%d" % [suit, rank]] = 1 + (suit + rank) % 3
 	Run.goto(Run.SCENE_MATCH)
 	await get_tree().create_timer(2.5).timeout
 	var scene := get_tree().current_scene

@@ -19,6 +19,8 @@ extends RefCounted
 signal changed
 signal bout_scored(points: int, text: String)
 signal target_reached
+## Eine Glückskarte wurde gespielt.
+signal gold_found(amount: int)
 
 const CHIP_VALUES := {
 	6: 6, 7: 7, 8: 8, 9: 9, 10: 10,
@@ -34,6 +36,10 @@ var base_mult := 1
 var chips := 0
 var mult := 1
 var last_text := ""
+## Zusätzliche Chips pro Farbe (Card.Suit → int), aus Shop-Verbesserungen.
+var suit_chip_bonus := {}
+## Zusätzliches Mult für jeden gespielten Trumpf.
+var trump_mult_bonus := 0
 
 var _duel: DurakMatch
 var _me := DurakMatch.PLAYER
@@ -59,6 +65,14 @@ static func chip_value(card: Card) -> int:
 	return CHIP_VALUES.get(card.rank, card.rank)
 
 
+## Chips einer Karte inkl. Farb-Bonus und Glaskarte.
+func card_chips(card: Card) -> int:
+	var c: int = chip_value(card) + int(suit_chip_bonus.get(card.suit, 0))
+	if card.enhancement == Card.Enhancement.GLASS:
+		c *= 2
+	return c
+
+
 func reached_target() -> bool:
 	return total >= target
 
@@ -74,14 +88,19 @@ func _on_card_played(who: int, card: Card, as_attack: bool) -> void:
 		_bout_attacker = _duel.attacker
 	if who != _me:
 		return
-	chips += chip_value(card)
+	chips += card_chips(card)
+	match card.enhancement:
+		Card.Enhancement.GOLD:
+			mult += 2
+		Card.Enhancement.LUCKY:
+			gold_found.emit(3)
 	if as_attack:
 		if _duel.attack_cards.size() > 1:
 			mult += 1 # Nachlegen
 	else:
 		mult += 1 # Verteidigung
 	if card.suit == _duel.trump_suit:
-		mult += 1
+		mult += 1 + trump_mult_bonus
 	changed.emit()
 
 
