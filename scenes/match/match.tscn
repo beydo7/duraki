@@ -1,6 +1,13 @@
-[gd_scene format=3]
+[gd_scene load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://scenes/match/match.gd" id="1_match"]
+[ext_resource type="Shader" path="res://scenes/match/look.gdshader" id="2_look"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_look"]
+shader = ExtResource("2_look")
+shader_parameter/vignette = 0.55
+shader_parameter/grain = 0.025
+shader_parameter/tint = Color(0.97, 0.93, 1, 1)
 
 [node name="Match" type="Control"]
 layout_mode = 3
@@ -11,120 +18,129 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_match")
 
-[node name="Background" type="ColorRect" parent="."]
+[node name="View" type="SubViewportContainer" parent="."]
+unique_name_in_owner = true
+material = SubResource("ShaderMaterial_look")
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.09, 0.32, 0.2, 1)
+stretch = true
+stretch_shrink = 1
 
-[node name="Margin" type="MarginContainer" parent="."]
+[node name="Viewport" type="SubViewport" parent="View"]
+unique_name_in_owner = true
+handle_input_locally = false
+physics_object_picking = true
+size = Vector2i(1280, 720)
+msaa_3d = 2
+screen_space_aa = 1
+render_target_update_mode = 4
+
+[node name="HUD" type="Control" parent="."]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_constants/margin_left = 24
-theme_override_constants/margin_top = 16
-theme_override_constants/margin_right = 24
-theme_override_constants/margin_bottom = 16
+mouse_filter = 2
 
-[node name="VBox" type="VBoxContainer" parent="Margin"]
-layout_mode = 2
-theme_override_constants/separation = 10
+[node name="LeftCol" type="VBoxContainer" parent="HUD"]
+layout_mode = 1
+offset_left = 24.0
+offset_top = 16.0
+offset_right = 380.0
+offset_bottom = 420.0
+mouse_filter = 2
+theme_override_constants/separation = 6
 
-[node name="TopBar" type="HBoxContainer" parent="Margin/VBox"]
-layout_mode = 2
-
-[node name="OpponentLabel" type="Label" parent="Margin/VBox/TopBar"]
+[node name="OpponentLabel" type="Label" parent="HUD/LeftCol"]
+theme_type_variation = &"BrushLabel"
+theme_override_colors/font_color = Color(0.97, 0.92, 0.8, 1)
+theme_override_font_sizes/font_size = 30
 unique_name_in_owner = true
 layout_mode = 2
-size_flags_horizontal = 3
-theme_override_font_sizes/font_size = 22
 
-[node name="RunInfoLabel" type="Label" parent="Margin/VBox/TopBar"]
+[node name="StatusLabel" type="Label" parent="HUD/LeftCol"]
+theme_override_colors/font_color = Color(0.72, 0.62, 1, 1)
+theme_override_font_sizes/font_size = 18
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 60)
+layout_mode = 2
+autowrap_mode = 3
+
+[node name="LogLabel" type="Label" parent="HUD/LeftCol"]
+theme_override_colors/font_color = Color(0.9, 0.85, 0.75, 0.8)
+theme_override_font_sizes/font_size = 15
+unique_name_in_owner = true
+layout_mode = 2
+autowrap_mode = 3
+
+[node name="RightCol" type="VBoxContainer" parent="HUD"]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -330.0
+offset_top = 16.0
+offset_right = -24.0
+offset_bottom = 200.0
+grow_horizontal = 0
+mouse_filter = 2
+
+[node name="ScoreLabel" type="Label" parent="HUD/RightCol"]
+theme_type_variation = &"BrushLabel"
+theme_override_font_sizes/font_size = 48
 unique_name_in_owner = true
 layout_mode = 2
 horizontal_alignment = 2
 
-[node name="OpponentHand" type="HBoxContainer" parent="Margin/VBox"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 120)
-layout_mode = 2
-theme_override_constants/separation = -40
-alignment = 1
-
-[node name="Middle" type="HBoxContainer" parent="Margin/VBox"]
-layout_mode = 2
-size_flags_vertical = 3
-theme_override_constants/separation = 24
-
-[node name="DeckArea" type="VBoxContainer" parent="Margin/VBox/Middle"]
-custom_minimum_size = Vector2(140, 0)
-layout_mode = 2
-alignment = 1
-
-[node name="DeckLabel" type="Label" parent="Margin/VBox/Middle/DeckArea"]
+[node name="BoutLabel" type="Label" parent="HUD/RightCol"]
+theme_override_font_sizes/font_size = 17
 unique_name_in_owner = true
 layout_mode = 2
-horizontal_alignment = 1
+horizontal_alignment = 2
 
-[node name="TrumpSlot" type="CenterContainer" parent="Margin/VBox/Middle/DeckArea"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 124)
-layout_mode = 2
-
-[node name="Table" type="HBoxContainer" parent="Margin/VBox/Middle"]
+[node name="RunInfoLabel" type="Label" parent="HUD/RightCol"]
+theme_override_colors/font_color = Color(0.72, 0.62, 1, 1)
+theme_override_font_sizes/font_size = 15
 unique_name_in_owner = true
 layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/separation = 16
-alignment = 1
+horizontal_alignment = 2
 
-[node name="LogLabel" type="Label" parent="Margin/VBox/Middle"]
+[node name="Actions" type="VBoxContainer" parent="HUD"]
+layout_mode = 1
+anchors_preset = 6
+anchor_left = 1.0
+anchor_top = 0.5
+anchor_right = 1.0
+anchor_bottom = 0.5
+offset_left = -250.0
+offset_top = -60.0
+offset_right = -24.0
+offset_bottom = 120.0
+grow_horizontal = 0
+grow_vertical = 2
+theme_override_constants/separation = 10
+
+[node name="TakeButton" type="Button" parent="HUD/Actions"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(240, 0)
+custom_minimum_size = Vector2(0, 52)
 layout_mode = 2
-size_flags_vertical = 1
-modulate = Color(1, 1, 1, 0.75)
-autowrap_mode = 2
+text = "KARTEN NEHMEN"
 
-[node name="StatusLabel" type="Label" parent="Margin/VBox"]
+[node name="PassButton" type="Button" parent="HUD/Actions"]
 unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 52)
 layout_mode = 2
-theme_override_font_sizes/font_size = 22
-horizontal_alignment = 1
+text = "BITO"
 
-[node name="PlayerHand" type="HBoxContainer" parent="Margin/VBox"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 124)
-layout_mode = 2
-theme_override_constants/separation = 6
-alignment = 1
-
-[node name="Actions" type="HBoxContainer" parent="Margin/VBox"]
-layout_mode = 2
-theme_override_constants/separation = 16
-alignment = 1
-
-[node name="TakeButton" type="Button" parent="Margin/VBox/Actions"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(200, 44)
-layout_mode = 2
-text = "Karten nehmen"
-
-[node name="PassButton" type="Button" parent="Margin/VBox/Actions"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(200, 44)
-layout_mode = 2
-text = "Bito (Runde beenden)"
-
-[node name="ContinueButton" type="Button" parent="Margin/VBox/Actions"]
+[node name="ContinueButton" type="Button" parent="HUD/Actions"]
 unique_name_in_owner = true
 visible = false
-custom_minimum_size = Vector2(200, 44)
+custom_minimum_size = Vector2(0, 52)
 layout_mode = 2
-text = "Weiter"
+text = "WEITER"

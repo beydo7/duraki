@@ -40,8 +40,12 @@ func _process(_delta: float) -> void:
 				scene.get_node("%ContinueButton").pressed.emit()
 			elif duel.current_actor() == DurakMatch.PLAYER:
 				_bot.take_turn(duel, DurakMatch.PLAYER)
-		"Reward":
-			scene.get_node("%Choices").get_child(0).pressed.emit()
+		"Shop":
+			# das erste bezahlbare Angebot kaufen, dann weiter
+			for offer in Run.shop_offers:
+				if Run.buy(offer):
+					break
+			scene.get_node("%ContinueButton").pressed.emit()
 		"RunEnd":
 			_runs_done += 1
 			print("Run %d: %s, Etage %d/%d, Gold %d, Relikte %d" % [

@@ -58,3 +58,15 @@ func _sorted(cards: Array[Card], duel: DurakMatch) -> Array[Card]:
 	result.sort_custom(func(a: Card, b: Card) -> bool:
 		return DurakRules.card_value(a, duel.trump_suit) < DurakRules.card_value(b, duel.trump_suit))
 	return result
+
+
+## Möchte die KI direkt noch eine Karte gleichen Rangs dazuwerfen?
+## Gibt die Karte zurück oder null. Nur billige Karten, keine Trümpfe.
+func extra_attack(duel: DurakMatch, me: int, chance := 0.6) -> Card:
+	if duel.attacker != me or duel.attack_cards.is_empty() or rng.randf() > chance:
+		return null
+	var last: Card = duel.attack_cards[-1]
+	for c in _sorted(duel.legal_attacks(), duel):
+		if c.rank == last.rank and c.suit != duel.trump_suit and (c.rank <= 11 or duel.deck.is_empty()):
+			return c
+	return null

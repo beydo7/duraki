@@ -1,14 +1,30 @@
 extends Control
-## Duell-Szene: verbindet DurakMatch (Logik) mit der Anzeige und der KI.
+## Duell-Szene: verbindet DurakMatch (Logik) mit der 3D-Welt (TableWorld),
+## dem HUD und der KI.
 
-const CARD_VIEW := preload("res://scenes/match/card_view.tscn")
-const AI_DELAY := 0.6
-const LOG_LINES := 6
+## Bedenkzeiten (Sekunden, zufällig dazwischen): sofort, kurz, lang.
+const DELAY_QUICK := Vector2(0.45, 0.8)
+const DELAY_SHORT := Vector2(1.0, 1.8)
+const DELAY_LONG := Vector2(2.0, 3.6)
+## Wahrscheinlichkeiten [sofort, kurz, lang] je nach Situation.
+const ODDS_DECISION := [0.2, 0.45, 0.35] # Nachlegen oder Bito? Schlagen oder nehmen?
+const ODDS_NORMAL := [0.5, 0.35, 0.15]
+const THINK_TEXT := [
+	"%s überlegt …",
+	"%s starrt auf den Tisch …",
+	"%s mustert seine Karten …",
+	"%s trommelt mit den Fingern …",
+]
+const LOG_LINES := 7
 
 var duel: DurakMatch
 var ai: SimpleAI
 var opponent: OpponentData
+var score: ScoreTracker
+var world: TableWorld
 var _ai_pending := false
+var _thinking := false
+var _think_style := 0
 var _log: PackedStringArray = []
 
 
@@ -20,19 +36,58 @@ func _ready() -> void:
 		opponent.display_name = "Testgegner"
 		Run.rng.randomize()
 
+	world = TableWorld.new()
+	%Viewport.add_child(world)
+	world.build(opponent)
+	world.card_clicked.connect(_on_player_card)
+
 	ai = SimpleAI.new(Run.rng, opponent.mistake_chance)
 	duel = DurakMatch.new()
+	var target := Run.score_target() if Run.current_opponent() != null else Run.SCORE_TARGETS[0]
+	score = ScoreTracker.new(target, Run.base_mult())
+	score.suit_chip_bonus = Run.suit_chip_bonus
+	score.trump_mult_bonus = Run.trump_mult_bonus
+	score.gold_found.connect(func(amount: int) -> void:
+		Run.add_gold(amount)
+		_on_message("Glückskarte: +%d Gold" % amount))
+	score.attach(duel) # vor den UI-Signalen verbinden, damit zuerst gewertet wird
+	score.changed.connect(_render_score)
+	score.bout_scored.connect(func(_points: int, text: String) -> void: _on_message(text))
+	score.target_reached.connect(_on_target_reached)
 	duel.changed.connect(_on_changed)
 	duel.message.connect(_on_message)
 	duel.finished.connect(_on_finished)
 
+	# Reaktionen der Gestalt
+	duel.card_played.connect(func(who: int, _card: Card, attack: bool) -> void:
+		if who == DurakMatch.OPPONENT:
+			world.figure.gesture()
+			if attack:
+				_maybe_throw_more())
+	duel.cards_taken.connect(func(who: int, _count: int) -> void:
+		if who == DurakMatch.OPPONENT:
+			world.figure.recoil()
+		else:
+			world.figure.laugh())
+
 	%TakeButton.pressed.connect(func() -> void: duel.take())
 	%PassButton.pressed.connect(func() -> void: duel.pass_bout())
-	%ContinueButton.pressed.connect(func() -> void: Run.on_match_finished(duel.loser))
+	%ContinueButton.pressed.connect(func() -> void: Run.on_match_finished(_result()))
 
 	if not opponent.taunt.is_empty():
 		_on_message("%s: „%s“" % [opponent.display_name, opponent.taunt])
-	duel.start(Run.rng, Run.player_hand_size(), opponent.hand_size)
+	_on_message("Punkteziel: %d" % score.target)
+	duel.start(Run.rng, Run.player_hand_size(), opponent.hand_size, Run.apply_card_enhancements)
+	_render_score()
+
+
+## Für den Run zählt nur das Punkteziel: erreicht → Gegner verliert.
+func _result() -> int:
+	return DurakMatch.OPPONENT if score.reached_target() else DurakMatch.PLAYER
+
+
+func _on_target_reached() -> void:
+	duel.force_finish(DurakMatch.OPPONENT, "Punkteziel erreicht!")
 
 
 func _on_changed() -> void:
@@ -45,18 +100,52 @@ func _run_ai_turn() -> void:
 	if _ai_pending:
 		return
 	_ai_pending = true
-	await get_tree().create_timer(AI_DELAY).timeout
+	# Wichtige Entscheidung? (als Angreifer: nachlegen oder Bito,
+	# als Verteidiger: schlagen oder aufnehmen)
+	var decision := false
+	if duel.attacker == DurakMatch.OPPONENT:
+		decision = not duel.attack_cards.is_empty() and not duel.defense_cards.has(null)
+	else:
+		decision = duel.legal_defenses().size() > 0
+	var odds: Array = ODDS_DECISION if decision else ODDS_NORMAL
+	# eigener Zufall, damit Runs mit gleichem Seed gleich ablaufen
+	var roll := randf()
+	var delay := DELAY_QUICK
+	if roll >= odds[0]:
+		delay = DELAY_SHORT if roll < odds[0] + odds[1] else DELAY_LONG
+		_thinking = true
+		_think_style = randi_range(0, THINK_TEXT.size() - 1)
+		world.figure.think(_think_style)
+		_render()
+	var wait := randf_range(delay.x, delay.y)
+	if duel.defender() == DurakMatch.OPPONENT:
+		wait = maxf(wait, 0.9) # Zeit, um noch Karten dazuzuwerfen
+	await get_tree().create_timer(wait).timeout
+	if _thinking:
+		_thinking = false
+		world.figure.stop_thinking()
 	_ai_pending = false
-	ai.take_turn(duel, DurakMatch.OPPONENT)
+	if duel.current_actor() == DurakMatch.OPPONENT:
+		ai.take_turn(duel, DurakMatch.OPPONENT)
 
 
 func _on_player_card(card: Card) -> void:
-	if duel.current_actor() != DurakMatch.PLAYER:
-		return
 	if duel.defender() == DurakMatch.PLAYER:
-		duel.defend(card)
+		if duel.current_actor() == DurakMatch.PLAYER:
+			duel.defend(card)
 	else:
+		# als Angreifer jederzeit (auch während der Gegner noch überlegt)
 		duel.attack(card)
+
+
+## Der Gegner wirft manchmal direkt eine zweite (dritte …) Karte gleichen Rangs.
+func _maybe_throw_more() -> void:
+	var extra := ai.extra_attack(duel, DurakMatch.OPPONENT)
+	if extra == null:
+		return
+	await get_tree().create_timer(randf_range(0.35, 0.65)).timeout
+	if duel.can_attack_with(extra):
+		duel.attack(extra)
 
 
 func _on_message(text: String) -> void:
@@ -67,6 +156,10 @@ func _on_message(text: String) -> void:
 
 
 func _on_finished(_loser: int) -> void:
+	if score.reached_target():
+		world.figure.slump()
+	else:
+		world.figure.laugh()
 	%ContinueButton.visible = true
 	%ContinueButton.grab_focus()
 
@@ -74,69 +167,55 @@ func _on_finished(_loser: int) -> void:
 # --- Anzeige ------------------------------------------------------------------
 
 func _render() -> void:
-	var opp_cards := duel.opponent_hand.size()
-	%OpponentLabel.text = "%s  –  %d Karten" % [opponent.display_name, opp_cards]
-	%RunInfoLabel.text = "Leben: %d   Gold: %d" % [Run.lives, Run.gold]
-
-	_clear(%OpponentHand)
-	for i in opp_cards:
-		%OpponentHand.add_child(_make_card(null, true))
-
-	%DeckLabel.text = "Stapel: %d\nTrumpf: %s" % [duel.deck.size(), Card.SUIT_NAMES[duel.trump_suit]]
-	_clear(%TrumpSlot)
-	if not duel.deck.is_empty():
-		%TrumpSlot.add_child(_make_card(duel.trump_card))
-
-	_clear(%Table)
-	for i in duel.attack_cards.size():
-		var pair := VBoxContainer.new()
-		pair.add_theme_constant_override("separation", -70)
-		pair.add_child(_make_card(duel.attack_cards[i]))
-		if duel.defense_cards[i] != null:
-			pair.add_child(_make_card(duel.defense_cards[i]))
-		%Table.add_child(pair)
+	%OpponentLabel.text = "%s  ·  %d Karten" % [opponent.display_name, duel.opponent_hand.size()]
+	%RunInfoLabel.text = "Leben: %d   Gold: %d\nStapel: %d   Trumpf: %s %s" % [
+		Run.lives, Run.gold, duel.deck.size(),
+		Card.SUIT_SYMBOLS[duel.trump_suit], Card.SUIT_NAMES[duel.trump_suit]]
 
 	var my_turn := duel.current_actor() == DurakMatch.PLAYER
 	var defending := duel.defender() == DurakMatch.PLAYER
 	var playable: Array[Card] = []
-	if my_turn:
-		playable = duel.legal_defenses() if defending else duel.legal_attacks()
-
-	_clear(%PlayerHand)
-	for card in duel.player_hand:
-		var view := _make_card(card, false, true)
-		view.set_playable(playable.has(card))
-		view.card_pressed.connect(_on_player_card)
-		%PlayerHand.add_child(view)
+	if defending:
+		if my_turn:
+			playable = duel.legal_defenses()
+	else:
+		playable = duel.legal_attacks() # auch während der Gegner verteidigt
+	world.sync(duel, playable)
 
 	%TakeButton.visible = my_turn and defending
-	%PassButton.visible = my_turn and not defending
+	%PassButton.visible = not defending and duel.can_pass()
 	%PassButton.disabled = not duel.can_pass()
 	%StatusLabel.text = _status_text(my_turn, defending)
+	_render_score()
+
+
+func _render_score() -> void:
+	if score == null:
+		return
+	%ScoreLabel.text = "%d / %d" % [score.total, score.target]
+	if duel != null and duel.is_over:
+		%BoutLabel.text = score.last_text
+	elif score.chips > 0:
+		%BoutLabel.text = "Runde: %d Chips × %d Mult" % [score.chips, score.mult]
+	else:
+		%BoutLabel.text = "Noch %d Punkte" % score.remaining()
 
 
 func _status_text(my_turn: bool, defending: bool) -> String:
 	if duel.is_over:
-		match duel.loser:
-			DurakMatch.OPPONENT: return "Gewonnen! %s ist der Durak." % opponent.display_name
-			DurakMatch.PLAYER: return "Verloren – du bist der Durak."
-			_: return "Unentschieden."
+		if score.reached_target():
+			return "Gewonnen! Punkteziel erreicht (%d / %d)." % [score.total, score.target]
+		if duel.loser == DurakMatch.PLAYER:
+			return "Verloren – du bist der Durak und hast das Ziel verfehlt."
+		return "Verloren – Ziel verfehlt (%d / %d)." % [score.total, score.target]
 	if not my_turn:
+		if not defending and not duel.legal_attacks().is_empty():
+			return "%s verteidigt – du kannst noch passende Karten dazuwerfen." % opponent.display_name
+		if _thinking:
+			return THINK_TEXT[_think_style] % opponent.display_name
 		return "%s ist am Zug …" % opponent.display_name
 	if defending:
-		return "Verteidige dich – schlage die Karte oder nimm alles."
+		return "Verteidige dich – klicke eine Karte zum Schlagen oder nimm alles."
 	if duel.attack_cards.is_empty():
-		return "Du greifst an – lege eine Karte."
+		return "Du greifst an – klicke Karten (gleiche Ränge auch mehrere auf einmal)."
 	return "Lege passende Ränge nach oder beende die Runde."
-
-
-func _make_card(card: Card, face_down := false, interactive := false) -> CardView:
-	var view: CardView = CARD_VIEW.instantiate()
-	var is_trump := card != null and card.suit == duel.trump_suit
-	return view.setup(card, face_down, is_trump, interactive)
-
-
-func _clear(container: Node) -> void:
-	for child in container.get_children():
-		container.remove_child(child)
-		child.queue_free()

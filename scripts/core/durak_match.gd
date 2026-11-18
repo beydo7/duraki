@@ -12,6 +12,14 @@ extends RefCounted
 signal changed
 signal message(text: String)
 signal bout_ended(defended: bool)
+## Wird für jede gespielte Karte gesendet (für Wertung, Joker, Effekte).
+signal card_played(who: int, card: Card, as_attack: bool)
+## Jemand hat Karten vom Stapel gezogen.
+signal cards_drawn(who: int, count: int)
+## Der Verteidiger nimmt die Tischkarten auf.
+signal cards_taken(who: int, count: int)
+## Bito: die Tischkarten gehen auf den Ablagestapel.
+signal cards_discarded(count: int)
 signal finished(loser: int)
 
 const PLAYER := 0
@@ -36,9 +44,14 @@ var is_over := false
 var loser := NO_LOSER
 
 
-func start(rng: RandomNumberGenerator, player_hand_size := 6, opponent_hand_size := 6) -> void:
+## `deck_setup` (optional) bekommt die Karten des frisch gemischten Stapels,
+## z. B. um gekaufte Verbesserungen anzuwenden.
+func start(rng: RandomNumberGenerator, player_hand_size := 6, opponent_hand_size := 6,
+		deck_setup := Callable()) -> void:
 	deck = Deck.new()
 	deck.shuffle(rng)
+	if deck_setup.is_valid():
+		deck_setup.call(deck.cards)
 	trump_card = deck.bottom_card()
 	trump_suit = trump_card.suit
 	hand_sizes = [player_hand_size, opponent_hand_size]
@@ -86,14 +99,23 @@ func current_actor() -> int:
 	return defender() if unbeaten_index() != -1 else attacker
 
 
+## Der Angreifer darf jederzeit passende Ränge dazulegen – auch mehrere auf
+## einmal, ohne auf die Verteidigung zu warten. Grenze: nie mehr ungeschlagene
+## Karten, als der Verteidiger noch auf der Hand hat.
 func can_attack_with(card: Card) -> bool:
-	if is_over or current_actor() != attacker or not hand(attacker).has(card):
+	if is_over or not hand(attacker).has(card):
 		return false
 	if attack_cards.is_empty():
-		return true
+		return current_actor() == attacker
 	if attack_cards.size() >= bout_limit or hand(defender()).is_empty():
 		return false
+	if unbeaten_count() >= hand(defender()).size():
+		return false
 	return DurakRules.ranks_on_table(table_cards()).has(card.rank)
+
+
+func unbeaten_count() -> int:
+	return defense_cards.count(null)
 
 
 func legal_attacks() -> Array[Card]:
@@ -129,6 +151,7 @@ func attack(card: Card) -> bool:
 	hand(attacker).erase(card)
 	attack_cards.append(card)
 	defense_cards.append(null)
+	card_played.emit(attacker, card, true)
 	message.emit("%s %s %s." % [name_of(attacker), "legst" if attacker == PLAYER else "legt", card])
 	changed.emit()
 	return true
@@ -140,6 +163,7 @@ func defend(card: Card) -> bool:
 	var idx := unbeaten_index()
 	hand(defender()).erase(card)
 	defense_cards[idx] = card
+	card_played.emit(defender(), card, false)
 	message.emit("%s %s %s mit %s." % [
 		name_of(defender()), "schlägst" if defender() == PLAYER else "schlägt", attack_cards[idx], card])
 	_auto_pass_if_stuck()
@@ -152,7 +176,9 @@ func take() -> bool:
 	if not can_take():
 		return false
 	message.emit("%s %s die Karten." % [name_of(defender()), "nimmst" if defender() == PLAYER else "nimmt"])
-	hand(defender()).append_array(table_cards())
+	var taken := table_cards()
+	hand(defender()).append_array(taken)
+	cards_taken.emit(defender(), taken.size())
 	_end_bout(false)
 	return true
 
@@ -162,9 +188,23 @@ func pass_bout() -> bool:
 	if not can_pass():
 		return false
 	message.emit("Bito – die Karten gehen weg.")
-	discard_pile.append_array(table_cards())
+	var cleared := table_cards()
+	discard_pile.append_array(cleared)
+	cards_discarded.emit(cleared.size())
 	_end_bout(true)
 	return true
+
+
+## Beendet das Duell sofort (z. B. wenn das Punkteziel erreicht ist).
+func force_finish(p_loser: int, text := "") -> void:
+	if is_over:
+		return
+	is_over = true
+	loser = p_loser
+	if not text.is_empty():
+		message.emit(text)
+	finished.emit(loser)
+	changed.emit()
 
 
 # --- Intern -------------------------------------------------------------------
@@ -189,13 +229,17 @@ func _end_bout(defended: bool) -> void:
 
 func _refill(p: int) -> void:
 	var h := hand(p)
+	var drawn := 0
 	while h.size() < hand_sizes[p] and not deck.is_empty():
 		h.append(deck.draw())
+		drawn += 1
+	if drawn > 0:
+		cards_drawn.emit(p, drawn)
 	DurakRules.sort_hand(h, trump_suit)
 
 
 func _check_end() -> void:
-	if not deck.is_empty():
+	if is_over or not deck.is_empty():
 		return
 	var player_out := player_hand.is_empty()
 	var opponent_out := opponent_hand.is_empty()

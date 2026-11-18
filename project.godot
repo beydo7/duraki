@@ -27,7 +27,13 @@ window/size/viewport_height=720
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
 
+[gui]
+
+theme/custom="res://ui/theme.tres"
+
 [rendering]
+
+environment/defaults/default_clear_color=Color(0.04, 0.03, 0.08, 1)
 
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
