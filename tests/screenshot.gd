@@ -24,9 +24,23 @@ func _detach() -> void:
 	Run.floor_index = Run.encounters.size() - 1 if "boss" in OS.get_cmdline_user_args() else 0
 	Run.goto(Run.SCENE_MATCH)
 	await get_tree().create_timer(2.5).timeout
-	await _shot("1_start")
 	var scene := get_tree().current_scene
 	var duel: DurakMatch = scene.duel
+	var args := OS.get_cmdline_user_args()
+	if "rows" in args:
+		TableWorld.hand_layout = "rows"
+	if "many" in args:
+		# viele Karten auf die Hand, um das Layout zu prüfen
+		var extra := 20 if "huge" in args else 12
+		for k in extra:
+			duel.player_hand.append(duel.deck.draw())
+		DurakRules.sort_hand(duel.player_hand, duel.trump_suit)
+		duel.changed.emit()
+		await get_tree().create_timer(2.0).timeout
+		await _shot("many")
+		get_tree().quit()
+		return
+	await _shot("1_start")
 	# ein paar Züge spielen
 	for step in 6:
 		if duel.is_over:

@@ -62,7 +62,7 @@ func _build() -> void:
 	# Rückseite: heller Rand + dunkelrotes Feld mit Rautenmuster
 	_add_quad(Vector2(WIDTH, HEIGHT), THICKNESS * 0.5 + 0.0002, _mat(COLOR_BACK_BORDER, 0.9), true)
 	_add_quad(Vector2(WIDTH - 0.012, HEIGHT - 0.012), THICKNESS * 0.5 + 0.0004, _mat(COLOR_BACK, 0.7), true)
-	var back_mark := _label("◆", 120, COLOR_BACK_BORDER.darkened(0.25), true)
+	var back_mark := _label("◆", 240, COLOR_BACK_BORDER.darkened(0.25), true, 0.0002)
 	back_mark.position = Vector3(0, -(THICKNESS * 0.5 + 0.0006), 0)
 	add_child(back_mark)
 
@@ -72,16 +72,17 @@ func _build() -> void:
 		var suit := Card.SUIT_SYMBOLS[card.suit] as String
 		var y := THICKNESS * 0.5 + 0.0006
 		# großes Farbsymbol in der Mitte
-		var center := _label(suit, 150, color, false)
+		var center := _label(suit, 280, color, false, 0.0002)
 		center.position = Vector3(0, y, 0.008)
 		add_child(center)
 		# Rang oben links und (gedreht) unten rechts
-		for corner in [Vector3(-WIDTH * 0.3, y, -HEIGHT * 0.33), Vector3(WIDTH * 0.3, y, HEIGHT * 0.33)]:
-			var l := _label("%s\n%s" % [rank, suit], 64, color, false)
+		# Ecke oben links ist bei überlappenden Karten immer sichtbar → groß
+		for corner in [Vector3(-WIDTH * 0.335, y, -HEIGHT * 0.3), Vector3(WIDTH * 0.335, y, HEIGHT * 0.3)]:
+			var l := _label("%s\n%s" % [rank, suit], 150, color, false, 0.0002)
 			l.position = corner
 			if corner.z > 0:
 				l.rotate_y(PI)
-			l.line_spacing = -18
+			l.line_spacing = -40
 			add_child(l)
 			_labels.append(l)
 		_labels.append(center)
@@ -138,11 +139,12 @@ func _add_quad(size: Vector2, y: float, material: Material, bottom: bool) -> voi
 	add_child(mi)
 
 
-func _label(text: String, font_size: int, color: Color, bottom: bool) -> Label3D:
+func _label(text: String, font_size: int, color: Color, bottom: bool, px := 0.0004) -> Label3D:
 	var l := Label3D.new()
 	l.text = text
 	l.font_size = font_size
-	l.pixel_size = 0.0004
+	l.pixel_size = px
+	l.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 	l.modulate = color
 	l.outline_size = 0
 	l.double_sided = false

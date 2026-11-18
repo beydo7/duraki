@@ -11,16 +11,23 @@ const TABLE_SIZE := Vector2(1.6, 1.2) # x, z
 
 const DECK_POS := Vector3(-0.60, TABLE_Y, -0.10)
 const DISCARD_POS := Vector3(0.62, TABLE_Y, -0.12)
-const PLAYER_HAND_POS := Vector3(0.0, 0.925, 0.58)
-const PLAYER_HAND_TILT := 60.0
+const PLAYER_HAND_POS := Vector3(0.0, 1.0, 0.5)
+const PLAYER_HAND_TILT := 50.0
+## Ab so vielen Handkarten werden zwei Reihen gebildet (sonst ein Fächer).
+const HAND_ROW_THRESHOLD := 22
+const HAND_MAX_WIDTH := 0.82
 const OPP_HAND_POS := Vector3(0.0, 0.97, -0.36)
 const OPP_HAND_TILT := -68.0
-const TABLE_ROW_Z := 0.0
+const TABLE_ROW_Z := -0.07
 
 const TABLE_CARD_SCALE := 1.3
 const MOVE_TIME := 0.32
 const DEAL_STAGGER := 0.07
 const HOVER_LIFT := Vector3(0, 0.035, -0.02)
+
+## "fan" = Fächer, erst ab HAND_ROW_THRESHOLD zwei Reihen.
+## "rows" = schon ab 11 Karten zwei Reihen (zum Vergleichen).
+static var hand_layout := "fan"
 
 var camera: Camera3D
 var figure: OpponentFigure
@@ -177,11 +184,28 @@ func _move(node: Node3D, to: Transform3D, delay: float, time := MOVE_TIME) -> Tw
 
 
 func _player_hand_xf(i: int, n: int) -> Transform3D:
-	var spacing := minf(0.085, 0.62 / maxf(1, n))
+	var threshold := 10 if hand_layout == "rows" else HAND_ROW_THRESHOLD
+	if n > threshold:
+		# zwei Reihen: erste Hälfte hinten, zweite Hälfte tiefer und näher davor.
+		# Von der hinteren Reihe bleibt die obere Hälfte mit Rang/Farbe sichtbar.
+		var back := ceili(n / 2.0)
+		if i < back:
+			return _hand_row_xf(i, back, Vector3.ZERO, 0.95)
+		return _hand_row_xf(i - back, n - back, Vector3(0, -0.04, 0.035), 1.0)
+	return _hand_row_xf(i, n, Vector3.ZERO, 1.0)
+
+
+## Eine Reihe Handkarten als leichter Fächer. Der Abstand schrumpft bei vielen
+## Karten, bleibt aber so groß, dass die Ecke mit Rang und Farbe sichtbar ist.
+func _hand_row_xf(i: int, n: int, offset_pos: Vector3, width_factor: float) -> Transform3D:
+	var spacing := clampf(HAND_MAX_WIDTH * width_factor / maxf(1, n), 0.036, 0.085)
 	var offset := i - (n - 1) * 0.5
-	var fan := -offset * 0.07
-	var pos := PLAYER_HAND_POS + Vector3(offset * spacing, -absf(offset) * 0.004 + i * 0.0006, absf(offset) * 0.006)
+	var fan := -offset * minf(0.07, 0.45 / maxf(1, n))
+	var curve := 0.004 if n <= 8 else 0.0015
 	var basis := Basis(Vector3.RIGHT, deg_to_rad(PLAYER_HAND_TILT)) * Basis(Vector3.UP, fan)
+	var pos := PLAYER_HAND_POS + offset_pos + Vector3(offset * spacing, -absf(offset) * curve, 0)
+	# jede Karte liegt etwas über der linken Nachbarin → linke Ecke bleibt frei
+	pos += basis.y * (i * 0.0012)
 	return Transform3D(basis, pos)
 
 
@@ -397,10 +421,10 @@ func _build_lights() -> void:
 
 func _build_camera() -> void:
 	camera = Camera3D.new()
-	camera.fov = 66.0
+	camera.fov = 64.0
 	camera.near = 0.03
 	add_child(camera)
-	camera.look_at_from_position(Vector3(0, 1.2, 0.92), Vector3(0, 1.0, -0.4))
+	camera.look_at_from_position(Vector3(0, 1.36, 0.86), Vector3(0, 1.0, -0.3))
 	_cam_base = camera.transform
 	camera.current = true
 
