@@ -23,6 +23,8 @@ var _gesture := 0.0
 var _recoil := 0.0
 var _slump := 0.0
 var _laugh := 0.0
+var _think := 0.0
+var _think_target := 0.0
 
 
 func setup(data: OpponentData) -> OpponentFigure:
@@ -51,6 +53,11 @@ func recoil() -> void:
 	_recoil = 1.0
 
 
+## Überlegt (schaut auf den Tisch, Hand ans Kinn). Mit false wieder beenden.
+func think(on := true) -> void:
+	_think_target = 1.0 if on else 0.0
+
+
 ## Hat verloren.
 func slump() -> void:
 	_slump = 1.0
@@ -66,19 +73,20 @@ func _process(delta: float) -> void:
 	_gesture = move_toward(_gesture, 0.0, delta * 2.2)
 	_recoil = move_toward(_recoil, 0.0, delta * 1.5)
 	_laugh = move_toward(_laugh, 0.0, delta * 0.35)
+	_think = move_toward(_think, _think_target, delta * 2.0)
 	if _slump > 0.0:
 		_slump = minf(_slump + delta, 2.0)
 
 	var breath := sin(_t * 1.6) * 0.012
-	var lean := sin(_gesture * PI) * 0.12 - _recoil * 0.10 + minf(_slump, 1.0) * 0.18
+	var lean := sin(_gesture * PI) * 0.12 - _recoil * 0.10 + minf(_slump, 1.0) * 0.18 + _think * 0.08
 	_torso.rotation.x = lean
 	_torso.scale = Vector3(1.0, 1.0 + breath, 1.0)
 
 	var shake := sin(_t * 38.0) * 0.03 * _laugh
 	_head.rotation = Vector3(
-		sin(_t * 0.7) * 0.05 + minf(_slump, 1.0) * 0.35 - _recoil * 0.2,
-		sin(_t * 0.45) * 0.12 + shake,
-		sin(_t * 0.9) * 0.04 + _recoil * 0.15)
+		sin(_t * 0.7) * 0.05 + minf(_slump, 1.0) * 0.35 - _recoil * 0.2 + _think * 0.32,
+		sin(_t * 0.45) * 0.12 * (1.0 - _think) + sin(_t * 0.6) * 0.25 * _think + shake,
+		sin(_t * 0.9) * 0.04 + _recoil * 0.15 + _think * 0.12)
 
 	for i in _hands.size():
 		var side := -1.0 if i == 0 else 1.0
@@ -86,6 +94,9 @@ func _process(delta: float) -> void:
 		if i == 1:
 			off += Vector3(-0.08, 0.05, 0.18) * sin(_gesture * PI)
 		off += Vector3(side * 0.04, 0.06, -0.08) * _recoil
+		if i == 1:
+			# Hand ans Kinn, Finger tippen
+			off += Vector3(-0.1, 0.42 + sin(_t * 9.0) * 0.008, -0.2) * _think
 		_hands[i].position = _hand_rest[i] + off
 
 	_update_arms()

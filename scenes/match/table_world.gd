@@ -22,6 +22,7 @@ const TABLE_ROW_Z := -0.07
 
 const TABLE_CARD_SCALE := 1.3
 const MOVE_TIME := 0.32
+const DISCARD_DELAY := 0.8
 const DEAL_STAGGER := 0.07
 const HOVER_LIFT := Vector3(0, 0.035, -0.02)
 
@@ -133,6 +134,7 @@ func sync(duel: DurakMatch, playable: Array[Card]) -> void:
 		_deal_queue_until = deal_start + new_count * DEAL_STAGGER
 
 	# Karten, die nirgends mehr sind → Ablagestapel
+	var discard_i := 0
 	for card: Card in _cards.keys():
 		if targets.has(card):
 			continue
@@ -141,7 +143,9 @@ func sync(duel: DurakMatch, playable: Array[Card]) -> void:
 		_base.erase(node)
 		node.set_state(false)
 		var xf := Transform3D(Basis(Vector3.UP, randf_range(-0.3, 0.3)) * Basis(Vector3.FORWARD, PI), DISCARD_POS + Vector3(0, 0.02, 0))
-		var tw := _move(node, xf, 0.0)
+		# Karten bleiben kurz liegen, bevor sie abgeräumt werden
+		var tw := _move(node, xf, DISCARD_DELAY + discard_i * 0.06)
+		discard_i += 1
 		tw.finished.connect(func() -> void:
 			_discard_count += 1
 			_discard_pile.visible = true
@@ -268,14 +272,14 @@ func _pile_mesh() -> MeshInstance3D:
 func _build_environment() -> void:
 	var env := Environment.new()
 	env.background_mode = Environment.BG_COLOR
-	env.background_color = Color("050303")
+	env.background_color = Color("05040a")
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color("3a1f1c")
+	env.ambient_light_color = Color("2c2246")
 	env.ambient_light_energy = 0.4
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	env.tonemap_exposure = 1.05
 	env.fog_enabled = true
-	env.fog_light_color = Color("140808")
+	env.fog_light_color = Color("0d0a1a")
 	env.fog_density = 0.08
 	env.adjustment_enabled = true
 	env.adjustment_saturation = 0.85
@@ -286,7 +290,7 @@ func _build_environment() -> void:
 
 
 func _build_room() -> void:
-	var brick := _brick_material(Color("5a2622"), Color("1c1210"), Vector2(6, 14))
+	var brick := _brick_material(Color("4a2335"), Color("15101c"), Vector2(6, 14))
 	var floor_mat := _mat(Color("1a1412"), 1.0)
 	_box(Vector3(6, 0.1, 6), Vector3(0, -0.05, 0), floor_mat)               # Boden
 	_box(Vector3(6, 4, 0.2), Vector3(0, 2, -2.4), brick)                    # Rückwand
@@ -397,7 +401,7 @@ func _build_lights() -> void:
 		stage.position = Vector3(side * 1.25, 1.95, -1.6)
 		add_child(stage)
 		stage.look_at(Vector3(side * -0.2, TABLE_Y, 0.1))
-		stage.light_color = Color("c96a5a") if side < 0 else Color("8a9a8a")
+		stage.light_color = Color("b06aa0") if side < 0 else Color("7f8fd0")
 		stage.light_energy = 2.5
 		stage.spot_range = 4.0
 		stage.spot_angle = 22.0
@@ -405,7 +409,7 @@ func _build_lights() -> void:
 	# rotes Gegenlicht hinter dem Gegner
 	var rim := OmniLight3D.new()
 	rim.position = Vector3(0, 1.9, -1.5)
-	rim.light_color = Color("b0281e")
+	rim.light_color = Color("7a4fd6")
 	rim.light_energy = 2.2
 	rim.omni_range = 2.2
 	add_child(rim)

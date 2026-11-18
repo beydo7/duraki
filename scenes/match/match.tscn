@@ -7,7 +7,7 @@
 shader = ExtResource("2_look")
 shader_parameter/vignette = 0.55
 shader_parameter/grain = 0.025
-shader_parameter/tint = Color(1, 0.95, 0.9, 1)
+shader_parameter/tint = Color(0.97, 0.93, 1, 1)
 
 [node name="Match" type="Control"]
 layout_mode = 3
@@ -58,33 +58,25 @@ mouse_filter = 2
 theme_override_constants/separation = 6
 
 [node name="OpponentLabel" type="Label" parent="HUD/LeftCol"]
+theme_type_variation = &"BrushLabel"
+theme_override_colors/font_color = Color(0.97, 0.92, 0.8, 1)
+theme_override_font_sizes/font_size = 30
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_colors/font_color = Color(0.91, 0.86, 0.76, 1)
-theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.9)
-theme_override_constants/shadow_offset_x = 2
-theme_override_constants/shadow_offset_y = 2
-theme_override_font_sizes/font_size = 24
 
 [node name="StatusLabel" type="Label" parent="HUD/LeftCol"]
+theme_override_colors/font_color = Color(0.72, 0.62, 1, 1)
+theme_override_font_sizes/font_size = 18
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 60)
 layout_mode = 2
-theme_override_colors/font_color = Color(1, 0.8, 0.35, 1)
-theme_override_colors/font_shadow_color = Color(0, 0, 0, 1)
-theme_override_constants/shadow_offset_x = 2
-theme_override_constants/shadow_offset_y = 2
-theme_override_font_sizes/font_size = 18
 autowrap_mode = 3
 
 [node name="LogLabel" type="Label" parent="HUD/LeftCol"]
+theme_override_colors/font_color = Color(0.9, 0.85, 0.75, 0.8)
+theme_override_font_sizes/font_size = 15
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_colors/font_color = Color(0.85, 0.8, 0.7, 0.8)
-theme_override_colors/font_shadow_color = Color(0, 0, 0, 1)
-theme_override_constants/shadow_offset_x = 2
-theme_override_constants/shadow_offset_y = 2
-theme_override_font_sizes/font_size = 15
 autowrap_mode = 3
 
 [node name="RightCol" type="VBoxContainer" parent="HUD"]
@@ -100,33 +92,23 @@ grow_horizontal = 0
 mouse_filter = 2
 
 [node name="ScoreLabel" type="Label" parent="HUD/RightCol"]
+theme_type_variation = &"BrushLabel"
+theme_override_font_sizes/font_size = 48
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_colors/font_color = Color(1, 0.8, 0.35, 1)
-theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.9)
-theme_override_constants/shadow_offset_x = 3
-theme_override_constants/shadow_offset_y = 3
-theme_override_font_sizes/font_size = 40
 horizontal_alignment = 2
 
 [node name="BoutLabel" type="Label" parent="HUD/RightCol"]
+theme_override_font_sizes/font_size = 17
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_colors/font_color = Color(0.91, 0.86, 0.76, 1)
-theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.9)
-theme_override_constants/shadow_offset_x = 2
-theme_override_constants/shadow_offset_y = 2
-theme_override_font_sizes/font_size = 18
 horizontal_alignment = 2
 
 [node name="RunInfoLabel" type="Label" parent="HUD/RightCol"]
+theme_override_colors/font_color = Color(0.72, 0.62, 1, 1)
+theme_override_font_sizes/font_size = 15
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_colors/font_color = Color(0.85, 0.8, 0.7, 0.85)
-theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.9)
-theme_override_constants/shadow_offset_x = 2
-theme_override_constants/shadow_offset_y = 2
-theme_override_font_sizes/font_size = 16
 horizontal_alignment = 2
 
 [node name="Actions" type="VBoxContainer" parent="HUD"]
@@ -148,20 +130,17 @@ theme_override_constants/separation = 10
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 52)
 layout_mode = 2
-theme_override_font_sizes/font_size = 20
-text = "Karten nehmen"
+text = "KARTEN NEHMEN"
 
 [node name="PassButton" type="Button" parent="HUD/Actions"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 52)
 layout_mode = 2
-theme_override_font_sizes/font_size = 20
-text = "Bito (Runde beenden)"
+text = "BITO"
 
 [node name="ContinueButton" type="Button" parent="HUD/Actions"]
 unique_name_in_owner = true
 visible = false
 custom_minimum_size = Vector2(0, 52)
 layout_mode = 2
-theme_override_font_sizes/font_size = 20
-text = "Weiter"
+text = "WEITER"

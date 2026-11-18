@@ -2,7 +2,10 @@ extends Control
 ## Duell-Szene: verbindet DurakMatch (Logik) mit der 3D-Welt (TableWorld),
 ## dem HUD und der KI.
 
-const AI_DELAY := 0.75
+## Normale Bedenkzeit des Gegners (Sekunden, zufällig dazwischen).
+const AI_DELAY := Vector2(0.9, 1.5)
+## Bedenkzeit, wenn er entscheiden muss, ob er nachlegt oder Bito sagt.
+const AI_THINK_DELAY := Vector2(2.0, 3.4)
 const LOG_LINES := 7
 
 var duel: DurakMatch
@@ -11,6 +14,7 @@ var opponent: OpponentData
 var score: ScoreTracker
 var world: TableWorld
 var _ai_pending := false
+var _thinking := false
 var _log: PackedStringArray = []
 
 
@@ -79,9 +83,21 @@ func _run_ai_turn() -> void:
 	if _ai_pending:
 		return
 	_ai_pending = true
-	await get_tree().create_timer(AI_DELAY).timeout
+	var delay := AI_DELAY
+	# Alles abgewehrt? Dann überlegt er sichtbar, ob er noch etwas nachlegt.
+	if duel.attacker == DurakMatch.OPPONENT and not duel.attack_cards.is_empty() \
+			and not duel.defense_cards.has(null):
+		_thinking = true
+		world.figure.think(true)
+		delay = AI_THINK_DELAY
+		_render()
+	# eigener Zufall, damit Runs mit gleichem Seed gleich ablaufen
+	await get_tree().create_timer(randf_range(delay.x, delay.y)).timeout
+	_thinking = false
+	world.figure.think(false)
 	_ai_pending = false
-	ai.take_turn(duel, DurakMatch.OPPONENT)
+	if duel.current_actor() == DurakMatch.OPPONENT:
+		ai.take_turn(duel, DurakMatch.OPPONENT)
 
 
 func _on_player_card(card: Card) -> void:
@@ -151,6 +167,8 @@ func _status_text(my_turn: bool, defending: bool) -> String:
 			return "Verloren – du bist der Durak und hast das Ziel verfehlt."
 		return "Verloren – Ziel verfehlt (%d / %d)." % [score.total, score.target]
 	if not my_turn:
+		if _thinking:
+			return "%s überlegt, ob er noch etwas nachlegt …" % opponent.display_name
 		return "%s ist am Zug …" % opponent.display_name
 	if defending:
 		return "Verteidige dich – klicke eine Karte zum Schlagen oder nimm alles."

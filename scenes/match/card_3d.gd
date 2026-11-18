@@ -12,9 +12,9 @@ const THICKNESS := 0.0025
 
 const COLOR_FACE := Color("e9e1cc")
 const COLOR_EDGE := Color("b9ad92")
-const COLOR_TRUMP := Color("d9a531")
-const COLOR_BACK := Color("6e1a1a")
-const COLOR_BACK_BORDER := Color("d8ccb0")
+const COLOR_TRUMP := Color("9b7ff0")
+const COLOR_BACK := Color("3b2a6e")
+const COLOR_BACK_BORDER := Color("e9dcc0")
 const COLOR_RED := Color("a3221c")
 const COLOR_BLACK := Color("171512")
 
