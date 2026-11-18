@@ -30,6 +30,27 @@ var hovered := false
 var _face_mat: StandardMaterial3D
 var _border_mat: StandardMaterial3D
 var _labels: Array[Label3D] = []
+var _border: MeshInstance3D
+var _special := false
+
+
+const SUIT_FILES := ["h", "d", "c", "s"]
+static var _textures := {}
+
+
+## Kartenbild aus assets/cards (erzeugt mit tools/generate_cards.py).
+static func face_texture(c: Card) -> Texture2D:
+	return _texture("%s_%d" % [SUIT_FILES[c.suit], c.rank])
+
+
+static func back_texture() -> Texture2D:
+	return _texture("back")
+
+
+static func _texture(name: String) -> Texture2D:
+	if not _textures.has(name):
+		_textures[name] = load("res://assets/cards/%s.png" % name)
+	return _textures[name]
 
 
 static func create(p_card: Card, p_is_trump: bool) -> Card3D:
@@ -49,7 +70,7 @@ func set_state(p_playable: bool) -> void:
 
 
 func _build() -> void:
-	# Kartenkörper (Rückseite / Rand)
+	# Kartenkörper (Kante)
 	var body := MeshInstance3D.new()
 	var box := BoxMesh.new()
 	box.size = Vector3(WIDTH, THICKNESS, HEIGHT)
@@ -57,53 +78,38 @@ func _build() -> void:
 	body.material_override = _mat(COLOR_EDGE, 0.9)
 	add_child(body)
 
-	# Vorderseite: Rand (gold bei Trumpf) + Innenfläche
-	_border_mat = _mat(COLOR_TRUMP if is_trump else COLOR_FACE.darkened(0.08), 0.8)
-	_add_quad(Vector2(WIDTH, HEIGHT), THICKNESS * 0.5 + 0.0002, _border_mat, false)
 	var enh := card.enhancement if card != null else Card.Enhancement.NONE
-	_face_mat = _mat(ENH_FACE[enh], 0.85)
-	_add_quad(Vector2(WIDTH - 0.008, HEIGHT - 0.008), THICKNESS * 0.5 + 0.0004, _face_mat, false)
+	# Rahmen hinter dem Bild: Farbe der Verbesserung, sonst Trumpf-Lila, sonst unsichtbar
+	var border_color := COLOR_FACE
+	if enh != Card.Enhancement.NONE:
+		border_color = ENH_TAG[enh].lightened(0.25)
+	elif is_trump:
+		border_color = COLOR_TRUMP
+	_special = enh != Card.Enhancement.NONE or is_trump
+	_border_mat = _mat(border_color, 0.8)
+	# etwas größer als die Karte → sichtbarer Rand (nur bei spielbar/Trumpf/Verbesserung)
+	_border = _add_quad(Vector2(WIDTH + 0.008, HEIGHT + 0.008), THICKNESS * 0.5 + 0.0001, _border_mat, false)
 
-	# Rückseite: heller Rand + dunkelrotes Feld mit Rautenmuster
-	_add_quad(Vector2(WIDTH, HEIGHT), THICKNESS * 0.5 + 0.0002, _mat(COLOR_BACK_BORDER, 0.9), true)
-	_add_quad(Vector2(WIDTH - 0.012, HEIGHT - 0.012), THICKNESS * 0.5 + 0.0004, _mat(COLOR_BACK, 0.7), true)
-	var back_mark := _label("◆", 240, COLOR_BACK_BORDER.darkened(0.25), true, 0.0002)
-	back_mark.position = Vector3(0, -(THICKNESS * 0.5 + 0.0006), 0)
-	add_child(back_mark)
-
+	# Vorderseite: das Kartenbild (bei Verbesserung leicht getönt)
+	var inset := 0.0
+	_face_mat = _mat(ENH_FACE[enh].lightened(0.35) if enh != Card.Enhancement.NONE else Color.WHITE, 0.85)
 	if card != null:
-		var color := COLOR_RED if card.is_red() else COLOR_BLACK
-		var rank := Card.RANK_NAMES[card.rank] as String
-		var suit := Card.SUIT_SYMBOLS[card.suit] as String
-		var y := THICKNESS * 0.5 + 0.0006
-		# großes Farbsymbol in der Mitte
-		var center := _label(suit, 280, color, false, 0.0002)
-		center.position = Vector3(0, y, 0.008)
-		add_child(center)
-		# Rang oben links und (gedreht) unten rechts
-		# Ecke oben links ist bei überlappenden Karten immer sichtbar → groß, fett,
-		# unabhängig vom Licht und mit Rand in Papierfarbe
-		var corners := [Vector3(-WIDTH * 0.5 + 0.017, y + 0.0002, -HEIGHT * 0.5 + 0.03),
-			Vector3(WIDTH * 0.5 - 0.017, y + 0.0002, HEIGHT * 0.5 - 0.03)]
-		for corner: Vector3 in corners:
-			var l := _label("%s\n%s" % [rank, suit], 170, color, false, 0.0002)
-			l.font = INDEX_FONT
-			l.shaded = false
-			l.outline_size = 18
-			l.outline_modulate = ENH_FACE[enh]
-			l.line_spacing = -46
-			l.position = corner
-			if corner.z > 0:
-				l.rotate_y(PI)
-			add_child(l)
-			_labels.append(l)
-		if enh != Card.Enhancement.NONE:
-			var tag := _label(Card.ENHANCEMENT_TAGS[enh], 90, ENH_TAG[enh], false, 0.0002)
-			tag.font = INDEX_FONT
-			tag.shaded = false
-			tag.position = Vector3(0, y + 0.0002, HEIGHT * 0.5 - 0.016)
-			add_child(tag)
-		_labels.append(center)
+		_face_mat.albedo_texture = face_texture(card)
+	_add_quad(Vector2(WIDTH - inset, HEIGHT - inset), THICKNESS * 0.5 + 0.0004, _face_mat, false)
+
+	# Rückseite
+	var back_mat := _mat(Color.WHITE, 0.75)
+	back_mat.albedo_texture = back_texture()
+	_add_quad(Vector2(WIDTH, HEIGHT), THICKNESS * 0.5 + 0.0002, back_mat, true)
+
+	if card != null and enh != Card.Enhancement.NONE:
+		var tag := _label(Card.ENHANCEMENT_TAGS[enh], 80, ENH_TAG[enh], false, 0.0002)
+		tag.font = INDEX_FONT
+		tag.shaded = false
+		tag.outline_size = 14
+		tag.outline_modulate = Color("f6f0e2")
+		tag.position = Vector3(0, THICKNESS * 0.5 + 0.0008, HEIGHT * 0.5 - 0.011)
+		add_child(tag)
 
 	# Klickfläche
 	var area := Area3D.new()
@@ -139,12 +145,15 @@ func _update_look() -> void:
 	_face_mat.emission_enabled = lit
 	_face_mat.emission = Color("fff2c0")
 	_face_mat.emission_energy_multiplier = 0.25
+	_border.visible = playable or _special
 	_border_mat.emission_enabled = playable
-	_border_mat.emission = COLOR_TRUMP if is_trump else Color("f3e3a0")
+	_border_mat.emission = _border_mat.albedo_color if _special else Color("f3e3a0")
+	if not _special:
+		_border_mat.albedo_color = Color("f3e3a0")
 	_border_mat.emission_energy_multiplier = 0.9 if lit else (0.35 if playable else 0.0)
 
 
-func _add_quad(size: Vector2, y: float, material: Material, bottom: bool) -> void:
+func _add_quad(size: Vector2, y: float, material: Material, bottom: bool) -> MeshInstance3D:
 	var mi := MeshInstance3D.new()
 	var quad := QuadMesh.new()
 	quad.size = size
@@ -155,6 +164,7 @@ func _add_quad(size: Vector2, y: float, material: Material, bottom: bool) -> voi
 	mi.position = Vector3(0, -y if bottom else y, 0)
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(mi)
+	return mi
 
 
 func _label(text: String, font_size: int, color: Color, bottom: bool, px := 0.0004) -> Label3D:
@@ -178,4 +188,5 @@ static func _mat(color: Color, roughness: float) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
 	m.albedo_color = color
 	m.roughness = roughness
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 	return m

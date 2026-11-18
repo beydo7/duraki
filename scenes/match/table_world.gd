@@ -206,10 +206,13 @@ func _hand_row_xf(i: int, n: int, offset_pos: Vector3, width_factor: float) -> T
 	var offset := i - (n - 1) * 0.5
 	var fan := -offset * minf(0.07, 0.45 / maxf(1, n))
 	var curve := 0.004 if n <= 8 else 0.0015
-	var basis := Basis(Vector3.RIGHT, deg_to_rad(PLAYER_HAND_TILT)) * Basis(Vector3.UP, fan)
-	var pos := PLAYER_HAND_POS + offset_pos + Vector3(offset * spacing, -absf(offset) * curve, 0)
+	var tilt := Basis(Vector3.RIGHT, deg_to_rad(PLAYER_HAND_TILT))
+	var basis := tilt * Basis(Vector3.UP, fan)
+	# Bogen innerhalb der Kartenebene (lokal +Z = nach unten auf der Karte),
+	# damit sich die Stapelreihenfolge nicht verschiebt
+	var pos := PLAYER_HAND_POS + offset_pos + tilt * Vector3(offset * spacing, 0, absf(offset) * curve * 1.6)
 	# jede Karte liegt etwas über der linken Nachbarin → linke Ecke bleibt frei
-	pos += basis.y * (i * 0.0012)
+	pos += tilt.y * (i * 0.0015)
 	return Transform3D(basis, pos)
 
 
@@ -260,7 +263,10 @@ func _pile_mesh() -> MeshInstance3D:
 	var quad := QuadMesh.new()
 	quad.size = Vector2(Card3D.WIDTH - 0.012, Card3D.HEIGHT - 0.012)
 	top.mesh = quad
-	top.material_override = _mat(Card3D.COLOR_BACK, 0.7)
+	var back := _mat(Color.WHITE, 0.7)
+	back.albedo_texture = Card3D.back_texture()
+	back.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	top.material_override = back
 	top.rotation_degrees.x = -90
 	top.position.y = Card3D.THICKNESS * 0.5 + 0.0003
 	mi.add_child(top)
