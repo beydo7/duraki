@@ -3,9 +3,10 @@
 
 Aufruf (aus dem Projektordner):
     python tools/generate_cards.py
-Benötigt: Pillow  (pip install pillow)
+Benötigt: Pillow und numpy  (pip install pillow numpy)
 
-Ausgabe: assets/cards/<farbe>_<rang>.png  und assets/cards/back.png
+Ausgabe: assets/cards/<farbe>_<rang>.png, assets/cards/back.png
+         assets/cards/glass/<farbe>_<rang>.png  (Glaskarten, durchscheinend)
   farbe: h = Herz, d = Karo, c = Kreuz, s = Pik
   rang:  6..14 (11 = Bube, 12 = Dame, 13 = König, 14 = Ass)
 
@@ -245,6 +246,40 @@ def save(img, name):
     img.save(os.path.join(OUT, name + ".png"), optimize=True)
 
 
+def glass_version(img):
+    """Macht aus einer Karte eine Glaskarte: Papier wird durchscheinend
+    blau, Symbole bleiben kräftig, dazu Lichtreflexe und mattierter Rand."""
+    import numpy as np
+    a = np.asarray(img.convert("RGB")).astype(np.float32)
+    paper = np.array(PAPER, dtype=np.float32)
+    dist = np.sqrt(((a - paper) ** 2).sum(axis=2)) / 120.0
+    ink = np.clip(dist, 0.0, 1.0)                      # 0 = Papier, 1 = Farbe
+    h, w = ink.shape
+    glass_rgb = np.array([205, 232, 250], dtype=np.float32)
+    rgb = a * ink[..., None] + glass_rgb * (1 - ink[..., None])
+    alpha = 0.22 + 0.78 * ink                          # Papier fast durchsichtig
+    # mattierter Rand
+    yy, xx = np.mgrid[0:h, 0:w]
+    edge = np.minimum.reduce([xx, yy, w - 1 - xx, h - 1 - yy]).astype(np.float32)
+    frost = np.clip(1.0 - edge / (0.06 * w), 0, 1)
+    rgb = rgb * (1 - frost[..., None] * 0.6) + np.array([235, 247, 255]) * frost[..., None] * 0.6
+    alpha = np.maximum(alpha, 0.55 * frost)
+    # diagonale Lichtreflexe
+    for offset, width, strength in ((0.18, 0.05, 0.55), (0.30, 0.018, 0.4), (0.78, 0.03, 0.3)):
+        d = (xx / w + yy / h * 0.6) - offset * 1.6
+        band = np.clip(1 - np.abs(d) / width, 0, 1) ** 2 * strength
+        rgb = rgb * (1 - band[..., None]) + 255 * band[..., None]
+        alpha = np.maximum(alpha, band * 0.9)
+    out = np.dstack([np.clip(rgb, 0, 255), np.clip(alpha * 255, 0, 255)]).astype(np.uint8)
+    return Image.fromarray(out, "RGBA")
+
+
+def save_glass(img, name):
+    os.makedirs(os.path.join(OUT, "glass"), exist_ok=True)
+    small = img.convert("RGB").resize((W // S, H // S), Image.LANCZOS)
+    glass_version(small).save(os.path.join(OUT, "glass", name + ".png"), optimize=True)
+
+
 def main():
     os.makedirs(OUT, exist_ok=True)
     for suit in SUITS:
@@ -256,6 +291,7 @@ def main():
             else:
                 img = face_card(rank, suit)
             save(img, "%s_%d" % (suit, rank))
+            save_glass(img, "%s_%d" % (suit, rank))
     save(back_card(), "back")
     print("Karten erzeugt in", OUT)
 

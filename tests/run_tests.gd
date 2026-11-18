@@ -15,6 +15,7 @@ func _init() -> void:
 	test_score_bout()
 	test_score_target_ends_match()
 	test_enhancements()
+	test_multi_attack()
 	print("\n%d Checks, %d Fehler" % [_checks, _failures])
 	quit(1 if _failures > 0 else 0)
 
@@ -165,3 +166,20 @@ func test_enhancements() -> void:
 		if c.suit == Card.Suit.CLUBS and c.rank == 14:
 			found = c.enhancement == Card.Enhancement.GOLD
 	check(found, "Kartenverbesserung wird beim Start angewendet")
+
+
+## Mehrere Karten gleichen Rangs auf einmal, ohne auf die Verteidigung zu warten.
+func test_multi_attack() -> void:
+	var duel := DurakMatch.new()
+	duel.start(RandomNumberGenerator.new())
+	duel.player_hand.assign([Card.new(Card.Suit.HEARTS, 7), Card.new(Card.Suit.CLUBS, 7),
+		Card.new(Card.Suit.DIAMONDS, 7), Card.new(Card.Suit.SPADES, 9)])
+	duel.opponent_hand.assign([Card.new(Card.Suit.HEARTS, 12), Card.new(Card.Suit.CLUBS, 12)])
+	duel.attacker = DurakMatch.PLAYER
+	check(duel.attack(duel.player_hand[0]), "erste Karte")
+	check(duel.can_attack_with(duel.player_hand[0]), "zweite 7 sofort dazuwerfen")
+	check(not duel.can_attack_with(duel.player_hand[2]), "9 passt nicht zum Rang")
+	duel.attack(duel.player_hand[0])
+	check(duel.unbeaten_count() == 2, "zwei ungeschlagene Karten")
+	check(not duel.can_attack_with(duel.player_hand[0]),
+		"nicht mehr ungeschlagene Karten als der Verteidiger Handkarten hat")

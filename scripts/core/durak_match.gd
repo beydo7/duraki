@@ -99,14 +99,23 @@ func current_actor() -> int:
 	return defender() if unbeaten_index() != -1 else attacker
 
 
+## Der Angreifer darf jederzeit passende Ränge dazulegen – auch mehrere auf
+## einmal, ohne auf die Verteidigung zu warten. Grenze: nie mehr ungeschlagene
+## Karten, als der Verteidiger noch auf der Hand hat.
 func can_attack_with(card: Card) -> bool:
-	if is_over or current_actor() != attacker or not hand(attacker).has(card):
+	if is_over or not hand(attacker).has(card):
 		return false
 	if attack_cards.is_empty():
-		return true
+		return current_actor() == attacker
 	if attack_cards.size() >= bout_limit or hand(defender()).is_empty():
 		return false
+	if unbeaten_count() >= hand(defender()).size():
+		return false
 	return DurakRules.ranks_on_table(table_cards()).has(card.rank)
+
+
+func unbeaten_count() -> int:
+	return defense_cards.count(null)
 
 
 func legal_attacks() -> Array[Card]:

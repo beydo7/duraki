@@ -59,9 +59,11 @@ func _ready() -> void:
 	duel.finished.connect(_on_finished)
 
 	# Reaktionen der Gestalt
-	duel.card_played.connect(func(who: int, _card: Card, _attack: bool) -> void:
+	duel.card_played.connect(func(who: int, _card: Card, attack: bool) -> void:
 		if who == DurakMatch.OPPONENT:
-			world.figure.gesture())
+			world.figure.gesture()
+			if attack:
+				_maybe_throw_more())
 	duel.cards_taken.connect(func(who: int, _count: int) -> void:
 		if who == DurakMatch.OPPONENT:
 			world.figure.recoil()
@@ -115,7 +117,10 @@ func _run_ai_turn() -> void:
 		_think_style = randi_range(0, THINK_TEXT.size() - 1)
 		world.figure.think(_think_style)
 		_render()
-	await get_tree().create_timer(randf_range(delay.x, delay.y)).timeout
+	var wait := randf_range(delay.x, delay.y)
+	if duel.defender() == DurakMatch.OPPONENT:
+		wait = maxf(wait, 0.9) # Zeit, um noch Karten dazuzuwerfen
+	await get_tree().create_timer(wait).timeout
 	if _thinking:
 		_thinking = false
 		world.figure.stop_thinking()
@@ -125,12 +130,22 @@ func _run_ai_turn() -> void:
 
 
 func _on_player_card(card: Card) -> void:
-	if duel.current_actor() != DurakMatch.PLAYER:
-		return
 	if duel.defender() == DurakMatch.PLAYER:
-		duel.defend(card)
+		if duel.current_actor() == DurakMatch.PLAYER:
+			duel.defend(card)
 	else:
+		# als Angreifer jederzeit (auch während der Gegner noch überlegt)
 		duel.attack(card)
+
+
+## Der Gegner wirft manchmal direkt eine zweite (dritte …) Karte gleichen Rangs.
+func _maybe_throw_more() -> void:
+	var extra := ai.extra_attack(duel, DurakMatch.OPPONENT)
+	if extra == null:
+		return
+	await get_tree().create_timer(randf_range(0.35, 0.65)).timeout
+	if duel.can_attack_with(extra):
+		duel.attack(extra)
 
 
 func _on_message(text: String) -> void:
@@ -160,12 +175,15 @@ func _render() -> void:
 	var my_turn := duel.current_actor() == DurakMatch.PLAYER
 	var defending := duel.defender() == DurakMatch.PLAYER
 	var playable: Array[Card] = []
-	if my_turn:
-		playable = duel.legal_defenses() if defending else duel.legal_attacks()
+	if defending:
+		if my_turn:
+			playable = duel.legal_defenses()
+	else:
+		playable = duel.legal_attacks() # auch während der Gegner verteidigt
 	world.sync(duel, playable)
 
 	%TakeButton.visible = my_turn and defending
-	%PassButton.visible = my_turn and not defending
+	%PassButton.visible = not defending and duel.can_pass()
 	%PassButton.disabled = not duel.can_pass()
 	%StatusLabel.text = _status_text(my_turn, defending)
 	_render_score()
@@ -191,11 +209,13 @@ func _status_text(my_turn: bool, defending: bool) -> String:
 			return "Verloren – du bist der Durak und hast das Ziel verfehlt."
 		return "Verloren – Ziel verfehlt (%d / %d)." % [score.total, score.target]
 	if not my_turn:
+		if not defending and not duel.legal_attacks().is_empty():
+			return "%s verteidigt – du kannst noch passende Karten dazuwerfen." % opponent.display_name
 		if _thinking:
 			return THINK_TEXT[_think_style] % opponent.display_name
 		return "%s ist am Zug …" % opponent.display_name
 	if defending:
 		return "Verteidige dich – klicke eine Karte zum Schlagen oder nimm alles."
 	if duel.attack_cards.is_empty():
-		return "Du greifst an – klicke eine Karte."
+		return "Du greifst an – klicke Karten (gleiche Ränge auch mehrere auf einmal)."
 	return "Lege passende Ränge nach oder beende die Runde."

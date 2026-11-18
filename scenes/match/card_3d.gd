@@ -30,7 +30,7 @@ var hovered := false
 var _face_mat: StandardMaterial3D
 var _border_mat: StandardMaterial3D
 var _labels: Array[Label3D] = []
-var _border: MeshInstance3D
+var _border: Node3D
 var _special := false
 
 
@@ -39,8 +39,8 @@ static var _textures := {}
 
 
 ## Kartenbild aus assets/cards (erzeugt mit tools/generate_cards.py).
-static func face_texture(c: Card) -> Texture2D:
-	return _texture("%s_%d" % [SUIT_FILES[c.suit], c.rank])
+static func face_texture(c: Card, glass := false) -> Texture2D:
+	return _texture("%s%s_%d" % ["glass/" if glass else "", SUIT_FILES[c.suit], c.rank])
 
 
 static func back_texture() -> Texture2D:
@@ -75,10 +75,17 @@ func _build() -> void:
 	var box := BoxMesh.new()
 	box.size = Vector3(WIDTH, THICKNESS, HEIGHT)
 	body.mesh = box
-	body.material_override = _mat(COLOR_EDGE, 0.9)
+	var enh := card.enhancement if card != null else Card.Enhancement.NONE
+	var glass := enh == Card.Enhancement.GLASS
+	if glass:
+		var gm := _mat(Color(0.75, 0.9, 1.0, 0.35), 0.05)
+		gm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		gm.metallic_specular = 1.0
+		body.material_override = gm
+	else:
+		body.material_override = _mat(COLOR_EDGE, 0.9)
 	add_child(body)
 
-	var enh := card.enhancement if card != null else Card.Enhancement.NONE
 	# Rahmen hinter dem Bild: Farbe der Verbesserung, sonst Trumpf-Lila, sonst unsichtbar
 	var border_color := COLOR_FACE
 	if enh != Card.Enhancement.NONE:
@@ -88,13 +95,23 @@ func _build() -> void:
 	_special = enh != Card.Enhancement.NONE or is_trump
 	_border_mat = _mat(border_color, 0.8)
 	# etwas größer als die Karte → sichtbarer Rand (nur bei spielbar/Trumpf/Verbesserung)
-	_border = _add_quad(Vector2(WIDTH + 0.008, HEIGHT + 0.008), THICKNESS * 0.5 + 0.0001, _border_mat, false)
+	_border = _add_frame(0.004, THICKNESS * 0.5 + 0.0001, _border_mat)
 
 	# Vorderseite: das Kartenbild (bei Verbesserung leicht getönt)
 	var inset := 0.0
-	_face_mat = _mat(ENH_FACE[enh].lightened(0.35) if enh != Card.Enhancement.NONE else Color.WHITE, 0.85)
+	# leicht gedämpft, damit die Karten unter der Lampe nicht überstrahlen
+	_face_mat = _mat(ENH_FACE[enh].lightened(0.35).darkened(0.08) if enh != Card.Enhancement.NONE else Color(0.9, 0.9, 0.9), 0.85)
 	if card != null:
-		_face_mat.albedo_texture = face_texture(card)
+		_face_mat.albedo_texture = face_texture(card, glass)
+	if glass:
+		# durchscheinend, glänzend, leicht bläulich schimmernd
+		_face_mat.albedo_color = Color.WHITE
+		_face_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		_face_mat.roughness = 0.04
+		_face_mat.metallic_specular = 1.0
+		_face_mat.rim_enabled = true
+		_face_mat.rim = 0.6
+		_face_mat.rim_tint = 0.2
 	_add_quad(Vector2(WIDTH - inset, HEIGHT - inset), THICKNESS * 0.5 + 0.0004, _face_mat, false)
 
 	# Rückseite
@@ -153,6 +170,22 @@ func _update_look() -> void:
 	_border_mat.emission_energy_multiplier = 0.9 if lit else (0.35 if playable else 0.0)
 
 
+## Schmaler Rahmen rund um die Karte (für Leuchten/Trumpf/Verbesserung).
+func _add_frame(width: float, y: float, material: Material) -> Node3D:
+	var frame := Node3D.new()
+	add_child(frame)
+	var w := WIDTH + width * 2
+	var h := HEIGHT + width * 2
+	for side in [-1.0, 1.0]:
+		var top := _add_quad(Vector2(w, width), y, material, false)
+		top.position.z = side * (HEIGHT + width) * 0.5
+		top.reparent(frame, true)
+		var edge := _add_quad(Vector2(width, h), y, material, false)
+		edge.position.x = side * (WIDTH + width) * 0.5
+		edge.reparent(frame, true)
+	return frame
+
+
 func _add_quad(size: Vector2, y: float, material: Material, bottom: bool) -> MeshInstance3D:
 	var mi := MeshInstance3D.new()
 	var quad := QuadMesh.new()
@@ -189,4 +222,5 @@ static func _mat(color: Color, roughness: float) -> StandardMaterial3D:
 	m.albedo_color = color
 	m.roughness = roughness
 	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	m.metallic_specular = 0.15 # Papier glänzt kaum
 	return m

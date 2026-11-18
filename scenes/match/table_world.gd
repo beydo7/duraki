@@ -395,10 +395,10 @@ func _build_lights() -> void:
 	lamp.position = Vector3(0, 2.05, 0)
 	lamp.rotation_degrees = Vector3(-90, 0, 0)
 	lamp.light_color = Color("ffd9a0")
-	lamp.light_energy = 3.2
+	lamp.light_energy = 1.9
 	lamp.spot_range = 3.5
 	lamp.spot_angle = 48.0
-	lamp.spot_attenuation = 0.6
+	lamp.spot_attenuation = 1.1
 	lamp.shadow_enabled = true
 	add_child(lamp)
 
