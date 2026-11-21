@@ -1,13 +1,191 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene format=3]
 
 [ext_resource type="Script" path="res://scenes/match/match.gd" id="1_match"]
 [ext_resource type="Shader" path="res://scenes/match/look.gdshader" id="2_look"]
+[ext_resource type="Script" path="res://scenes/match/hud.gd" id="3_hud"]
+[ext_resource type="Script" path="res://ui/mask_icon.gd" id="4_mask"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_look"]
 shader = ExtResource("2_look")
 shader_parameter/vignette = 0.45
 shader_parameter/grain = 0.025
 shader_parameter/tint = Color(0.97, 0.93, 1, 1)
+
+[sub_resource type="StyleBoxFlat" id="Style_panel"]
+content_margin_left = 16.0
+content_margin_top = 12.0
+content_margin_right = 16.0
+content_margin_bottom = 12.0
+bg_color = Color(0.055, 0.04, 0.1, 0.84)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.45, 0.36, 0.82, 0.75)
+corner_radius_top_left = 16
+corner_radius_top_right = 16
+corner_radius_bottom_right = 16
+corner_radius_bottom_left = 16
+shadow_color = Color(0, 0, 0, 0.45)
+shadow_size = 14
+shadow_offset = Vector2(0, 4)
+anti_aliasing_size = 1.2
+
+[sub_resource type="StyleBoxFlat" id="Style_pill"]
+content_margin_left = 14.0
+content_margin_top = 7.0
+content_margin_right = 14.0
+content_margin_bottom = 7.0
+bg_color = Color(0.07, 0.05, 0.13, 0.86)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.45, 0.36, 0.82, 0.55)
+corner_radius_top_left = 14
+corner_radius_top_right = 14
+corner_radius_bottom_right = 14
+corner_radius_bottom_left = 14
+shadow_color = Color(0, 0, 0, 0.35)
+shadow_size = 8
+
+[sub_resource type="StyleBoxFlat" id="Style_chips"]
+content_margin_left = 12.0
+content_margin_top = 2.0
+content_margin_right = 12.0
+content_margin_bottom = 2.0
+bg_color = Color(0.15, 0.4, 0.86, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 4
+border_color = Color(0.08, 0.2, 0.5, 1)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
+
+[sub_resource type="StyleBoxFlat" id="Style_mult"]
+content_margin_left = 12.0
+content_margin_top = 2.0
+content_margin_right = 12.0
+content_margin_bottom = 2.0
+bg_color = Color(0.86, 0.22, 0.24, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 4
+border_color = Color(0.5, 0.08, 0.1, 1)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
+
+[sub_resource type="StyleBoxFlat" id="Style_bar_bg"]
+bg_color = Color(0.14, 0.11, 0.24, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="Style_bar_fill"]
+bg_color = Color(1, 0.78, 0.32, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+shadow_color = Color(1, 0.7, 0.2, 0.45)
+shadow_size = 6
+
+[sub_resource type="StyleBoxFlat" id="Style_btn"]
+content_margin_left = 20.0
+content_margin_top = 12.0
+content_margin_right = 20.0
+content_margin_bottom = 12.0
+bg_color = Color(0.4, 0.3, 0.8, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 5
+border_color = Color(0.2, 0.13, 0.45, 1)
+corner_radius_top_left = 14
+corner_radius_top_right = 14
+corner_radius_bottom_right = 14
+corner_radius_bottom_left = 14
+shadow_color = Color(0, 0, 0, 0.45)
+shadow_size = 10
+shadow_offset = Vector2(0, 4)
+
+[sub_resource type="StyleBoxFlat" id="Style_btn_hover"]
+content_margin_left = 20.0
+content_margin_top = 12.0
+content_margin_right = 20.0
+content_margin_bottom = 12.0
+bg_color = Color(0.54, 0.43, 0.95, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 5
+border_color = Color(0.26, 0.17, 0.55, 1)
+corner_radius_top_left = 14
+corner_radius_top_right = 14
+corner_radius_bottom_right = 14
+corner_radius_bottom_left = 14
+shadow_color = Color(0.55, 0.4, 1, 0.45)
+shadow_size = 16
+shadow_offset = Vector2(0, 4)
+
+[sub_resource type="StyleBoxFlat" id="Style_btn_pressed"]
+content_margin_left = 20.0
+content_margin_top = 14.0
+content_margin_right = 20.0
+content_margin_bottom = 10.0
+bg_color = Color(0.33, 0.24, 0.68, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.2, 0.13, 0.45, 1)
+corner_radius_top_left = 14
+corner_radius_top_right = 14
+corner_radius_bottom_right = 14
+corner_radius_bottom_left = 14
+
+[sub_resource type="StyleBoxFlat" id="Style_btn_disabled"]
+content_margin_left = 20.0
+content_margin_top = 12.0
+content_margin_right = 20.0
+content_margin_bottom = 12.0
+bg_color = Color(0.2, 0.18, 0.28, 0.9)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 5
+border_color = Color(0.12, 0.1, 0.18, 1)
+corner_radius_top_left = 14
+corner_radius_top_right = 14
+corner_radius_bottom_right = 14
+corner_radius_bottom_left = 14
+
+[sub_resource type="StyleBoxFlat" id="Style_btn_gold"]
+content_margin_left = 28.0
+content_margin_top = 12.0
+content_margin_right = 28.0
+content_margin_bottom = 12.0
+bg_color = Color(0.95, 0.68, 0.22, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 5
+border_color = Color(0.5, 0.3, 0.05, 1)
+corner_radius_top_left = 14
+corner_radius_top_right = 14
+corner_radius_bottom_right = 14
+corner_radius_bottom_left = 14
+shadow_color = Color(1, 0.7, 0.2, 0.4)
+shadow_size = 14
+
+[sub_resource type="StyleBoxEmpty" id="Style_none"]
 
 [node name="Match" type="Control"]
 layout_mode = 3
@@ -40,6 +218,328 @@ screen_space_aa = 1
 render_target_update_mode = 4
 
 [node name="HUD" type="Control" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("3_hud")
+
+[node name="LeftCol" type="VBoxContainer" parent="HUD"]
+layout_mode = 1
+offset_left = 20.0
+offset_top = 16.0
+offset_right = 400.0
+offset_bottom = 520.0
+mouse_filter = 2
+theme_override_constants/separation = 10
+
+[node name="OpponentPanel" type="PanelContainer" parent="HUD/LeftCol"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("Style_panel")
+
+[node name="Row" type="HBoxContainer" parent="HUD/LeftCol/OpponentPanel"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 14
+
+[node name="Portrait" type="Control" parent="HUD/LeftCol/OpponentPanel/Row"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(64, 64)
+layout_mode = 2
+size_flags_vertical = 4
+mouse_filter = 2
+script = ExtResource("4_mask")
+
+[node name="Info" type="VBoxContainer" parent="HUD/LeftCol/OpponentPanel/Row"]
+layout_mode = 2
+size_flags_vertical = 4
+mouse_filter = 2
+theme_override_constants/separation = 2
+
+[node name="OpponentLabel" type="Label" parent="HUD/LeftCol/OpponentPanel/Row/Info"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"BrushLabel"
+theme_override_colors/font_color = Color(0.98, 0.93, 0.82, 1)
+theme_override_font_sizes/font_size = 26
+text = "Gegner"
+
+[node name="OpponentCards" type="HBoxContainer" parent="HUD/LeftCol/OpponentPanel/Row/Info"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 18)
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 3
+
+[node name="ThinkLabel" type="Label" parent="HUD/LeftCol/OpponentPanel/Row/Info"]
+unique_name_in_owner = true
+modulate = Color(1, 1, 1, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.72, 0.62, 1, 1)
+theme_override_font_sizes/font_size = 14
+text = "überlegt"
+
+[node name="StatusPill" type="PanelContainer" parent="HUD/LeftCol"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("Style_pill")
+
+[node name="StatusLabel" type="Label" parent="HUD/LeftCol/StatusPill"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.86, 0.8, 1, 1)
+theme_override_font_sizes/font_size = 16
+autowrap_mode = 3
+
+[node name="Toasts" type="VBoxContainer" parent="HUD/LeftCol"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 6
+
+[node name="RightCol" type="VBoxContainer" parent="HUD"]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -340.0
+offset_top = 16.0
+offset_right = -20.0
+offset_bottom = 300.0
+grow_horizontal = 0
+mouse_filter = 2
+theme_override_constants/separation = 10
+
+[node name="ScorePanel" type="PanelContainer" parent="HUD/RightCol"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_override_styles/panel = SubResource("Style_panel")
+
+[node name="VBox" type="VBoxContainer" parent="HUD/RightCol/ScorePanel"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 8
+
+[node name="ScoreRow" type="HBoxContainer" parent="HUD/RightCol/ScorePanel/VBox"]
+layout_mode = 2
+mouse_filter = 2
+alignment = 2
+
+[node name="ScoreCaption" type="Label" parent="HUD/RightCol/ScorePanel/VBox/ScoreRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 8
+theme_type_variation = &"HeaderLabel"
+text = "PUNKTE"
+
+[node name="ScoreLabel" type="Label" parent="HUD/RightCol/ScorePanel/VBox/ScoreRow"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"BrushLabel"
+theme_override_font_sizes/font_size = 46
+text = "0"
+horizontal_alignment = 2
+
+[node name="TargetLabel" type="Label" parent="HUD/RightCol/ScorePanel/VBox/ScoreRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 8
+theme_override_colors/font_color = Color(0.72, 0.64, 0.95, 1)
+theme_override_font_sizes/font_size = 20
+text = " / 300"
+
+[node name="ScoreBar" type="ProgressBar" parent="HUD/RightCol/ScorePanel/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 12)
+layout_mode = 2
+mouse_filter = 2
+theme_override_styles/background = SubResource("Style_bar_bg")
+theme_override_styles/fill = SubResource("Style_bar_fill")
+max_value = 1.0
+step = 0.0
+show_percentage = false
+
+[node name="BoutRow" type="HBoxContainer" parent="HUD/RightCol/ScorePanel/VBox"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 8
+alignment = 1
+
+[node name="ChipsBox" type="PanelContainer" parent="HUD/RightCol/ScorePanel/VBox/BoutRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(96, 0)
+layout_mode = 2
+mouse_filter = 2
+theme_override_styles/panel = SubResource("Style_chips")
+
+[node name="ChipsLabel" type="Label" parent="HUD/RightCol/ScorePanel/VBox/BoutRow/ChipsBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"BrushLabel"
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_shadow_color = Color(0.05, 0.12, 0.35, 1)
+theme_override_font_sizes/font_size = 28
+text = "0"
+horizontal_alignment = 1
+
+[node name="Times" type="Label" parent="HUD/RightCol/ScorePanel/VBox/BoutRow"]
+layout_mode = 2
+theme_type_variation = &"BrushLabel"
+theme_override_colors/font_color = Color(0.9, 0.85, 1, 1)
+theme_override_font_sizes/font_size = 26
+text = "×"
+
+[node name="MultBox" type="PanelContainer" parent="HUD/RightCol/ScorePanel/VBox/BoutRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(96, 0)
+layout_mode = 2
+mouse_filter = 2
+theme_override_styles/panel = SubResource("Style_mult")
+
+[node name="MultLabel" type="Label" parent="HUD/RightCol/ScorePanel/VBox/BoutRow/MultBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"BrushLabel"
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_shadow_color = Color(0.35, 0.05, 0.08, 1)
+theme_override_font_sizes/font_size = 28
+text = "1"
+horizontal_alignment = 1
+
+[node name="BoutLabel" type="Label" parent="HUD/RightCol/ScorePanel/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.85, 0.8, 0.95, 1)
+theme_override_font_sizes/font_size = 14
+horizontal_alignment = 1
+
+[node name="InfoRow" type="HBoxContainer" parent="HUD/RightCol"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 8
+alignment = 2
+
+[node name="LivesPill" type="PanelContainer" parent="HUD/RightCol/InfoRow"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_styles/panel = SubResource("Style_pill")
+
+[node name="LivesLabel" type="Label" parent="HUD/RightCol/InfoRow/LivesPill"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.4, 0.45, 1)
+theme_override_font_sizes/font_size = 17
+text = "♥♥♥"
+
+[node name="GoldPill" type="PanelContainer" parent="HUD/RightCol/InfoRow"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_styles/panel = SubResource("Style_pill")
+
+[node name="GoldLabel" type="Label" parent="HUD/RightCol/InfoRow/GoldPill"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.82, 0.4, 1)
+theme_override_font_sizes/font_size = 17
+text = "● 0"
+
+[node name="DeckPill" type="PanelContainer" parent="HUD/RightCol/InfoRow"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_styles/panel = SubResource("Style_pill")
+
+[node name="DeckLabel" type="Label" parent="HUD/RightCol/InfoRow/DeckPill"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.85, 0.8, 1, 1)
+theme_override_font_sizes/font_size = 17
+text = "▮ 24"
+
+[node name="TrumpPill" type="PanelContainer" parent="HUD/RightCol/InfoRow"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_override_styles/panel = SubResource("Style_pill")
+
+[node name="TrumpLabel" type="Label" parent="HUD/RightCol/InfoRow/TrumpPill"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 17
+text = "Trumpf ♠"
+
+[node name="Actions" type="VBoxContainer" parent="HUD"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 6
+anchor_left = 1.0
+anchor_top = 0.5
+anchor_right = 1.0
+anchor_bottom = 0.5
+offset_left = -260.0
+offset_top = -40.0
+offset_right = -24.0
+offset_bottom = 120.0
+grow_horizontal = 0
+grow_vertical = 2
+theme_override_constants/separation = 12
+
+[node name="TakeButton" type="Button" parent="HUD/Actions"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 56)
+layout_mode = 2
+focus_mode = 0
+theme_override_font_sizes/font_size = 19
+theme_override_styles/normal = SubResource("Style_btn")
+theme_override_styles/hover = SubResource("Style_btn_hover")
+theme_override_styles/pressed = SubResource("Style_btn_pressed")
+theme_override_styles/disabled = SubResource("Style_btn_disabled")
+theme_override_styles/focus = SubResource("Style_none")
+text = "KARTEN NEHMEN"
+
+[node name="PassButton" type="Button" parent="HUD/Actions"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 56)
+layout_mode = 2
+focus_mode = 0
+theme_override_font_sizes/font_size = 19
+theme_override_styles/normal = SubResource("Style_btn")
+theme_override_styles/hover = SubResource("Style_btn_hover")
+theme_override_styles/pressed = SubResource("Style_btn_pressed")
+theme_override_styles/disabled = SubResource("Style_btn_disabled")
+theme_override_styles/focus = SubResource("Style_none")
+text = "BITO"
+
+[node name="Banner" type="Label" parent="HUD"]
+unique_name_in_owner = true
+modulate = Color(1, 1, 1, 0)
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_top = 250.0
+offset_bottom = 330.0
+grow_horizontal = 2
+theme_type_variation = &"BrushLabel"
+theme_override_colors/font_color = Color(1, 0.86, 0.5, 1)
+theme_override_colors/font_outline_color = Color(0.12, 0.06, 0.25, 1)
+theme_override_constants/outline_size = 14
+theme_override_font_sizes/font_size = 56
+text = "DEIN ZUG"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="FloatLayer" type="Control" parent="HUD"]
+unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -48,99 +548,77 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 
-[node name="LeftCol" type="VBoxContainer" parent="HUD"]
-layout_mode = 1
-offset_left = 24.0
-offset_top = 16.0
-offset_right = 380.0
-offset_bottom = 420.0
-mouse_filter = 2
-theme_override_constants/separation = 6
-
-[node name="OpponentLabel" type="Label" parent="HUD/LeftCol"]
-theme_type_variation = &"BrushLabel"
-theme_override_colors/font_color = Color(0.97, 0.92, 0.8, 1)
-theme_override_font_sizes/font_size = 30
-unique_name_in_owner = true
-layout_mode = 2
-
-[node name="StatusLabel" type="Label" parent="HUD/LeftCol"]
-theme_override_colors/font_color = Color(0.72, 0.62, 1, 1)
-theme_override_font_sizes/font_size = 18
-unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 60)
-layout_mode = 2
-autowrap_mode = 3
-
-[node name="LogLabel" type="Label" parent="HUD/LeftCol"]
-theme_override_colors/font_color = Color(0.9, 0.85, 0.75, 0.8)
-theme_override_font_sizes/font_size = 15
-unique_name_in_owner = true
-layout_mode = 2
-autowrap_mode = 3
-
-[node name="RightCol" type="VBoxContainer" parent="HUD"]
-layout_mode = 1
-anchors_preset = 1
-anchor_left = 1.0
-anchor_right = 1.0
-offset_left = -330.0
-offset_top = 16.0
-offset_right = -24.0
-offset_bottom = 200.0
-grow_horizontal = 0
-mouse_filter = 2
-
-[node name="ScoreLabel" type="Label" parent="HUD/RightCol"]
-theme_type_variation = &"BrushLabel"
-theme_override_font_sizes/font_size = 48
-unique_name_in_owner = true
-layout_mode = 2
-horizontal_alignment = 2
-
-[node name="BoutLabel" type="Label" parent="HUD/RightCol"]
-theme_override_font_sizes/font_size = 17
-unique_name_in_owner = true
-layout_mode = 2
-horizontal_alignment = 2
-
-[node name="RunInfoLabel" type="Label" parent="HUD/RightCol"]
-theme_override_colors/font_color = Color(0.72, 0.62, 1, 1)
-theme_override_font_sizes/font_size = 15
-unique_name_in_owner = true
-layout_mode = 2
-horizontal_alignment = 2
-
-[node name="Actions" type="VBoxContainer" parent="HUD"]
-layout_mode = 1
-anchors_preset = 6
-anchor_left = 1.0
-anchor_top = 0.5
-anchor_right = 1.0
-anchor_bottom = 0.5
-offset_left = -250.0
-offset_top = -60.0
-offset_right = -24.0
-offset_bottom = 120.0
-grow_horizontal = 0
-grow_vertical = 2
-theme_override_constants/separation = 10
-
-[node name="TakeButton" type="Button" parent="HUD/Actions"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 52)
-layout_mode = 2
-text = "KARTEN NEHMEN"
-
-[node name="PassButton" type="Button" parent="HUD/Actions"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 52)
-layout_mode = 2
-text = "BITO"
-
-[node name="ContinueButton" type="Button" parent="HUD/Actions"]
+[node name="Result" type="Control" parent="HUD"]
 unique_name_in_owner = true
 visible = false
-custom_minimum_size = Vector2(0, 52)
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Dim" type="ColorRect" parent="HUD/Result"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.02, 0.01, 0.05, 0.62)
+
+[node name="Center" type="CenterContainer" parent="HUD/Result"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="ResultPanel" type="PanelContainer" parent="HUD/Result/Center"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(520, 0)
 layout_mode = 2
+theme_override_styles/panel = SubResource("Style_panel")
+
+[node name="VBox" type="VBoxContainer" parent="HUD/Result/Center/ResultPanel"]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="ResultTitle" type="Label" parent="HUD/Result/Center/ResultPanel/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"TitleLabel"
+theme_override_font_sizes/font_size = 64
+text = "SIEG!"
+horizontal_alignment = 1
+
+[node name="ResultText" type="Label" parent="HUD/Result/Center/ResultPanel/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="ResultScore" type="Label" parent="HUD/Result/Center/ResultPanel/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"BrushLabel"
+theme_override_font_sizes/font_size = 34
+horizontal_alignment = 1
+
+[node name="ContinueButton" type="Button" parent="HUD/Result/Center/ResultPanel/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(240, 56)
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_colors/font_color = Color(0.2, 0.1, 0.02, 1)
+theme_override_colors/font_hover_color = Color(0.2, 0.1, 0.02, 1)
+theme_override_colors/font_pressed_color = Color(0.2, 0.1, 0.02, 1)
+theme_override_font_sizes/font_size = 20
+theme_override_styles/normal = SubResource("Style_btn_gold")
+theme_override_styles/hover = SubResource("Style_btn_gold")
+theme_override_styles/pressed = SubResource("Style_btn_gold")
+theme_override_styles/focus = SubResource("Style_none")
 text = "WEITER"

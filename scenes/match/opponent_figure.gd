@@ -1,8 +1,9 @@
 class_name OpponentFigure
 extends Node3D
 ## Die Gestalt gegenüber am Tisch: dunkler Mantel, langer Hals,
-## bleiche Porzellanmaske mit hohlen Augen. Komplett aus Grundformen gebaut,
-## damit sie später leicht durch ein echtes Modell ersetzt werden kann.
+## bleiche Porzellanmaske mit hohlen Augen. Die Einzelteile kommen aus
+## assets/models/figure.glb (Quelle: art/blender/figure.blend) und werden hier
+## zusammengesetzt, eingefärbt und per Code animiert.
 ## Ursprung = Mitte der Tischkante auf Gegnerseite, Boden (y = 0), Blick nach +Z.
 
 var mask_color := Color("d8cfb8")
@@ -10,6 +11,8 @@ var body_color := Color("1b1716")
 var eye_color := Color("c4271b")
 var size_scale := 1.0
 var hat := false
+
+const FIGURE_MODEL := preload("res://assets/models/figure.glb")
 
 var _t := 0.0
 var _torso: Node3D
@@ -123,81 +126,56 @@ func _process(delta: float) -> void:
 
 func _build() -> void:
 	var s := size_scale
-	var coat := _mat(body_color, 0.95)
-	var skin := _mat(mask_color, 0.55)
-	var dark := _mat(Color("070606"), 1.0)
-	_eye_mat = _mat(eye_color, 0.4)
+	var model := FIGURE_MODEL.instantiate()
+	var coat_tint := body_color.lightened(0.08)
+
+	_eye_mat = StandardMaterial3D.new()
+	_eye_mat.albedo_color = eye_color
+	_eye_mat.roughness = 0.4
 	_eye_mat.emission_enabled = true
 	_eye_mat.emission = eye_color
 
 	# Oberkörper (dreht sich um die Hüfte)
 	_torso = Node3D.new()
 	# größere Gestalten sitzen tiefer, damit der Kopf im Bild bleibt
-	_torso.position = Vector3(0, 0.02 - (s - 1.0) * 1.45, -0.34 - (s - 1.0) * 0.3)
+	_torso.position = Vector3(0, 0.02 - (s - 1.0) * 1.7, -0.34 - (s - 1.0) * 0.3)
 	add_child(_torso)
-
-	var body := _mesh(_capsule(0.30 * s, 1.25 * s), coat)
-	body.position = Vector3(0, 0.55 * s, 0)
-	body.scale = Vector3(1.35, 1.0, 0.8)
-	_torso.add_child(body)
-
-	var shoulders := _mesh(_capsule(0.14 * s, 0.95 * s), coat)
-	shoulders.rotation_degrees = Vector3(0, 0, 90)
-	shoulders.position = Vector3(0, 1.05 * s, 0.02)
-	_torso.add_child(shoulders)
-
-	var neck := _mesh(_cylinder(0.045 * s, 0.055 * s, 0.32 * s), _mat(mask_color.darkened(0.45), 0.8))
-	neck.position = Vector3(0, 1.25 * s, 0.03)
-	_torso.add_child(neck)
+	for part in ["Coat", "Collar"]:
+		_torso.add_child(_part(model, part, coat_tint, s))
+	_torso.add_child(_part(model, "Buttons", Color.WHITE, s))
+	_torso.add_child(_part(model, "Neck", mask_color.darkened(0.35), s))
 
 	# Kopf
 	_head = Node3D.new()
-	_head.position = Vector3(0, 1.42 * s, 0.05)
+	_head.position = Vector3(0, 1.42, 0.05) * s
 	_torso.add_child(_head)
+	_head.add_child(_part(model, "Mask", mask_color, s))
+	_head.add_child(_part(model, "Sockets", Color.WHITE, s))
+	_head.add_child(_part(model, "Stitches", Color.WHITE, s))
+	if hat:
+		_head.add_child(_part(model, "Hat", coat_tint, s))
+		_head.add_child(_part(model, "HatBand", Color.WHITE, s))
 
-	var skull := _mesh(_sphere(0.19 * s), skin)
-	skull.scale = Vector3(1.0, 1.18, 0.95)
-	skull.position = Vector3(0, 0.1 * s, 0)
-	_head.add_child(skull)
-
-	for side in [-1.0, 1.0]:
-		# tiefe, schwarze Augenhöhlen
-		var socket := _mesh(_sphere(0.055 * s), dark)
-		socket.scale = Vector3(1.0, 1.25, 0.6)
-		socket.position = Vector3(side * 0.07 * s, 0.14 * s, 0.155 * s)
-		_head.add_child(socket)
-		# glühende Pupille
-		var eye := _mesh(_sphere(0.014 * s), _eye_mat)
-		eye.position = Vector3(side * 0.07 * s, 0.13 * s, 0.185 * s)
+	# glühende Pupillen an den Markierungen EyeL/EyeR aus dem Modell
+	for eye_name in ["EyeL", "EyeR"]:
+		var marker := model.find_child(eye_name, true, false) as Node3D
+		var eye := MeshInstance3D.new()
+		eye.mesh = _sphere(0.014 * s)
+		eye.material_override = _eye_mat
+		eye.position = marker.position * s if marker != null else Vector3.ZERO
+		eye.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		_head.add_child(eye)
 		_eyes.append(eye)
 
-	# zugenähter Mund
-	var mouth := _mesh(_box(Vector3(0.13, 0.006, 0.02) * s), dark)
-	mouth.position = Vector3(0, -0.02 * s, 0.172 * s)
-	_head.add_child(mouth)
-	for i in 5:
-		var stitch := _mesh(_box(Vector3(0.005, 0.04, 0.02) * s), dark)
-		stitch.position = Vector3((-0.05 + i * 0.025) * s, -0.02 * s, 0.17 * s)
-		_head.add_child(stitch)
-
 	# schwaches Licht, das die Maske aus der Dunkelheit holt
 	var face_light := SpotLight3D.new()
-	face_light.position = Vector3(0, 0.45 * s, 0.75)
-	face_light.rotation_degrees = Vector3(-25, 0, 0)
+	face_light.position = Vector3(0, 0.3 * s, 0.8)
+	face_light.rotation_degrees = Vector3(-15, 0, 0)
 	face_light.light_color = Color("ffcfa0")
 	face_light.light_energy = 1.6
-	face_light.spot_range = 1.4
-	face_light.spot_angle = 18.0
+	face_light.spot_range = 1.6
+	face_light.spot_angle = 24.0
 	_head.add_child(face_light)
-
-	if hat:
-		var brim := _mesh(_cylinder(0.3 * s, 0.3 * s, 0.015 * s), coat)
-		brim.position = Vector3(0, 0.3 * s, 0)
-		_head.add_child(brim)
-		var top := _mesh(_cylinder(0.15 * s, 0.17 * s, 0.26 * s), coat)
-		top.position = Vector3(0, 0.43 * s, 0)
-		_head.add_child(top)
 
 	# Arme + Hände (Hände liegen am Tisch / halten die Karten)
 	for i in 2:
@@ -208,20 +186,33 @@ func _build() -> void:
 		add_child(hand)
 		_hands.append(hand)
 		_hand_rest.append(rest)
+		hand.add_child(_part(model, "Hand_L" if i == 0 else "Hand_R", mask_color, 1.0))
 
-		var palm := _mesh(_sphere(0.038), skin)
-		palm.scale = Vector3(1.0, 0.55, 1.25)
-		hand.add_child(palm)
-		for f in 4:
-			var finger := _mesh(_capsule(0.009, 0.09), skin)
-			finger.rotation_degrees = Vector3(70, side * (8 - f * 6), 0)
-			finger.position = Vector3(side * (-0.03 + f * 0.02), 0.01, 0.06)
-			hand.add_child(finger)
-
-		var arm := _mesh(_capsule(0.065 * s, 1.0), coat)
+		var arm := _part(model, "Sleeve", coat_tint, 1.0)
 		add_child(arm)
 		_arms.append(arm)
+	model.free()
 	_update_arms()
+
+
+## Holt ein Einzelteil aus figure.glb (art/blender/figure.blend) und färbt es ein.
+## Weiß = Originalfarbe aus Blender.
+func _part(model: Node, part_name: String, tint: Color, scale_factor: float) -> MeshInstance3D:
+	var src := model.find_child(part_name, true, false) as MeshInstance3D
+	var mi := MeshInstance3D.new()
+	mi.name = part_name
+	if src == null:
+		push_warning("figure.glb: Teil '%s' fehlt" % part_name)
+		return mi
+	mi.mesh = src.mesh
+	mi.scale = Vector3.ONE * scale_factor
+	if tint != Color.WHITE:
+		var mat := src.mesh.surface_get_material(0)
+		if mat is BaseMaterial3D:
+			var tinted := (mat as BaseMaterial3D).duplicate() as BaseMaterial3D
+			tinted.albedo_color = tint
+			mi.material_override = tinted
+	return mi
 
 
 # --- Denk-Stile -----------------------------------------------------------------
@@ -288,21 +279,7 @@ func _update_arms() -> void:
 		if x.length_squared() < 0.01:
 			x = Vector3.RIGHT
 		var z := x.cross(y).normalized()
-		_arms[i].transform = Transform3D(Basis(x, y * length, z), (shoulder + hand) * 0.5)
-
-
-func _mesh(mesh: Mesh, material: Material) -> MeshInstance3D:
-	var mi := MeshInstance3D.new()
-	mi.mesh = mesh
-	mi.material_override = material
-	return mi
-
-
-func _mat(color: Color, roughness: float) -> StandardMaterial3D:
-	var m := StandardMaterial3D.new()
-	m.albedo_color = color
-	m.roughness = roughness
-	return m
+		_arms[i].transform = Transform3D(Basis(x * size_scale, y * length, z * size_scale), (shoulder + hand) * 0.5)
 
 
 func _sphere(r: float) -> SphereMesh:
@@ -311,28 +288,4 @@ func _sphere(r: float) -> SphereMesh:
 	m.height = r * 2.0
 	m.radial_segments = 16
 	m.rings = 10
-	return m
-
-
-func _capsule(r: float, h: float) -> CapsuleMesh:
-	var m := CapsuleMesh.new()
-	m.radius = r
-	m.height = h
-	m.radial_segments = 12
-	m.rings = 6
-	return m
-
-
-func _cylinder(top: float, bottom: float, h: float) -> CylinderMesh:
-	var m := CylinderMesh.new()
-	m.top_radius = top
-	m.bottom_radius = bottom
-	m.height = h
-	m.radial_segments = 14
-	return m
-
-
-func _box(size: Vector3) -> BoxMesh:
-	var m := BoxMesh.new()
-	m.size = size
 	return m

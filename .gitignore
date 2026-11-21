@@ -16,3 +16,8 @@ Godot_v*
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Blender: erzeugte Texturen (werden in die .blend gepackt) und Sicherungen
+art/blender/textures/
+*.blend1
+__pycache__/

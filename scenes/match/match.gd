@@ -9,13 +9,14 @@ const DELAY_LONG := Vector2(2.0, 3.6)
 ## Wahrscheinlichkeiten [sofort, kurz, lang] je nach Situation.
 const ODDS_DECISION := [0.2, 0.45, 0.35] # Nachlegen oder Bito? Schlagen oder nehmen?
 const ODDS_NORMAL := [0.5, 0.35, 0.15]
+## Kurzform fürs Porträt im HUD
+const THINK_VERB := ["überlegt", "starrt auf den Tisch", "mustert seine Karten", "trommelt mit den Fingern"]
 const THINK_TEXT := [
 	"%s überlegt …",
 	"%s starrt auf den Tisch …",
 	"%s mustert seine Karten …",
 	"%s trommelt mit den Fingern …",
 ]
-const LOG_LINES := 7
 
 var duel: DurakMatch
 var ai: SimpleAI
@@ -25,7 +26,8 @@ var world: TableWorld
 var _ai_pending := false
 var _thinking := false
 var _think_style := 0
-var _log: PackedStringArray = []
+var hud: MatchHUD
+var _was_my_turn := false
 
 
 func _ready() -> void:
@@ -36,6 +38,7 @@ func _ready() -> void:
 		opponent.display_name = "Testgegner"
 		Run.rng.randomize()
 
+	hud = %HUD
 	world = TableWorld.new()
 	%Viewport.add_child(world)
 	world.build(opponent)
@@ -49,10 +52,10 @@ func _ready() -> void:
 	score.trump_mult_bonus = Run.trump_mult_bonus
 	score.gold_found.connect(func(amount: int) -> void:
 		Run.add_gold(amount)
-		_on_message("Glückskarte: +%d Gold" % amount))
+		hud.toast("Glückskarte: +%d Gold" % amount, MatchHUD.COLOR_GOLD))
 	score.attach(duel) # vor den UI-Signalen verbinden, damit zuerst gewertet wird
 	score.changed.connect(_render_score)
-	score.bout_scored.connect(func(_points: int, text: String) -> void: _on_message(text))
+	score.bout_scored.connect(func(points: int, text: String) -> void: hud.bout_scored(points, text))
 	score.target_reached.connect(_on_target_reached)
 	duel.changed.connect(_on_changed)
 	duel.message.connect(_on_message)
@@ -74,9 +77,10 @@ func _ready() -> void:
 	%PassButton.pressed.connect(func() -> void: duel.pass_bout())
 	%ContinueButton.pressed.connect(func() -> void: Run.on_match_finished(_result()))
 
+	hud.setup(opponent, score.target)
 	if not opponent.taunt.is_empty():
-		_on_message("%s: „%s“" % [opponent.display_name, opponent.taunt])
-	_on_message("Punkteziel: %d" % score.target)
+		hud.toast("%s: „%s“" % [opponent.display_name, opponent.taunt], MatchHUD.COLOR_MUTED)
+	hud.toast("Punkteziel: %d" % score.target, MatchHUD.COLOR_GOLD)
 	duel.start(Run.rng, Run.player_hand_size(), opponent.hand_size, Run.apply_card_enhancements)
 	_render_score()
 
@@ -116,6 +120,7 @@ func _run_ai_turn() -> void:
 		_thinking = true
 		_think_style = randi_range(0, THINK_TEXT.size() - 1)
 		world.figure.think(_think_style)
+		hud.set_thinking(true, THINK_VERB[_think_style])
 		_render()
 	var wait := randf_range(delay.x, delay.y)
 	if duel.defender() == DurakMatch.OPPONENT:
@@ -124,6 +129,7 @@ func _run_ai_turn() -> void:
 	if _thinking:
 		_thinking = false
 		world.figure.stop_thinking()
+		hud.set_thinking(false)
 	_ai_pending = false
 	if duel.current_actor() == DurakMatch.OPPONENT:
 		ai.take_turn(duel, DurakMatch.OPPONENT)
@@ -149,10 +155,7 @@ func _maybe_throw_more() -> void:
 
 
 func _on_message(text: String) -> void:
-	_log.append(text)
-	if _log.size() > LOG_LINES:
-		_log = _log.slice(_log.size() - LOG_LINES)
-	%LogLabel.text = "\n".join(_log)
+	hud.toast(text)
 
 
 func _on_finished(_loser: int) -> void:
@@ -160,17 +163,16 @@ func _on_finished(_loser: int) -> void:
 		world.figure.slump()
 	else:
 		world.figure.laugh()
-	%ContinueButton.visible = true
-	%ContinueButton.grab_focus()
+	var won := score.reached_target()
+	hud.show_result(won, "SIEG!" if won else "DURAK!", _status_text(false, false),
+		"%d / %d Punkte" % [score.total, score.target])
 
 
 # --- Anzeige ------------------------------------------------------------------
 
 func _render() -> void:
-	%OpponentLabel.text = "%s  ·  %d Karten" % [opponent.display_name, duel.opponent_hand.size()]
-	%RunInfoLabel.text = "Leben: %d   Gold: %d\nStapel: %d   Trumpf: %s %s" % [
-		Run.lives, Run.gold, duel.deck.size(),
-		Card.SUIT_SYMBOLS[duel.trump_suit], Card.SUIT_NAMES[duel.trump_suit]]
+	hud.set_opponent_cards(duel.opponent_hand.size())
+	hud.set_run_info(Run.lives, Run.gold, duel.deck.size(), duel.trump_suit)
 
 	var my_turn := duel.current_actor() == DurakMatch.PLAYER
 	var defending := duel.defender() == DurakMatch.PLAYER
@@ -182,23 +184,33 @@ func _render() -> void:
 		playable = duel.legal_attacks() # auch während der Gegner verteidigt
 	world.sync(duel, playable)
 
-	%TakeButton.visible = my_turn and defending
-	%PassButton.visible = not defending and duel.can_pass()
-	%PassButton.disabled = not duel.can_pass()
-	%StatusLabel.text = _status_text(my_turn, defending)
+	hud.set_actions(my_turn and defending and not duel.is_over, not defending and duel.can_pass(), duel.can_pass())
+	hud.set_status(_status_text(my_turn, defending), my_turn and not duel.is_over)
+	_announce_turn(my_turn, defending)
 	_render_score()
+
+
+## Banner zu Beginn deines Angriffs bzw. wenn du dich verteidigen musst.
+func _announce_turn(my_turn: bool, defending: bool) -> void:
+	var fresh := my_turn and not _was_my_turn and not duel.is_over
+	_was_my_turn = my_turn
+	if not fresh:
+		return
+	if not defending and duel.attack_cards.is_empty():
+		hud.show_banner("DEIN ANGRIFF")
+	elif defending and duel.attack_cards.size() == 1 and duel.defense_cards[0] == null:
+		hud.show_banner("VERTEIDIGE DICH")
 
 
 func _render_score() -> void:
 	if score == null:
 		return
-	%ScoreLabel.text = "%d / %d" % [score.total, score.target]
+	var sub := "Noch %d Punkte bis zum Ziel" % score.remaining()
 	if duel != null and duel.is_over:
-		%BoutLabel.text = score.last_text
-	elif score.chips > 0:
-		%BoutLabel.text = "Runde: %d Chips × %d Mult" % [score.chips, score.mult]
-	else:
-		%BoutLabel.text = "Noch %d Punkte" % score.remaining()
+		sub = score.last_text
+	elif score.reached_target():
+		sub = "Ziel erreicht!"
+	hud.set_score(score.total, score.target, score.chips, score.mult, sub)
 
 
 func _status_text(my_turn: bool, defending: bool) -> String:
@@ -211,8 +223,6 @@ func _status_text(my_turn: bool, defending: bool) -> String:
 	if not my_turn:
 		if not defending and not duel.legal_attacks().is_empty():
 			return "%s verteidigt – du kannst noch passende Karten dazuwerfen." % opponent.display_name
-		if _thinking:
-			return THINK_TEXT[_think_style] % opponent.display_name
 		return "%s ist am Zug …" % opponent.display_name
 	if defending:
 		return "Verteidige dich – klicke eine Karte zum Schlagen oder nimm alles."

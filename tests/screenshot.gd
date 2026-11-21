@@ -45,6 +45,19 @@ func _detach() -> void:
 		await _shot("many")
 		get_tree().quit()
 		return
+	if "boss" in args:
+		await get_tree().create_timer(1.0).timeout
+		await _shot("boss")
+		get_tree().quit()
+		return
+	if "result" in args:
+		# Ergebnis-Fenster prüfen: Ziel erreichen und Duell beenden
+		scene.score.total = scene.score.target
+		duel.force_finish(DurakMatch.OPPONENT, "Punkteziel erreicht!")
+		await get_tree().create_timer(1.5).timeout
+		await _shot("result")
+		get_tree().quit()
+		return
 	await _shot("1_start")
 	# ein paar Züge spielen
 	for step in 6:

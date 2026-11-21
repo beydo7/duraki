@@ -3,8 +3,19 @@ extends Node3D
 ## Die 3D-Welt des Duells: dunkle Kammer, Spieltisch, Licht, Kamera
 ## (Ich-Perspektive) und die Gestalt gegenüber. Kümmert sich außerdem
 ## darum, die Karten an ihre Plätze zu bewegen (sync).
+##
+## Raum, Tisch und Requisiten sind Blender-Modelle (art/blender/*.blend →
+## assets/models/*.glb). Licht, Kamera und Spielfeld-Markierungen bleiben hier.
 
 signal card_clicked(card: Card)
+
+const MODELS: Array[PackedScene] = [
+	preload("res://assets/models/room.glb"),
+	preload("res://assets/models/table.glb"),
+	preload("res://assets/models/props.glb"),
+]
+## Teile der Hängelampe dürfen keinen Schatten werfen (das Licht sitzt darin).
+const NO_SHADOW := ["Gluehbirne", "Lampenschirm", "Lampenschirm_Innen", "Lampenfassung", "Lampenkabel"]
 
 const TABLE_Y := 0.80
 const TABLE_SIZE := Vector2(1.6, 1.2) # x, z
@@ -46,9 +57,8 @@ var _mouse := Vector2(0.5, 0.5)
 
 func build(opponent: OpponentData) -> void:
 	_build_environment()
-	_build_room()
-	_build_table()
-	_build_props()
+	_build_models()
+	_build_markings()
 	_build_lights()
 	_build_camera()
 	figure = OpponentFigure.new().setup(opponent)
@@ -291,6 +301,11 @@ func _build_environment() -> void:
 	env.fog_enabled = true
 	env.fog_light_color = Color("0d0a1a")
 	env.fog_density = 0.08
+	# leichtes Leuchten um Glühbirne, Glut und Scheinwerferlinsen
+	env.glow_enabled = true
+	env.glow_intensity = 0.45
+	env.glow_bloom = 0.0
+	env.glow_hdr_threshold = 1.4
 	env.adjustment_enabled = true
 	env.adjustment_saturation = 0.85
 	env.adjustment_contrast = 1.1
@@ -299,99 +314,27 @@ func _build_environment() -> void:
 	add_child(we)
 
 
-func _build_room() -> void:
-	var brick := _brick_material(Color("4a2335"), Color("15101c"), Vector2(6, 14))
-	var floor_mat := _mat(Color("1a1412"), 1.0)
-	_box(Vector3(6, 0.1, 6), Vector3(0, -0.05, 0), floor_mat)               # Boden
-	_box(Vector3(6, 4, 0.2), Vector3(0, 2, -2.4), brick)                    # Rückwand
-	_box(Vector3(0.2, 4, 6), Vector3(-2.3, 2, 0), brick)                    # links
-	_box(Vector3(0.2, 4, 6), Vector3(2.3, 2, 0), brick)                     # rechts
-	_box(Vector3(6, 0.2, 6), Vector3(0, 3.2, 0), _mat(Color("0c0807"), 1.0)) # Decke
-	# Balken an der Decke
-	for x in [-1.2, 0.0, 1.2]:
-		_box(Vector3(0.18, 0.22, 6), Vector3(x, 3.0, 0), _mat(Color("2a1d17"), 0.9))
+func _build_models() -> void:
+	for scene in MODELS:
+		add_child(scene.instantiate())
+	for part in NO_SHADOW:
+		var node := find_child(part, true, false) as GeometryInstance3D
+		if node != null:
+			node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
 
-func _build_table() -> void:
-	var felt := _mat(Color("2f3a26"), 0.95)
-	var wood := _mat(Color("3a2418"), 0.7)
-	var line := _mat(Color("9d977f"), 0.9)
-	var h := 0.06
-	_box(Vector3(TABLE_SIZE.x, h, TABLE_SIZE.y), Vector3(0, TABLE_Y - h * 0.5, 0), felt)
-	# Holzrand
-	var rim := 0.07
-	for z in [-1, 1]:
-		_box(Vector3(TABLE_SIZE.x + rim * 2, 0.09, rim), Vector3(0, TABLE_Y - 0.025, z * (TABLE_SIZE.y * 0.5 + rim * 0.5)), wood)
-	for x in [-1, 1]:
-		_box(Vector3(rim, 0.09, TABLE_SIZE.y), Vector3(x * (TABLE_SIZE.x * 0.5 + rim * 0.5), TABLE_Y - 0.025, 0), wood)
-	# Beine
-	for x in [-1, 1]:
-		for z in [-1, 1]:
-			_box(Vector3(0.08, TABLE_Y - 0.06, 0.08), Vector3(x * 0.7, (TABLE_Y - 0.06) * 0.5, z * 0.5), wood)
-	# aufgemalte Linien (Spielfelder)
+## Aufgemalte Spielfelder auf dem Filz (hängen an den Konstanten oben,
+## deshalb hier im Code statt im Modell).
+func _build_markings() -> void:
+	var line := _mat(Color(0.86, 0.82, 0.7, 0.55), 1.0)
+	line.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	var y := TABLE_Y + 0.0006
-	var w := 0.008
+	var w := 0.006
 	_flat_rect(Vector3(0, y, TABLE_ROW_Z + 0.02), Vector2(0.96, 0.4), w, line) # Mittelfeld
 	_flat_rect(Vector3(DECK_POS.x, y, DECK_POS.z), Vector2(0.24, 0.2), w, line) # Stapel
 	_flat_rect(Vector3(DISCARD_POS.x, y, DISCARD_POS.z), Vector2(0.2, 0.24), w, line) # Ablage
 	_flat_line(Vector3(0, y, 0.36), Vector2(1.3, w), line)
 	_flat_line(Vector3(0, y, -0.33), Vector2(1.3, w), line)
-	for i in 6:
-		_flat_line(Vector3(-0.25 + i * 0.1, y, 0.46), Vector2(w, 0.12), line)
-
-
-func _build_props() -> void:
-	var dark_metal := _mat(Color("1f1c1b"), 0.5)
-	dark_metal.metallic = 0.6
-	var cloth := _mat(Color("2b2321"), 1.0)
-	# Hängelampe über dem Tisch
-	_cylinder(0.005, 0.005, 0.8, Vector3(0, 2.6, 0), _mat(Color("111111"), 1.0))
-	var shade := _cylinder(0.05, 0.22, 0.16, Vector3(0, 2.15, 0), dark_metal)
-	shade.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	var bulb_mat := _mat(Color("ffe2a8"), 0.3)
-	bulb_mat.emission_enabled = true
-	bulb_mat.emission = Color("ffd38a")
-	bulb_mat.emission_energy_multiplier = 3.0
-	var bulb := _sphere(0.045, Vector3(0, 2.07, 0), bulb_mat)
-	bulb.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-
-	# Bühnenscheinwerfer hinten links/rechts (wie in einem Hinterzimmer-Studio)
-	for side in [-1, 1]:
-		var base := Vector3(side * 1.25, 0, -1.6)
-		_cylinder(0.02, 0.02, 1.9, base + Vector3(0, 0.95, 0), dark_metal)
-		var head := _cylinder(0.12, 0.16, 0.3, base + Vector3(0, 1.95, 0), dark_metal)
-		head.look_at_from_position(head.position, Vector3(0, TABLE_Y, 0))
-		head.rotate_object_local(Vector3.RIGHT, PI * 0.5)
-		for leg in 3:
-			var a := leg * TAU / 3.0
-			var foot := base + Vector3(cos(a) * 0.25, 0.0, sin(a) * 0.25)
-			var l := _cylinder(0.012, 0.012, 0.5, (foot + base + Vector3(0, 0.4, 0)) * 0.5, dark_metal)
-			l.look_at_from_position(l.position, base + Vector3(0, 0.4, 0))
-			l.rotate_object_local(Vector3.RIGHT, PI * 0.5)
-
-	# Lautsprecherbox links
-	var speaker := _box(Vector3(0.5, 0.7, 0.4), Vector3(-1.75, 0.35, -1.2), cloth)
-	speaker.rotation_degrees.y = 25
-	var cone := _cylinder(0.16, 0.16, 0.02, Vector3.ZERO, _mat(Color("0d0d0d"), 0.8))
-	cone.reparent(speaker, false)
-	cone.rotation_degrees.x = 90
-	cone.position = Vector3(0, 0.08, 0.21)
-
-	# Kisten rechts
-	var crate := _mat(Color("4a3424"), 0.9)
-	_box(Vector3(0.45, 0.45, 0.45), Vector3(1.7, 0.225, -1.4), crate).rotation_degrees.y = -15
-	_box(Vector3(0.35, 0.35, 0.35), Vector3(1.75, 0.625, -1.4), crate).rotation_degrees.y = 10
-
-	# Kabel, die von der Decke hängen
-	for i in 4:
-		var x := -1.6 + i * 1.05
-		_cylinder(0.008, 0.008, 1.2, Vector3(x, 2.5, -2.2 + (i % 2) * 0.2), _mat(Color("0a0a0a"), 1.0))
-
-	# Flasche auf dem Tisch
-	var glass := _mat(Color("2f4a2a"), 0.2)
-	glass.metallic = 0.3
-	_cylinder(0.035, 0.035, 0.2, Vector3(0.68, TABLE_Y + 0.1, 0.0), glass)
-	_cylinder(0.012, 0.03, 0.08, Vector3(0.68, TABLE_Y + 0.24, 0.0), glass)
 
 
 func _build_lights() -> void:
@@ -457,27 +400,6 @@ func _build_camera() -> void:
 
 # --- Bausteine ------------------------------------------------------------------
 
-func _box(size: Vector3, pos: Vector3, material: Material) -> MeshInstance3D:
-	var m := BoxMesh.new()
-	m.size = size
-	return _add(m, pos, material)
-
-
-func _cylinder(top: float, bottom: float, h: float, pos: Vector3, material: Material) -> MeshInstance3D:
-	var m := CylinderMesh.new()
-	m.top_radius = top
-	m.bottom_radius = bottom
-	m.height = h
-	m.radial_segments = 16
-	return _add(m, pos, material)
-
-
-func _sphere(r: float, pos: Vector3, material: Material) -> MeshInstance3D:
-	var m := SphereMesh.new()
-	m.radius = r
-	m.height = r * 2
-	return _add(m, pos, material)
-
 
 func _flat_line(center: Vector3, size: Vector2, material: Material) -> void:
 	var m := QuadMesh.new()
@@ -507,31 +429,4 @@ func _mat(color: Color, roughness: float) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
 	m.albedo_color = color
 	m.roughness = roughness
-	return m
-
-
-func _brick_material(brick: Color, mortar: Color, scale: Vector2) -> ShaderMaterial:
-	var sh := Shader.new()
-	sh.code = """
-shader_type spatial;
-uniform vec3 brick_color : source_color;
-uniform vec3 mortar_color : source_color;
-uniform vec2 tiles = vec2(6.0, 14.0);
-float h(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
-void fragment() {
-	vec2 uv = UV * tiles;
-	uv.x += step(1.0, mod(uv.y, 2.0)) * 0.5;
-	vec2 f = fract(uv);
-	float m = step(0.05, f.x) * step(0.1, f.y);
-	float n = h(floor(uv));
-	vec3 b = brick_color * (0.7 + 0.6 * n);
-	ALBEDO = mix(mortar_color, b, m);
-	ROUGHNESS = 0.95;
-}
-"""
-	var m := ShaderMaterial.new()
-	m.shader = sh
-	m.set_shader_parameter("brick_color", brick)
-	m.set_shader_parameter("mortar_color", mortar)
-	m.set_shader_parameter("tiles", scale)
 	return m
