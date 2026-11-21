@@ -2,14 +2,14 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bkxo443rsp5xf"
+uid="uid://cibn15c6veduk"
 path.s3tc="res://.godot/imported/crow_bone_normal.png-4faf76f1fdf932130891328ec9d3f323.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
 }
 generator_parameters={
-"md5": "d822837fbd8f1249df715f3a35cb9c57"
+"md5": "78969eeac7b2288702772cde002f0b2a"
 }
 
 [deps]

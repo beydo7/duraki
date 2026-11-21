@@ -2,20 +2,20 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cs1a4hvnau4ac"
-path.s3tc="res://.godot/imported/crow_feathers_black_color.png-85023a3b70791429fc3a4b30cb3bd2ff.s3tc.ctex"
+uid="uid://bo073bovkunvm"
+path.s3tc="res://.godot/imported/crow_rags_normal.png-27e402a810219bb2cdc539084d957d19.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
 }
 generator_parameters={
-"md5": "e8cadf403b442106033b624fc10f0164"
+"md5": "43794779209b1f91b6521165506d712f"
 }
 
 [deps]
 
-source_file="res://assets/models/opponents/crow_feathers_black_color.png"
-dest_files=["res://.godot/imported/crow_feathers_black_color.png-85023a3b70791429fc3a4b30cb3bd2ff.s3tc.ctex"]
+source_file="res://assets/models/opponents/crow_rags_normal.png"
+dest_files=["res://.godot/imported/crow_rags_normal.png-27e402a810219bb2cdc539084d957d19.s3tc.ctex"]
 
 [params]
 

@@ -2,20 +2,20 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://c2gf70sylwqkl"
-path.s3tc="res://.godot/imported/crow_metal_normal.png-a8fe2bac4172275666437020d914f3fe.s3tc.ctex"
+uid="uid://c1hda7opq7w48"
+path.s3tc="res://.godot/imported/crow_skin_color.png-8d6c8e99832970014776af6564917931.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
 }
 generator_parameters={
-"md5": "6b5cf1bf7df2df44367f0a5462061509"
+"md5": "1f2d55dc6d95a68086ddebecdd36fbb5"
 }
 
 [deps]
 
-source_file="res://assets/models/opponents/crow_metal_normal.png"
-dest_files=["res://.godot/imported/crow_metal_normal.png-a8fe2bac4172275666437020d914f3fe.s3tc.ctex"]
+source_file="res://assets/models/opponents/crow_skin_color.png"
+dest_files=["res://.godot/imported/crow_skin_color.png-8d6c8e99832970014776af6564917931.s3tc.ctex"]
 
 [params]
 

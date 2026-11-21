@@ -2,20 +2,20 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dg1vqby7rqcus"
-path.s3tc="res://.godot/imported/crow_leather_dark_color.png-0fd200176301df4835f773e0c2b34b7b.s3tc.ctex"
+uid="uid://bq04goxuxg16q"
+path.s3tc="res://.godot/imported/crow_claw_normal.png-e9cd75228ddfbf75f36befbec45eb3c7.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
 }
 generator_parameters={
-"md5": "c46c635ec820cef82313797533d1d2f7"
+"md5": "f406982177b5b85d10b1781748b0fc50"
 }
 
 [deps]
 
-source_file="res://assets/models/opponents/crow_leather_dark_color.png"
-dest_files=["res://.godot/imported/crow_leather_dark_color.png-0fd200176301df4835f773e0c2b34b7b.s3tc.ctex"]
+source_file="res://assets/models/opponents/crow_claw_normal.png"
+dest_files=["res://.godot/imported/crow_claw_normal.png-e9cd75228ddfbf75f36befbec45eb3c7.s3tc.ctex"]
 
 [params]
 

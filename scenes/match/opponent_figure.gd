@@ -146,9 +146,9 @@ func _process(delta: float) -> void:
 	var dim := 0.3 if _slump > 0.0 else 1.0
 	_eye_mat.emission_energy_multiplier = glow * 1.7 * dim
 	for l in _eye_lights:
-		l.light_energy = (0.1 + glow * 0.08) * dim
+		l.light_energy = (0.02 + glow * 0.02) * dim
 	if _under_light != null:
-		_under_light.light_energy = (0.25 + sin(_t * 1.1) * 0.04 + _laugh * 0.3) * dim
+		_under_light.light_energy = (0.12 + sin(_t * 1.1) * 0.03 + _laugh * 0.25) * dim
 
 
 # --- Aufbau -------------------------------------------------------------------
@@ -198,7 +198,7 @@ func _build() -> void:
 			glow.light_color = eye_color
 			glow.omni_range = 0.3 * s
 			glow.omni_attenuation = 2.2
-			glow.position = eye.position + Vector3(0, -0.02, 0.09)
+			glow.position = eye.position + Vector3(0, -0.02, 0.15)
 			marker.get_parent().add_child(glow)
 			_eye_lights.append(glow)
 

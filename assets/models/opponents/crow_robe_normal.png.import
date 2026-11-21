@@ -2,20 +2,20 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://b48pk0ktir3db"
-path.s3tc="res://.godot/imported/crow_feathers_black_normal.png-2aea48b9a50a7ab2eac1e8197529fa39.s3tc.ctex"
+uid="uid://bf61pdalp5bid"
+path.s3tc="res://.godot/imported/crow_robe_normal.png-818f4f22b4938ca554da1fd255a91cb0.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
 }
 generator_parameters={
-"md5": "18fa5a2fa6e1992809309d9b0c88b22e"
+"md5": "93e45e88497bb412792d84ba865809ff"
 }
 
 [deps]
 
-source_file="res://assets/models/opponents/crow_feathers_black_normal.png"
-dest_files=["res://.godot/imported/crow_feathers_black_normal.png-2aea48b9a50a7ab2eac1e8197529fa39.s3tc.ctex"]
+source_file="res://assets/models/opponents/crow_robe_normal.png"
+dest_files=["res://.godot/imported/crow_robe_normal.png-818f4f22b4938ca554da1fd255a91cb0.s3tc.ctex"]
 
 [params]
 

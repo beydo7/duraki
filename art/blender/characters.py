@@ -1015,10 +1015,18 @@ def giant():
     place_sleeve(sleeve(0.1, 0.095, 0.1, ragged=0.0, seed=8), shirt)
 
 
+def _hd(module):
+    """HD-Version aus eigenem Modul (hd_<name>.py) bauen."""
+    def build():
+        import importlib
+        importlib.import_module(module).build()
+    return build
+
+
 CHARACTERS = {
     "bandit": bandit,
     "swamp_man": swamp_man,
-    "crow": crow,
+    "crow": _hd("hd_crow"),
     "wolf": wolf,
     "jester": jester,
     "bone_man": bone_man,

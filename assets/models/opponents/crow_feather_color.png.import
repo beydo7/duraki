@@ -2,20 +2,20 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://coh8261v46oru"
-path.s3tc="res://.godot/imported/crow_metal_color.png-358f91b2a27ee81fd9b472db79bc7ac1.s3tc.ctex"
+uid="uid://bk8oi686gh33c"
+path.s3tc="res://.godot/imported/crow_feather_color.png-eedca6aec1c08fff32f934b37fd07c90.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
 }
 generator_parameters={
-"md5": "b8fc89c1fe6ad80953084b749f7de0cc"
+"md5": "77bae66dd577ae0de7bc493a986f094b"
 }
 
 [deps]
 
-source_file="res://assets/models/opponents/crow_metal_color.png"
-dest_files=["res://.godot/imported/crow_metal_color.png-358f91b2a27ee81fd9b472db79bc7ac1.s3tc.ctex"]
+source_file="res://assets/models/opponents/crow_feather_color.png"
+dest_files=["res://.godot/imported/crow_feather_color.png-eedca6aec1c08fff32f934b37fd07c90.s3tc.ctex"]
 
 [params]
 
