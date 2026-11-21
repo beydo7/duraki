@@ -338,3 +338,48 @@ def export_glb(path: str) -> None:
         bpy.ops.export_scene.gltf(export_image_format="AUTO", **kwargs)
     except TypeError:
         bpy.ops.export_scene.gltf(**kwargs)
+
+
+def tube(points, radii, seg: int = 12, tile: float = 0.2, cap_start: bool = True) -> bmesh.types.BMesh:
+    """Röhre entlang einer 3D-Kurve mit wechselndem Radius (Hörner, Krallen, Finger).
+    Rahmen per Parallel-Transport, damit sich die Röhre nicht verdreht."""
+    pts = [Vector(p) for p in points]
+    n = len(pts)
+    bm = bmesh.new()
+    uv = bm.loops.layers.uv.verify()
+    tangents = []
+    for i in range(n):
+        a = pts[max(i - 1, 0)]
+        b = pts[min(i + 1, n - 1)]
+        tangents.append((b - a).normalized())
+    ref = Vector((0, 0, 1)) if abs(tangents[0].z) < 0.9 else Vector((1, 0, 0))
+    normal = (ref - tangents[0] * ref.dot(tangents[0])).normalized()
+    rings = []
+    length = [0.0]
+    for i in range(n):
+        t = tangents[i]
+        normal = (normal - t * normal.dot(t)).normalized()
+        binormal = t.cross(normal)
+        ring = []
+        for k in range(seg):
+            ang = math.tau * k / seg
+            ring.append(bm.verts.new(pts[i] + (normal * math.cos(ang) + binormal * math.sin(ang)) * radii[i]))
+        rings.append(ring)
+        if i > 0:
+            length.append(length[-1] + (pts[i] - pts[i - 1]).length)
+    circ = math.tau * max(radii)
+    for i in range(n - 1):
+        for k in range(seg):
+            vs = (rings[i][k], rings[i][(k + 1) % seg], rings[i + 1][(k + 1) % seg], rings[i + 1][k])
+            f = bm.faces.new(vs)
+            for j, loop in enumerate(f.loops):
+                kk = k + (1 if j in (1, 2) else 0)
+                ii = i + (1 if j in (2, 3) else 0)
+                loop[uv].uv = (kk / seg * circ / tile, length[ii] / tile)
+    if cap_start:
+        bm.faces.new(list(reversed(rings[0])))
+    tip = bm.verts.new(pts[-1] + tangents[-1] * radii[-1])
+    for k in range(seg):
+        bm.faces.new((rings[-1][k], rings[-1][(k + 1) % seg], tip))
+    bm.normal_update()
+    return bm

@@ -52,6 +52,8 @@ func setup(opponent: OpponentData, target: int) -> void:
 	%OpponentLabel.text = opponent.display_name
 	%Portrait.mask_color = opponent.mask_color
 	%Portrait.eye_color = opponent.eye_color
+	%Portrait.horns = opponent.horns
+	%Portrait.mouth = opponent.mouth
 	_target = maxi(1, target)
 	%TargetLabel.text = " / %d" % target
 	_slide_in(%OpponentPanel, Vector2(-40, 0), 0.0)

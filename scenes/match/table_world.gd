@@ -305,7 +305,7 @@ func _build_environment() -> void:
 	env.glow_enabled = true
 	env.glow_intensity = 0.45
 	env.glow_bloom = 0.0
-	env.glow_hdr_threshold = 1.4
+	env.glow_hdr_threshold = 2.0
 	env.adjustment_enabled = true
 	env.adjustment_saturation = 0.85
 	env.adjustment_contrast = 1.1

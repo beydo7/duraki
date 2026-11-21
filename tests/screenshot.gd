@@ -22,6 +22,10 @@ func _detach() -> void:
 	Run.start_new_run(4242)
 	await get_tree().create_timer(0.5).timeout
 	Run.floor_index = Run.encounters.size() - 1 if "boss" in OS.get_cmdline_user_args() else 0
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("opp="):
+			# bestimmten Gegner zeigen, z. B. opp=street_kid
+			Run.encounters[Run.floor_index] = load("res://data/opponents/%s.tres" % arg.substr(4))
 	if "enh" in OS.get_cmdline_user_args():
 		# ein paar verbesserte Karten zum Ansehen
 		for suit in 4:
@@ -45,7 +49,7 @@ func _detach() -> void:
 		await _shot("many")
 		get_tree().quit()
 		return
-	if "boss" in args:
+	if "boss" in args or ",".join(args).contains("opp="):
 		await get_tree().create_timer(1.0).timeout
 		await _shot("boss")
 		get_tree().quit()

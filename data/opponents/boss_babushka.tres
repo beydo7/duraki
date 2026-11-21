@@ -14,3 +14,6 @@ mask_color = Color(0.88, 0.82, 0.72, 1)
 body_color = Color(0.3, 0.05, 0.06, 1)
 eye_color = Color(1, 0.15, 0.08, 1)
 figure_scale = 1.3
+horns = 2
+mouth = 1
+extra_eyes = true

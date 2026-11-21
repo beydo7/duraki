@@ -1,7 +1,8 @@
 class_name OpponentFigure
 extends Node3D
-## Die Gestalt gegenüber am Tisch: dunkler Mantel, langer Hals,
-## bleiche Porzellanmaske mit hohlen Augen. Die Einzelteile kommen aus
+## Die Gestalt gegenüber am Tisch: ein Monster im Mantel mit Wirbelsäulen-Hals,
+## Porzellanschädel mit tiefen, glühenden Augen, Krallenhänden und – je nach
+## Gegner – Hörnern, Reißzahn-Grinsen oder Zusatzaugen. Die Einzelteile kommen aus
 ## assets/models/figure.glb (Quelle: art/blender/figure.blend) und werden hier
 ## zusammengesetzt, eingefärbt und per Code animiert.
 ## Ursprung = Mitte der Tischkante auf Gegnerseite, Boden (y = 0), Blick nach +Z.
@@ -11,8 +12,15 @@ var body_color := Color("1b1716")
 var eye_color := Color("c4271b")
 var size_scale := 1.0
 var hat := false
+var horns := 0
+var mouth := 1
+var extra_eyes := false
 
 const FIGURE_MODEL := preload("res://assets/models/figure.glb")
+## Diese Teile sind „Löcher“ (Augenhöhlen, Maul, Nase, Naht): immer pechschwarz,
+## sonst spiegeln sie das farbige Augenlicht.
+const VOID_PARTS := ["Sockets", "ExtraSockets", "Grin", "Nostrils", "Stitches"]
+static var _void_mat: StandardMaterial3D
 
 var _t := 0.0
 var _torso: Node3D
@@ -29,6 +37,12 @@ var _laugh := 0.0
 var _think := 0.0
 var _think_target := 0.0
 var _think_style := ThinkStyle.CHIN
+var _eye_lights: Array[OmniLight3D] = []
+var _under_light: SpotLight3D
+var _jaw: Node3D
+var _jaw_open := 0.0
+var _twitch := Vector3.ZERO
+var _next_twitch := 3.0
 
 ## Verschiedene Arten zu überlegen.
 enum ThinkStyle {
@@ -46,6 +60,9 @@ func setup(data: OpponentData) -> OpponentFigure:
 		eye_color = data.eye_color
 		size_scale = data.figure_scale
 		hat = data.wears_hat
+		horns = data.horns
+		mouth = data.mouth
+		extra_eyes = data.extra_eyes
 	return self
 
 
@@ -99,11 +116,26 @@ func _process(delta: float) -> void:
 	_torso.rotation.x = lean
 	_torso.scale = Vector3(1.0, 1.0 + breath, 1.0)
 
+	# unheimliches Zucken: ab und zu ruckt der Kopf kurz zur Seite
+	_next_twitch -= delta
+	if _next_twitch <= 0.0 and _slump <= 0.0:
+		_next_twitch = randf_range(2.5, 7.0)
+		_twitch = Vector3(randf_range(-0.12, 0.12), randf_range(-0.25, 0.25), randf_range(-0.3, 0.3))
+	_twitch = _twitch.lerp(Vector3.ZERO, minf(1.0, delta * 3.0))
+
 	var shake := sin(_t * 38.0) * 0.03 * _laugh
 	_head.rotation = Vector3(
 		sin(_t * 0.7) * 0.05 + minf(_slump, 1.0) * 0.35 - _recoil * 0.2 + _think * _head_pitch(),
 		sin(_t * 0.45) * 0.12 * (1.0 - _think) + _think * _head_yaw() + shake,
-		sin(_t * 0.9) * 0.04 + _recoil * 0.15 + _think * _head_roll())
+		sin(_t * 0.9) * 0.04 + _recoil * 0.15 + _think * _head_roll()) + _twitch
+
+	# Kiefer: klappert beim Lachen, öffnet sich beim Legen und Zucken
+	var jaw_target := maxf(sin(_gesture * PI) * 0.6, _twitch.length() * 2.0)
+	jaw_target = maxf(jaw_target, _laugh * (0.5 + 0.5 * sin(_t * 30.0)))
+	_jaw_open = lerpf(_jaw_open, jaw_target, minf(1.0, delta * 14.0))
+	if _jaw != null:
+		_jaw.position = _jaw.get_meta("rest") + Vector3(0, -0.016, 0.004) * _jaw_open * size_scale
+		_jaw.rotation.x = _jaw_open * 0.12
 
 	for i in _hands.size():
 		var side := -1.0 if i == 0 else 1.0
@@ -119,7 +151,12 @@ func _process(delta: float) -> void:
 	var glow := 1.2 + sin(_t * 2.3) * 0.4 + _laugh * 3.0
 	if _think_style == ThinkStyle.STARE:
 		glow += _think * 2.5
-	_eye_mat.emission_energy_multiplier = glow * (0.3 if _slump > 0.0 else 1.0)
+	var dim := 0.3 if _slump > 0.0 else 1.0
+	_eye_mat.emission_energy_multiplier = glow * 1.7 * dim
+	for l in _eye_lights:
+		l.light_energy = (0.1 + glow * 0.08) * dim
+	if _under_light != null:
+		_under_light.light_energy = (0.45 + sin(_t * 1.1) * 0.06 + _laugh * 0.4) * dim
 
 
 # --- Aufbau -------------------------------------------------------------------
@@ -150,32 +187,70 @@ func _build() -> void:
 	_head.position = Vector3(0, 1.42, 0.05) * s
 	_torso.add_child(_head)
 	_head.add_child(_part(model, "Mask", mask_color, s))
-	_head.add_child(_part(model, "Sockets", Color.WHITE, s))
-	_head.add_child(_part(model, "Stitches", Color.WHITE, s))
+	for part in ["Sockets", "Nostrils"]:
+		_head.add_child(_part(model, part, Color.WHITE, s))
+	if mouth == 0:
+		_head.add_child(_part(model, "Stitches", Color.WHITE, s))
+	else:
+		for part in ["Grin", "Teeth"]:
+			_head.add_child(_part(model, part, Color.WHITE, s))
+		var jaw_mesh := _part(model, "Jaw", Color.WHITE, s)
+		_jaw = Node3D.new()
+		var pivot := model.find_child("JawPivot", true, false) as Node3D
+		_jaw.position = pivot.position * s if pivot != null else Vector3.ZERO
+		_jaw.set_meta("rest", _jaw.position)
+		_jaw.add_child(jaw_mesh)
+		_head.add_child(_jaw)
+	match horns:
+		1: _head.add_child(_part(model, "Horns_Devil", Color.WHITE, s))
+		2: _head.add_child(_part(model, "Horns_Ram", Color.WHITE, s))
 	if hat:
 		_head.add_child(_part(model, "Hat", coat_tint, s))
 		_head.add_child(_part(model, "HatBand", Color.WHITE, s))
 
-	# glühende Pupillen an den Markierungen EyeL/EyeR aus dem Modell
-	for eye_name in ["EyeL", "EyeR"]:
+	# glühende Pupillen an den Markierungen aus dem Modell (+ Zusatzaugen)
+	var eye_names := ["EyeL", "EyeR"]
+	if extra_eyes:
+		_head.add_child(_part(model, "ExtraSockets", Color.WHITE, s))
+		eye_names += ["EyeX1", "EyeX2", "EyeX3"]
+	for eye_name in eye_names:
 		var marker := model.find_child(eye_name, true, false) as Node3D
+		var small: bool = eye_name.begins_with("EyeX")
 		var eye := MeshInstance3D.new()
-		eye.mesh = _sphere(0.014 * s)
+		eye.mesh = _sphere((0.009 if small else 0.015) * s)
 		eye.material_override = _eye_mat
 		eye.position = marker.position * s if marker != null else Vector3.ZERO
 		eye.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		_head.add_child(eye)
 		_eyes.append(eye)
+		if not small:
+			# farbiges Glimmen auf dem Schädel rund um die Augen
+			var glow := OmniLight3D.new()
+			glow.light_color = eye_color
+			glow.omni_range = 0.3 * s
+			glow.omni_attenuation = 2.2
+			glow.position = eye.position + Vector3(0, -0.02 * s, 0.09 * s)
+			_head.add_child(glow)
+			_eye_lights.append(glow)
 
-	# schwaches Licht, das die Maske aus der Dunkelheit holt
+	# kaltes Licht von oben vorne holt den Schädel aus der Dunkelheit …
 	var face_light := SpotLight3D.new()
 	face_light.position = Vector3(0, 0.3 * s, 0.8)
 	face_light.rotation_degrees = Vector3(-15, 0, 0)
-	face_light.light_color = Color("ffcfa0")
-	face_light.light_energy = 1.6
+	face_light.light_color = Color("d9c8ff")
+	face_light.light_energy = 0.9
 	face_light.spot_range = 1.6
 	face_light.spot_angle = 24.0
 	_head.add_child(face_light)
+	# … und Grusel-Licht von unten in Augenfarbe (wie eine Taschenlampe unterm Kinn)
+	_under_light = SpotLight3D.new()
+	_under_light.light_color = eye_color.lerp(Color("ffb070"), 0.35)
+	_under_light.spot_range = 1.6
+	_under_light.spot_angle = 30.0
+	_under_light.spot_attenuation = 0.8
+	add_child(_under_light)
+	_under_light.position = Vector3(0, 0.86, 0.1)
+	_under_light.look_at(_torso.position + Vector3(0, 1.45 * s, 0.1))
 
 	# Arme + Hände (Hände liegen am Tisch / halten die Karten)
 	for i in 2:
@@ -187,6 +262,7 @@ func _build() -> void:
 		_hands.append(hand)
 		_hand_rest.append(rest)
 		hand.add_child(_part(model, "Hand_L" if i == 0 else "Hand_R", mask_color, 1.0))
+		hand.add_child(_part(model, "Claws_L" if i == 0 else "Claws_R", Color.WHITE, 1.0))
 
 		var arm := _part(model, "Sleeve", coat_tint, 1.0)
 		add_child(arm)
@@ -206,7 +282,14 @@ func _part(model: Node, part_name: String, tint: Color, scale_factor: float) -> 
 		return mi
 	mi.mesh = src.mesh
 	mi.scale = Vector3.ONE * scale_factor
-	if tint != Color.WHITE:
+	if part_name in VOID_PARTS:
+		if _void_mat == null:
+			_void_mat = StandardMaterial3D.new()
+			_void_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			_void_mat.albedo_color = Color(0.008, 0.004, 0.008)
+		mi.material_override = _void_mat
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	elif tint != Color.WHITE:
 		var mat := src.mesh.surface_get_material(0)
 		if mat is BaseMaterial3D:
 			var tinted := (mat as BaseMaterial3D).duplicate() as BaseMaterial3D

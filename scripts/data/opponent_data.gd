@@ -18,3 +18,7 @@ extends Resource
 @export var eye_color := Color("c4271b")
 @export_range(0.7, 1.5, 0.05) var figure_scale := 1.0
 @export var wears_hat := false
+## Monster-Merkmale (Teile kommen aus art/blender/figure.blend)
+@export_enum("Keine", "Teufelshörner", "Widderhörner") var horns := 0
+@export_enum("Zugenäht", "Grinsen mit Zähnen") var mouth := 1
+@export var extra_eyes := false

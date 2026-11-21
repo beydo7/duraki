@@ -105,7 +105,13 @@ Raum, Tisch, Requisiten (Lampe, Scheinwerfer, Flasche …) und die Gegnerfigur s
    Alternativ alles auf einmal: `blender -b -P art/blender/build_models.py`
 3. Godot importiert die neue `.glb` automatisch beim nächsten Öffnen bzw. Start.
 
-**Wichtig bei der Figur:** Godot sucht die Teile über ihre **Objektnamen** (`Coat`, `Collar`, `Buttons`, `Neck`, `Mask`, `Sockets`, `Stitches`, `Hat`, `HatBand`, `Hand_L`, `Hand_R`, `Sleeve`) und die Augenpunkte `EyeL`/`EyeR`. Namen also nicht ändern. Die Farben der Gegner (Maske, Mantel, Augen) kommen aus den Gegner-Dateien in `data/opponents/` – im Modell bleiben Maske und Mantel deshalb hell.
+**Wichtig bei der Figur:** Godot sucht die Teile über ihre **Objektnamen** – Namen also nicht ändern:
+
+- immer: `Coat`, `Collar`, `Buttons`, `Neck`, `Mask`, `Sockets`, `Nostrils`, `Hand_L`/`Hand_R`, `Claws_L`/`Claws_R`, `Sleeve`
+- je nach Gegner: `Grin` + `Teeth` + `Jaw` (Reißzahn-Grinsen) oder `Stitches` (zugenäht), `Horns_Devil`, `Horns_Ram`, `ExtraSockets`, `Hat` + `HatBand`
+- Markierungen (leere Objekte): `EyeL`, `EyeR`, `EyeX1`–`EyeX3` (glühende Augen), `JawPivot` (Drehpunkt des Kiefers)
+
+Welche Teile ein Gegner zeigt, stellt ihr in `data/opponents/*.tres` ein (Gruppe „Aussehen“: Hörner, Mund, Zusatzaugen, Hut, Farben, Größe). Maske und Mantel bleiben im Modell hell, weil Godot sie pro Gegner einfärbt.
 
 **Alles neu aus dem Skript erzeugen** (überschreibt die .blend-Dateien!):
 ```bash
