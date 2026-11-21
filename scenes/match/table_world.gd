@@ -19,8 +19,9 @@ const HAND_MAX_WIDTH := 0.82
 const OPP_HAND_POS := Vector3(0.0, 0.97, -0.36)
 const OPP_HAND_TILT := 68.0
 const TABLE_ROW_Z := -0.07
+const TABLE_FIELD_WIDTH := 0.96
 
-const TABLE_CARD_SCALE := 1.3
+const TABLE_CARD_SCALE := 1.8
 const MOVE_TIME := 0.32
 const DISCARD_DELAY := 0.8
 const DEAL_STAGGER := 0.07
@@ -226,15 +227,18 @@ func _opp_hand_xf(i: int, n: int) -> Transform3D:
 
 
 func _table_xf(i: int, n: int, defense: bool, card: Card) -> Transform3D:
-	var spacing := 0.17 if n <= 4 else 0.68 / n
-	var x := (i - (n - 1) * 0.5) * spacing
+	# Bei vielen Paaren werden die Karten kleiner, damit alles ins Mittelfeld passt.
+	var scale := minf(TABLE_CARD_SCALE, TABLE_FIELD_WIDTH / (n * Card3D.WIDTH * 1.5))
+	var spacing := minf(0.26, TABLE_FIELD_WIDTH / n)
+	var x := (i - (n - 1) * 0.5) * spacing - 0.02 * scale
 	var jitter := (hash(card.get_label()) % 100) / 100.0 - 0.5
 	var pos := Vector3(x, TABLE_Y + 0.002, TABLE_ROW_Z)
-	var rot := jitter * 0.12
+	var rot := jitter * 0.08
 	if defense:
-		pos += Vector3(0.03, 0.004, 0.05)
-		rot += 0.22
-	return Transform3D(Basis(Vector3.UP, rot).scaled(Vector3.ONE * TABLE_CARD_SCALE), pos)
+		# nach rechts unten versetzt: Rang und Farbe der Angriffskarte bleiben frei
+		pos += Vector3(0.036 * scale, 0.004, 0.045 * scale)
+		rot += 0.12
+	return Transform3D(Basis(Vector3.UP, rot).scaled(Vector3.ONE * scale), pos)
 
 
 func _trump_xf() -> Transform3D:
@@ -327,7 +331,7 @@ func _build_table() -> void:
 	# aufgemalte Linien (Spielfelder)
 	var y := TABLE_Y + 0.0006
 	var w := 0.008
-	_flat_rect(Vector3(0, y, TABLE_ROW_Z), Vector2(1.0, 0.34), w, line)      # Mittelfeld
+	_flat_rect(Vector3(0, y, TABLE_ROW_Z + 0.02), Vector2(0.96, 0.4), w, line) # Mittelfeld
 	_flat_rect(Vector3(DECK_POS.x, y, DECK_POS.z), Vector2(0.24, 0.2), w, line) # Stapel
 	_flat_rect(Vector3(DISCARD_POS.x, y, DISCARD_POS.z), Vector2(0.2, 0.24), w, line) # Ablage
 	_flat_line(Vector3(0, y, 0.36), Vector2(1.3, w), line)
@@ -419,6 +423,18 @@ func _build_lights() -> void:
 	rim.light_energy = 2.2
 	rim.omni_range = 2.2
 	add_child(rim)
+
+	# eigener Lichtkegel auf das Mittelfeld, damit die Tischkarten herausstechen
+	var field := SpotLight3D.new()
+	field.position = Vector3(0, 1.75, TABLE_ROW_Z + 0.35)
+	add_child(field)
+	field.look_at(Vector3(0, TABLE_Y, TABLE_ROW_Z + 0.02))
+	field.light_color = Color("fff1d8")
+	field.light_energy = 1.6
+	field.spot_range = 2.0
+	field.spot_angle = 24.0
+	field.spot_angle_attenuation = 0.6
+	field.shadow_enabled = false
 
 	# schwaches Fülllicht von vorne, damit die Hand lesbar bleibt
 	var fill := OmniLight3D.new()
