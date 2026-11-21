@@ -97,7 +97,7 @@ Raum, Tisch, Requisiten (Lampe, Scheinwerfer, Flasche …) und die Gegnerfigur s
 | `art/blender/room.blend`       | `assets/models/room.glb`     | Kammer: Wände, Dielen, Balken, Tür, Regal |
 | `art/blender/table.blend`      | `assets/models/table.glb`    | Spieltisch mit Filz, Holzrand, gedrechselten Beinen |
 | `art/blender/props.blend`      | `assets/models/props.glb`    | Hängelampe, Scheinwerfer, Lautsprecher, Kisten, Tischdeko |
-| `art/blender/figure.blend`     | `assets/models/figure.glb`   | Einzelteile der Gegnerfigur (Mantel, Maske, Hände, Ärmel, Hut …) |
+| `art/blender/opponents/<id>.blend` | `assets/models/opponents/<id>.glb` | Die acht Gegner (Bandit, Sumpfmann, Krähe, Wölfin, Gaukler, Knochenmann, Hexe, Riese) |
 
 **Ein Modell ändern:**
 1. `.blend` in Blender (4.2 oder neuer) öffnen, bearbeiten, speichern.
@@ -105,19 +105,22 @@ Raum, Tisch, Requisiten (Lampe, Scheinwerfer, Flasche …) und die Gegnerfigur s
    Alternativ alles auf einmal: `blender -b -P art/blender/build_models.py`
 3. Godot importiert die neue `.glb` automatisch beim nächsten Öffnen bzw. Start.
 
-**Wichtig bei der Figur:** Godot sucht die Teile über ihre **Objektnamen** – Namen also nicht ändern:
+**Wichtig bei den Gegnern:** Godot setzt die Figur über **Objektnamen** zusammen und animiert sie – Namen also nicht ändern:
 
-- immer: `Coat`, `Collar`, `Buttons`, `Neck`, `Mask`, `Sockets`, `Nostrils`, `Hand_L`/`Hand_R`, `Claws_L`/`Claws_R`, `Sleeve`
-- je nach Gegner: `Grin` + `Teeth` + `Jaw` (Reißzahn-Grinsen) oder `Stitches` (zugenäht), `Horns_Devil`, `Horns_Ram`, `ExtraSockets`, `Hat` + `HatBand`
-- Markierungen (leere Objekte): `EyeL`, `EyeR`, `EyeX1`–`EyeX3` (glühende Augen), `JawPivot` (Drehpunkt des Kiefers)
+- `Torso` (leeres Objekt): alles darunter atmet und beugt sich mit
+- `Head` (unter Torso): alles darunter dreht/zuckt mit dem Kopf; darin `EyeL`, `EyeR` (optional `EyeX1` …) als Marker für die glühenden Augen und optional `Jaw` (Unterkiefer, klappert beim Lachen)
+- `Hand_L`, `Hand_R` (Ursprung = Handgelenk, Finger zeigen nach vorne) und `Sleeve` (Ärmel, Länge 1 entlang Z, +0.5 = Handgelenk)
+- optional `Props` mit `PropLight` – Dinge auf dem Tisch mit Licht (die Laterne der Hexe)
+- Objekte, deren Name mit `Void` beginnt (Augenhöhlen, Mäuler), werden im Spiel pechschwarz
 
-Welche Teile ein Gegner zeigt, stellt ihr in `data/opponents/*.tres` ein (Gruppe „Aussehen“: Hörner, Mund, Zusatzaugen, Hut, Farben, Größe). Maske und Mantel bleiben im Modell hell, weil Godot sie pro Gegner einfärbt.
+Einstellungen pro Gegner in `data/opponents/<id>.tres`: Name, Spruch, Stärke, Augenfarbe, Größe, Modell und Porträt.
+Die Porträts (`assets/portraits/`) rendert `python3 art/blender/render_portraits.py` aus den .blend-Dateien.
 
 **Alles neu aus dem Skript erzeugen** (überschreibt die .blend-Dateien!):
 ```bash
 pip install bpy numpy pillow        # Blender als Python-Modul (Python 3.13)
 python3 art/blender/build_models.py --rebuild           # alles
-python3 art/blender/build_models.py --rebuild figure    # nur ein Modell
+python3 art/blender/build_models.py --rebuild crow      # nur ein Modell (Gegner-IDs siehe characters.py)
 ```
 `art/blender/textures.py` erzeugt dabei die kachelbaren Texturen (Holz, Ziegel, Filz, Stoff, Porzellan, Metall).
 

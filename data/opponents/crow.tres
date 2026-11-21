@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="OpponentData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/opponent_data.gd" id="1_opp"]
+[ext_resource type="PackedScene" path="res://assets/models/opponents/crow.glb" id="2_model"]
+[ext_resource type="Texture2D" path="res://assets/portraits/crow.png" id="3_portrait"]
+
+[resource]
+script = ExtResource("1_opp")
+display_name = "Die Krähe"
+taunt = "Sie beobachtet. Sie wartet. Und sie kennt deine Züge."
+hand_size = 6
+mistake_chance = 0.15
+gold_reward = 14
+is_boss = false
+model = ExtResource("2_model")
+portrait = ExtResource("3_portrait")
+eye_color = Color(1, 0.62, 0.15, 1)
+figure_scale = 1.0
+mask_color = Color(0.2, 0.18, 0.25, 1)

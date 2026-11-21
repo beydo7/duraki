@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="OpponentData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/opponent_data.gd" id="1_opp"]
+[ext_resource type="PackedScene" path="res://assets/models/opponents/bone_man.glb" id="2_model"]
+[ext_resource type="Texture2D" path="res://assets/portraits/bone_man.png" id="3_portrait"]
+
+[resource]
+script = ExtResource("1_opp")
+display_name = "Der Knochenmann"
+taunt = "Er hat keine Angst. Er hat nur noch Karten."
+hand_size = 6
+mistake_chance = 0.3
+gold_reward = 11
+is_boss = false
+model = ExtResource("2_model")
+portrait = ExtResource("3_portrait")
+eye_color = Color(0.55, 0.85, 1, 1)
+figure_scale = 1.0
+mask_color = Color(0.88, 0.84, 0.72, 1)

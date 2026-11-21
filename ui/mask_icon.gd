@@ -17,6 +17,12 @@ extends Control
 ## 0 = zugenäht, 1 = Reißzahn-Grinsen
 @export var mouth := 1
 
+## Gerendertes Porträt (assets/portraits). Ohne Porträt wird eine Maske gezeichnet.
+var portrait: Texture2D:
+	set(v):
+		portrait = v
+		queue_redraw()
+
 ## 0..1 – stärkeres Glühen, z. B. wenn der Gegner nachdenkt.
 var intensity := 0.0
 
@@ -43,6 +49,14 @@ func _draw() -> void:
 	draw_circle(c, r, Color(0.1, 0.07, 0.18))
 	draw_circle(c, r - 3, Color(0.16, 0.11, 0.28))
 	draw_arc(c, r - 1.5, 0, TAU, 48, ring_color, 3.0, true)
+	if portrait != null:
+		var inner := r - 4.0
+		# leichtes Pulsieren, wenn der Gegner nachdenkt
+		var grow := 1.0 + intensity * 0.04 * (0.5 + 0.5 * sin(_t * 6.0))
+		var rect := Rect2(c - Vector2.ONE * inner * grow, Vector2.ONE * inner * 2.0 * grow)
+		draw_texture_rect(portrait, rect, false)
+		draw_arc(c, r - 1.5, 0, TAU, 48, ring_color.lerp(Color(1, 0.8, 0.4), intensity), 3.0, true)
+		return
 	# Hörner hinter dem Schädel
 	var bob := sin(_t * 1.4) * r * 0.03
 	var fc := c + Vector2(0, r * 0.08 + bob)

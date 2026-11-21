@@ -58,12 +58,22 @@ func _encounter_card(i: int) -> Control:
 		step.add_theme_color_override("font_color", Color(1, 0.45, 0.4))
 	box.add_child(step)
 
-	# kleine Maske in der Farbe des Gegners
-	var mask := _MaskDot.new()
-	mask.mask_color = o.mask_color
-	mask.eye_color = o.eye_color
-	mask.custom_minimum_size = Vector2(0, 54)
-	box.add_child(mask)
+	# Porträt des Gegners (oder kleine Maske als Ersatz)
+	if o.portrait != null:
+		var pic := TextureRect.new()
+		pic.texture = o.portrait
+		pic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		pic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		pic.custom_minimum_size = Vector2(0, 72)
+		if done:
+			pic.modulate = Color(0.55, 0.55, 0.6)
+		box.add_child(pic)
+	else:
+		var mask := _MaskDot.new()
+		mask.mask_color = o.mask_color
+		mask.eye_color = o.eye_color
+		mask.custom_minimum_size = Vector2(0, 54)
+		box.add_child(mask)
 
 	var name_l := Label.new()
 	name_l.text = o.display_name

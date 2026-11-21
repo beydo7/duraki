@@ -24,7 +24,7 @@ func _detach() -> void:
 	Run.floor_index = Run.encounters.size() - 1 if "boss" in OS.get_cmdline_user_args() else 0
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("opp="):
-			# bestimmten Gegner zeigen, z. B. opp=street_kid
+			# bestimmten Gegner zeigen, z. B. opp=crow
 			Run.encounters[Run.floor_index] = load("res://data/opponents/%s.tres" % arg.substr(4))
 	if "enh" in OS.get_cmdline_user_args():
 		# ein paar verbesserte Karten zum Ansehen

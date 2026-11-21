@@ -13,12 +13,11 @@ extends Resource
 @export var score_target := 0
 
 @export_group("Aussehen")
-@export var mask_color := Color("d8cfb8")
-@export var body_color := Color("1b1716")
+## 3D-Modell aus art/blender/opponents (exportiert nach assets/models/opponents)
+@export var model: PackedScene
+## Gerendertes Porträt fürs HUD und die Run-Übersicht (assets/portraits)
+@export var portrait: Texture2D
 @export var eye_color := Color("c4271b")
 @export_range(0.7, 1.5, 0.05) var figure_scale := 1.0
-@export var wears_hat := false
-## Monster-Merkmale (Teile kommen aus art/blender/figure.blend)
-@export_enum("Keine", "Teufelshörner", "Widderhörner") var horns := 0
-@export_enum("Zugenäht", "Grinsen mit Zähnen") var mouth := 1
-@export var extra_eyes := false
+## Nur für die gezeichnete Ersatz-Maske, wenn kein Porträt da ist
+@export var mask_color := Color("d8cfb8")
