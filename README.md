@@ -29,7 +29,13 @@ Duraki verbindet das klassische Durak mit Roguelike-Elementen: Du kämpfst dich 
 - **Echtes Kartenblatt:** Symbole nach Rang, Bildkarten mit Figuren, Glaskarten.
 - **Shop nach jedem Sieg:** Relikte, verbesserte Karten (Gold/Glas/Glück),
   Verbesserungen (Farb-Schliff, Trumpf-Kenner, Pflaster, Sparschwein), Neu mischen, Zinsen.
-- **Einheitliches UI-Design** (Nacht-Lila, Pinsel- + Schreibmaschinenschrift).
+- **Einheitliches UI-Design** (Nacht-Lila + Gold, Glas-Panels, Pinsel- + Schreibmaschinenschrift),
+  gemeinsame Bausteine und Animationen in `ui/ui_kit.gd`, weiche Szenenwechsel (`Fade`).
+- **Hauptmenü in 3D:** Kamera fährt an den Tisch, Menüpunkte liegen als Karten auf dem Filz.
+- **Duell-HUD (Hybrid):** Gegner-Plakette mit Sprechblase, Zug-Anzeige oben, Punkte (Chips × Mult),
+  Trumpf/Stapel/Angriff, „Schieben möglich“, Relikte, Tastenkürzel (Leertaste = Bito/Fertig, E = Nehmen).
+  Im Raum: **Kerzen = Leben** (erlöschen mit Rauch), **Münzstapel = Gold**, roter Rand bei Verteidigung.
+- Weg, Händler und Run-Ende vor dem weichgezeichneten Hinterzimmer (`ui/room_backdrop.gd`).
 - Run-Ablauf: 3 Gegner + Boss, 3 Leben, Gold.
 
 ## Team

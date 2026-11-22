@@ -21,6 +21,7 @@ config/icon="res://icon.svg"
 Settings="*res://scripts/autoload/settings.gd"
 Run="*res://scripts/autoload/run_state.gd"
 Pause="*res://scripts/autoload/pause_menu.gd"
+Fade="*res://scripts/autoload/fade.gd"
 
 [display]
 

@@ -241,7 +241,7 @@ func add_gold(amount: int) -> void:
 
 
 func goto(scene_path: String) -> void:
-	get_tree().change_scene_to_file.call_deferred(scene_path)
+	Fade.change_scene(scene_path)
 
 
 func _end_run(won: bool) -> void:

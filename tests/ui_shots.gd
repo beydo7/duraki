@@ -18,6 +18,7 @@ func _run() -> void:
 	get_tree().root.add_child(placeholder)
 	get_tree().current_scene = placeholder
 	Run.goto(Run.SCENE_MENU)
+	await get_tree().create_timer(2.5).timeout
 	await _wait_shot("1_menu")
 	var options := OptionsMenu.new()
 	get_tree().current_scene.add_child(options)

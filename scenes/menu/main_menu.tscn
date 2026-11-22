@@ -1,8 +1,21 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene format=3]
 
 [ext_resource type="Script" path="res://scenes/menu/main_menu.gd" id="1_menu"]
-[ext_resource type="Script" path="res://ui/backdrop.gd" id="2_bg"]
-[ext_resource type="Script" path="res://ui/mask_card.gd" id="3_card"]
+[ext_resource type="Shader" path="res://scenes/match/look.gdshader" id="2_look"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_look"]
+shader = ExtResource("2_look")
+shader_parameter/vignette = 0.75
+shader_parameter/grain = 0.03
+shader_parameter/tint = Color(0.95, 0.9, 1, 1)
+
+[sub_resource type="Gradient" id="Gradient_left"]
+offsets = PackedFloat32Array(0, 0.55, 1)
+colors = PackedColorArray(0.02, 0.012, 0.045, 0.92, 0.02, 0.012, 0.045, 0.55, 0.02, 0.012, 0.045, 0)
+
+[sub_resource type="GradientTexture2D" id="GradientTex_left"]
+gradient = SubResource("Gradient_left")
+fill_to = Vector2(1, 0)
 
 [node name="MainMenu" type="Control"]
 layout_mode = 3
@@ -13,93 +26,133 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_menu")
 
-[node name="Backdrop" type="Control" parent="."]
+[node name="View" type="SubViewportContainer" parent="."]
+unique_name_in_owner = true
+material = SubResource("ShaderMaterial_look")
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-mouse_filter = 2
-script = ExtResource("2_bg")
-wordmark = "DURAKI"
+stretch = true
 
-[node name="BuildLabel" type="Label" parent="."]
-theme_type_variation = &"HeaderLabel"
+[node name="Viewport" type="SubViewport" parent="View"]
+unique_name_in_owner = true
+handle_input_locally = false
+physics_object_picking = true
+size = Vector2i(1280, 720)
+msaa_3d = 2
+render_target_update_mode = 4
+
+[node name="Shade" type="TextureRect" parent="."]
 layout_mode = 1
-anchors_preset = 1
-anchor_left = 1.0
-anchor_right = 1.0
-offset_left = -360.0
-offset_top = 20.0
-offset_right = -24.0
-offset_bottom = 64.0
-grow_horizontal = 0
-theme_override_colors/font_color = Color(0.85, 0.8, 0.95, 0.85)
+anchors_preset = 9
+anchor_bottom = 1.0
+offset_right = 560.0
+grow_vertical = 2
+mouse_filter = 2
+texture = SubResource("GradientTex_left")
+expand_mode = 1
+
+[node name="TitleBlock" type="VBoxContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+offset_left = 64.0
+offset_top = 56.0
+offset_right = 560.0
+offset_bottom = 300.0
+mouse_filter = 2
+theme_override_constants/separation = 0
+
+[node name="Header" type="Label" parent="TitleBlock"]
+layout_mode = 2
+theme_type_variation = &"HeaderLabel"
 theme_override_font_sizes/font_size = 13
-text = "DURAKI · BUILD 0.3
-HINTERZIMMER / NACHT"
-horizontal_alignment = 2
-
-[node name="Center" type="CenterContainer" parent="."]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-
-[node name="VBox" type="VBoxContainer" parent="Center"]
-layout_mode = 2
-theme_override_constants/separation = 6
-alignment = 1
-
-[node name="Header" type="Label" parent="Center/VBox"]
-theme_type_variation = &"HeaderLabel"
-layout_mode = 2
 text = "EIN DURAK-ROGUELIKE"
-horizontal_alignment = 1
 
-[node name="Title" type="Label" parent="Center/VBox"]
+[node name="Title" type="Label" parent="TitleBlock"]
+unique_name_in_owner = true
+layout_mode = 2
 theme_type_variation = &"TitleLabel"
-layout_mode = 2
-theme_override_font_sizes/font_size = 84
+theme_override_font_sizes/font_size = 108
 text = "DURAKI"
-horizontal_alignment = 1
 
-[node name="CardBox" type="CenterContainer" parent="Center/VBox"]
-custom_minimum_size = Vector2(0, 250)
-layout_mode = 2
-
-[node name="Card" type="Control" parent="Center/VBox/CardBox"]
-custom_minimum_size = Vector2(170, 236)
-layout_mode = 2
-mouse_filter = 2
-script = ExtResource("3_card")
-
-[node name="Spacer" type="Control" parent="Center/VBox"]
-custom_minimum_size = Vector2(0, 18)
-layout_mode = 2
-
-[node name="Buttons" type="VBoxContainer" parent="Center/VBox"]
-layout_mode = 2
-size_flags_horizontal = 4
-theme_override_constants/separation = 16
-
-[node name="NewRunButton" type="Button" parent="Center/VBox/Buttons"]
+[node name="Tagline" type="Label" parent="TitleBlock"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(230, 50)
+custom_minimum_size = Vector2(420, 0)
 layout_mode = 2
+theme_override_colors/font_color = Color(0.82, 0.77, 0.96, 1)
+theme_override_font_sizes/font_size = 16
+text = "Nachts im Hinterzimmer. Vier Tische, drei Kerzen.
+Wer zuletzt Karten hält, ist der Durak."
+autowrap_mode = 3
+
+[node name="MenuList" type="VBoxContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 64.0
+offset_top = -250.0
+offset_right = 340.0
+offset_bottom = -70.0
+grow_vertical = 0
+theme_override_constants/separation = 10
+
+[node name="PlayButton" type="Button" parent="MenuList"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(250, 52)
+layout_mode = 2
+theme_type_variation = &"PrimaryButton"
 text = "SPIELEN"
+alignment = 0
 
-[node name="OptionsButton" type="Button" parent="Center/VBox/Buttons"]
+[node name="OptionsButton" type="Button" parent="MenuList"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(230, 50)
+custom_minimum_size = Vector2(250, 48)
 layout_mode = 2
 text = "OPTIONEN"
+alignment = 0
 
-[node name="QuitButton" type="Button" parent="Center/VBox/Buttons"]
+[node name="QuitButton" type="Button" parent="MenuList"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(230, 50)
+custom_minimum_size = Vector2(250, 48)
 layout_mode = 2
 text = "BEENDEN"
+alignment = 0
+
+[node name="Hint" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 64.0
+offset_top = -50.0
+offset_right = 600.0
+offset_bottom = -26.0
+grow_vertical = 0
+theme_override_colors/font_color = Color(0.72, 0.66, 0.9, 0.75)
+theme_override_font_sizes/font_size = 13
+text = "Wähle eine Karte auf dem Tisch – oder links im Menü."
+
+[node name="BuildLabel" type="Label" parent="."]
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -360.0
+offset_top = -46.0
+offset_right = -24.0
+offset_bottom = -22.0
+grow_horizontal = 0
+grow_vertical = 0
+theme_type_variation = &"HeaderLabel"
+theme_override_colors/font_color = Color(0.85, 0.8, 0.95, 0.55)
+theme_override_font_sizes/font_size = 11
+text = "DURAKI · BUILD 0.4"
+horizontal_alignment = 2

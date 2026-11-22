@@ -53,14 +53,8 @@ func open() -> void:
 	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_root.add_child(center)
 	var panel := PanelContainer.new()
-	var st := StyleBoxFlat.new()
-	st.bg_color = Color(0.07, 0.05, 0.13, 0.97)
-	st.border_color = Color(0.45, 0.36, 0.82, 0.85)
-	st.set_border_width_all(2)
-	st.set_corner_radius_all(14)
-	st.set_content_margin_all(32)
-	st.shadow_color = Color(0, 0, 0, 0.5)
-	st.shadow_size = 18
+	var st := UIKit.glass(16, Vector4(36, 28, 36, 32), 0.96)
+	st.border_color = Color(0.6, 0.5, 1.0, 0.4)
 	panel.add_theme_stylebox_override("panel", st)
 	center.add_child(panel)
 	var box := VBoxContainer.new()
@@ -74,7 +68,11 @@ func open() -> void:
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(title)
 
+	var sub := UIKit.label("Das Spiel wartet.", 14, UIKit.MUTED)
+	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(sub)
 	var resume := _button(box, "WEITER")
+	resume.theme_type_variation = &"PrimaryButton"
 	resume.pressed.connect(close)
 	_button(box, "OPTIONEN").pressed.connect(_open_options)
 	var quit := _button(box, "ZUM HAUPTMENÜ")
@@ -84,8 +82,9 @@ func open() -> void:
 			quit.text = "WIRKLICH? RUN ENDET"
 			return
 		close()
-		get_tree().change_scene_to_file(Run.SCENE_MENU))
+		Run.goto(Run.SCENE_MENU))
 	resume.grab_focus()
+	UIKit.appear(panel, 0.0, Vector2(0, 20), 0.3)
 
 
 func close() -> void:
@@ -109,4 +108,5 @@ func _button(parent: Control, text: String) -> Button:
 	b.text = text
 	b.custom_minimum_size = Vector2(300, 52)
 	parent.add_child(b)
+	UIKit.hover(b, 1.04)
 	return b

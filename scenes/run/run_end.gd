@@ -1,17 +1,47 @@
 extends Control
+## Ende des Runs: Sieg über den Boss oder die letzte Kerze ist aus.
+## Im Hintergrund sitzt der letzte Gegner – zusammengesunken oder lachend.
 
 
 func _ready() -> void:
+	var last: OpponentData = null
+	if not Run.encounters.is_empty():
+		last = Run.encounters[clampi(Run.floor_index if not Run.won_run else Run.encounters.size() - 1,
+			0, Run.encounters.size() - 1)]
+	var bd := RoomBackdrop.new()
+	bd.opponent = last
+	bd.blur = 1.0
+	bd.darken = 0.4
+	bd.cam_from = Vector3(0.35, 1.3, 0.95)
+	bd.cam_to = Vector3(0.3, 1.12, -0.4)
+	add_child(bd)
+	move_child(bd, 0)
+	if bd.world != null and bd.world.figure != null:
+		if Run.won_run:
+			bd.world.figure.slump()
+		else:
+			bd.world.figure.laugh()
+
 	if Run.won_run:
 		%Header.text = "DIE NACHT GEHÖRT DIR"
 		%TitleLabel.text = "RUN GEWONNEN!"
-		%Card.caption = "DER SIEGER"
-		%Card.corner = "K"
-		%Card.eye_color = Color(0.95, 0.8, 0.3)
+		%TitleLabel.add_theme_color_override("font_color", UIKit.GOLD)
 	else:
-		%Header.text = "AM ENDE BLEIBT EINER ÜBRIG"
+		%Header.text = "DIE LETZTE KERZE IST AUS"
 		%TitleLabel.text = "DU BIST DER DURAK."
-	%SummaryLabel.text = "Gegner besiegt: %d / %d   ·   Gold: %d   ·   Seed: %d" % [
-		Run.floor_index, Run.encounters.size(), Run.gold, Run.seed_value]
+	_stat("Gegner besiegt", "%d / %d" % [mini(Run.floor_index, Run.encounters.size()), Run.encounters.size()])
+	_stat("Gold", "%d" % Run.gold)
+	_stat("Relikte", "%d" % Run.relics.size() if Run.relics.size() > 0 else "keine")
+	_stat("Seed", "%d" % Run.seed_value)
 	%MenuButton.pressed.connect(func() -> void: Run.goto(Run.SCENE_MENU))
+	%AgainButton.pressed.connect(func() -> void: Run.start_new_run())
+	UIKit.hover(%MenuButton, 1.04)
+	UIKit.hover(%AgainButton, 1.04)
+	UIKit.appear(%Panel, 0.2, Vector2(-40, 0), 0.7)
 	%MenuButton.grab_focus()
+
+
+func _stat(name: String, value: String) -> void:
+	%Stats.add_child(UIKit.label(name, 16, UIKit.MUTED))
+	var v := UIKit.label(value, 22, UIKit.CREAM, &"BrushLabel")
+	%Stats.add_child(v)

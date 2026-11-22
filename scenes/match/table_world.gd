@@ -44,6 +44,9 @@ static var hand_layout := "fan"
 
 var camera: Camera3D
 var figure: OpponentFigure
+var props: TableProps
+## Kamera schwenkt leicht mit der Maus (aus im Menü-Hintergrund möglich).
+var sway_strength := 1.0
 
 var _cards := {} # Card -> Card3D
 var _base := {} # Card3D -> Transform3D (Ziel ohne Hover)
@@ -61,6 +64,30 @@ func _ready() -> void:
 	Settings.changed.connect(_on_settings_changed)
 
 
+## Nur Raum, Licht, Kamera und (optional) die Gestalt – ohne Karten.
+## Wird auch vom 3D-Hauptmenü und als Hintergrund benutzt.
+func build_room(opponent: OpponentData, markings := true) -> void:
+	_build_environment()
+	_build_models()
+	if markings:
+		_build_markings()
+	_build_lights()
+	_build_camera()
+	if opponent != null:
+		figure = OpponentFigure.new().setup(opponent)
+		figure.position = Vector3(0, 0, -TABLE_SIZE.y * 0.5)
+		add_child(figure)
+
+
+## Kamera auf eine neue Grundstellung setzen (Menü-Kamerafahrten).
+func set_camera_pose(xf: Transform3D) -> void:
+	_cam_base = xf
+
+
+func get_camera_pose() -> Transform3D:
+	return _cam_base
+
+
 ## Optionen live übernehmen (Leuchten, Helligkeit, Schatten).
 func _on_settings_changed() -> void:
 	Settings.apply_environment(_env, 1.05)
@@ -69,14 +96,9 @@ func _on_settings_changed() -> void:
 
 
 func build(opponent: OpponentData) -> void:
-	_build_environment()
-	_build_models()
-	_build_markings()
-	_build_lights()
-	_build_camera()
-	figure = OpponentFigure.new().setup(opponent)
-	figure.position = Vector3(0, 0, -TABLE_SIZE.y * 0.5)
-	add_child(figure)
+	build_room(opponent)
+	props = TableProps.new()
+	add_child(props)
 	_deck_pile = _pile_mesh()
 	_deck_pile.position = DECK_POS
 	_deck_pile.rotation_degrees.y = 90
@@ -97,7 +119,7 @@ func _process(_delta: float) -> void:
 		var size := vp.get_visible_rect().size
 		if size.x > 0:
 			_mouse = _mouse.lerp(vp.get_mouse_position() / size, 0.08)
-	var sway := 1.0 if Settings.camera_sway() else 0.0
+	var sway := sway_strength if Settings.camera_sway() else 0.0
 	var yaw := (_mouse.x - 0.5) * -0.06 * sway
 	var pitch := (_mouse.y - 0.5) * -0.04 * sway
 	camera.transform = _cam_base * Transform3D(Basis.from_euler(Vector3(pitch, yaw, 0)), Vector3.ZERO)

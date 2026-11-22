@@ -11,6 +11,10 @@ const ODDS_DECISION := [0.2, 0.45, 0.35] # Nachlegen oder Bito? Schlagen oder ne
 const ODDS_NORMAL := [0.5, 0.35, 0.15]
 ## Kurzform fürs Porträt im HUD
 const THINK_VERB := ["überlegt", "starrt auf den Tisch", "mustert seine Karten", "trommelt mit den Fingern"]
+## Kleine Sprüche des Gegners (Sprechblase), zufällig.
+const LINES_TAKES := ["Das merk ich mir.", "Noch ist nichts entschieden.", "Glück. Nichts als Glück.", "Hmpf."]
+const LINES_GLOAT := ["Schwer, nicht wahr?", "Nimm nur. Nimm alles.", "Deine Hand wird schwer …"]
+const LINES_TRANSFER := ["Zurück zu dir.", "Nicht so schnell.", "Fang!"]
 const THINK_TEXT := [
 	"%s überlegt …",
 	"%s starrt auf den Tisch …",
@@ -56,6 +60,7 @@ func _ready() -> void:
 	score.trump_mult_bonus = Run.trump_mult_bonus
 	score.gold_found.connect(func(amount: int) -> void:
 		Run.add_gold(amount)
+		world.props.set_gold(Run.gold)
 		hud.toast("Glückskarte: +%d Gold" % amount, MatchHUD.COLOR_GOLD))
 	score.attach(duel) # vor den UI-Signalen verbinden, damit zuerst gewertet wird
 	score.changed.connect(_render_score)
@@ -71,16 +76,20 @@ func _ready() -> void:
 			world.figure.gesture()
 			if attack:
 				_maybe_throw_more())
-	duel.cards_taken.connect(func(who: int, _count: int) -> void:
+	duel.cards_taken.connect(func(who: int, count: int) -> void:
 		if who == DurakMatch.OPPONENT:
 			world.figure.recoil()
+			_maybe_say(LINES_TAKES, 0.45)
 		else:
-			world.figure.laugh())
+			world.figure.laugh()
+			if count >= 3:
+				_maybe_say(LINES_GLOAT, 0.6))
 	duel.transferred.connect(func(who: int, _card: Card) -> void:
 		hud.close_choice()
 		if who == DurakMatch.OPPONENT:
 			world.figure.laugh()
-			hud.show_banner("GESCHOBEN!")
+			hud.show_banner("GESCHOBEN!", UIKit.RED)
+			_maybe_say(LINES_TRANSFER, 0.5)
 			_was_my_turn = true # kein zweites Banner „Verteidige dich“
 		else:
 			world.figure.recoil()
@@ -99,9 +108,12 @@ func _ready() -> void:
 			duel.pass_bout())
 	%ContinueButton.pressed.connect(func() -> void: Run.on_match_finished(_result()))
 
-	hud.setup(opponent, score.target)
+	hud.setup(opponent, score.target, Run.floor_index, maxi(Run.encounters.size(), 1))
+	hud.set_relics(Run.relics)
+	world.props.set_lives(maxi(Run.lives, 1))
+	world.props.set_gold(Run.gold, false)
 	if not opponent.taunt.is_empty():
-		hud.toast("%s: „%s“" % [opponent.display_name, opponent.taunt], MatchHUD.COLOR_MUTED)
+		hud.say(opponent.taunt, 5.0)
 	hud.toast("Punkteziel: %d" % score.target, MatchHUD.COLOR_GOLD)
 	duel.start(Run.rng, Run.player_hand_size(), opponent.hand_size, Run.apply_card_enhancements)
 	_render_score()
@@ -116,17 +128,7 @@ func _on_settings_changed() -> void:
 ## auf 1440p/4K wird dann alles unscharf. Darum: Viewport in echten Pixeln, Container
 ## entsprechend verkleinert (Eingaben rechnet der Container mit seiner Skalierung um).
 func _fit_viewport() -> void:
-	var view: SubViewportContainer = %View
-	var canvas := get_viewport_rect().size
-	var pixels := Vector2(get_tree().root.size)
-	var factor := maxf(pixels.x / maxf(canvas.x, 1.0), 1.0)
-	view.stretch = false
-	view.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	view.position = Vector2.ZERO
-	var px := Vector2i((canvas * factor).round())
-	%Viewport.size = px
-	view.size = Vector2(px)
-	view.scale = Vector2.ONE / factor
+	UIKit.fit_viewport(self, %View, %Viewport)
 
 
 ## Für den Run zählt nur das Punkteziel: erreicht → Gegner verliert.
@@ -219,13 +221,41 @@ func _on_message(text: String) -> void:
 
 
 func _on_finished(_loser: int) -> void:
-	if score.reached_target():
+	var won := score.reached_target()
+	_render()
+	if won:
 		world.figure.slump()
 	else:
 		world.figure.laugh()
-	var won := score.reached_target()
-	hud.show_result(won, "SIEG!" if won else "DURAK!", _status_text(false, false),
+		world.props.snuff_candle()
+		await get_tree().create_timer(1.1, false).timeout
+	hud.show_result(won, "SIEG!" if won else "DURAK!", _result_text(won),
 		"%d / %d Punkte" % [score.total, score.target])
+
+
+func _result_text(won: bool) -> String:
+	if won:
+		return "Punkteziel erreicht. %s steht auf." % opponent.display_name
+	if Run.lives <= 1:
+		return "Die letzte Kerze ist aus – der Run endet hier."
+	return "Ziel verfehlt. Eine Kerze erlischt – noch %d übrig." % (Run.lives - 1)
+
+
+func _maybe_say(lines: Array, chance: float) -> void:
+	if randf() < chance:
+		hud.say(lines[randi() % lines.size()], 2.6)
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if not (event is InputEventKey and event.pressed and not event.echo) or duel == null or duel.is_over:
+		return
+	var key := (event as InputEventKey).keycode
+	if key == KEY_SPACE and %PassButton.visible and not %PassButton.disabled:
+		%PassButton.pressed.emit()
+		get_viewport().set_input_as_handled()
+	elif key == KEY_E and %TakeButton.visible:
+		%TakeButton.pressed.emit()
+		get_viewport().set_input_as_handled()
 
 
 # --- Anzeige ------------------------------------------------------------------
@@ -251,7 +281,12 @@ func _render() -> void:
 		hud.set_actions(false, not defending, not defending, "FERTIG")
 	else:
 		hud.set_actions(my_turn and defending and duel.can_take(), not defending and duel.can_pass(), duel.can_pass())
-	hud.set_status(_status_text(my_turn, defending), my_turn and not duel.is_over)
+	var info := _turn_info(my_turn, defending)
+	hud.set_turn(info[0], info[1], info[2])
+	var can_shift := defending and my_turn and not duel.legal_transfers().is_empty()
+	hud.set_bout(duel.attack_cards.size(), duel.bout_limit, can_shift)
+	if defending and my_turn:
+		hud.set_danger(minf(0.1 + 0.05 * duel.unbeaten_count(), 0.3))
 	_announce_turn(my_turn, defending)
 	_render_score()
 
@@ -265,7 +300,7 @@ func _announce_turn(my_turn: bool, defending: bool) -> void:
 	if not defending and duel.attack_cards.is_empty():
 		hud.show_banner("DEIN ANGRIFF")
 	elif defending and duel.attack_cards.size() == 1 and duel.defense_cards[0] == null:
-		hud.show_banner("VERTEIDIGE DICH")
+		hud.show_banner("VERTEIDIGE DICH", Color(1, 0.6, 0.6))
 
 
 func _render_score() -> void:
@@ -279,25 +314,28 @@ func _render_score() -> void:
 	hud.set_score(score.total, score.target, score.chips, score.mult, sub)
 
 
-func _status_text(my_turn: bool, defending: bool) -> String:
+## [Modus, Titel, Hinweis] für die Zug-Anzeige oben in der Mitte.
+func _turn_info(my_turn: bool, defending: bool) -> Array:
+	var them := opponent.display_name.to_upper()
 	if duel.is_over:
-		if score.reached_target():
-			return "Gewonnen! Punkteziel erreicht (%d / %d)." % [score.total, score.target]
-		if duel.loser == DurakMatch.PLAYER:
-			return "Verloren – du bist der Durak und hast das Ziel verfehlt."
-		return "Verloren – Ziel verfehlt (%d / %d)." % [score.total, score.target]
+		var won := score.reached_target()
+		return [MatchHUD.Turn.OVER, "GEWONNEN" if won else "VERLOREN", "%d / %d Punkte" % [score.total, score.target]]
 	if duel.taking:
 		if defending:
-			return "Du nimmst auf – %s wirft noch Karten nach …" % opponent.display_name
-		return "%s nimmt auf – wirf passende Karten nach oder klicke FERTIG." % opponent.display_name
+			return [MatchHUD.Turn.WAIT, "DU NIMMST AUF", "%s wirft noch Karten nach …" % opponent.display_name]
+		return [MatchHUD.Turn.THROW_IN, "NACHWERFEN", "Passende Ränge hinterherwerfen – oder FERTIG."]
 	if not my_turn:
 		if not defending and not duel.legal_attacks().is_empty():
-			return "%s verteidigt – du kannst noch passende Karten dazuwerfen." % opponent.display_name
-		return "%s ist am Zug …" % opponent.display_name
+			return [MatchHUD.Turn.WAIT, "%s VERTEIDIGT" % them, "Du darfst noch passende Ränge dazuwerfen."]
+		if _thinking:
+			return [MatchHUD.Turn.WAIT, "%s IST AM ZUG" % them, THINK_TEXT[_think_style] % opponent.display_name]
+		return [MatchHUD.Turn.WAIT, "%s IST AM ZUG" % them, "Warte ab …"]
 	if defending:
 		if not duel.legal_transfers().is_empty():
-			return "Verteidige dich – schlagen, mit gleichem Rang weiterschieben oder alles nehmen."
-		return "Verteidige dich – klicke eine Karte zum Schlagen oder nimm alles."
+			return [MatchHUD.Turn.DEFEND, "VERTEIDIGE DICH", "Schlagen, mit gleichem Rang schieben – oder nehmen."]
+		if duel.legal_defenses().is_empty():
+			return [MatchHUD.Turn.DEFEND, "VERTEIDIGE DICH", "Nichts passt – du musst die Karten nehmen."]
+		return [MatchHUD.Turn.DEFEND, "VERTEIDIGE DICH", "Höher in gleicher Farbe oder Trumpf – sonst nehmen."]
 	if duel.attack_cards.is_empty():
-		return "Du greifst an – klicke Karten (gleiche Ränge auch mehrere auf einmal)."
-	return "Lege passende Ränge nach oder beende die Runde."
+		return [MatchHUD.Turn.ATTACK, "DEIN ANGRIFF", "Lege eine Karte – gleiche Ränge auch mehrere."]
+	return [MatchHUD.Turn.ATTACK, "NACHLEGEN ODER BITO", "Passende Ränge nachlegen oder die Runde beenden."]

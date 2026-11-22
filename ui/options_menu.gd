@@ -92,6 +92,7 @@ func _ready() -> void:
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	bottom.add_child(spacer)
 	var back := Button.new()
+	back.theme_type_variation = &"PrimaryButton"
 	back.text = "ZURÜCK"
 	back.custom_minimum_size = Vector2(180, 48)
 	back.pressed.connect(close)
@@ -295,14 +296,8 @@ func _update_resolution_enabled() -> void:
 # --- Stil -----------------------------------------------------------------------
 
 func _panel_style(margin := 30) -> StyleBoxFlat:
-	var st := StyleBoxFlat.new()
-	st.bg_color = Color(0.07, 0.05, 0.13, 0.97)
-	st.border_color = Color(0.45, 0.36, 0.82, 0.85)
-	st.set_border_width_all(2)
-	st.set_corner_radius_all(14)
-	st.set_content_margin_all(margin)
-	st.shadow_color = Color(0, 0, 0, 0.5)
-	st.shadow_size = 18
+	var st := UIKit.glass(16, Vector4(margin, margin, margin, margin), 0.96)
+	st.border_color = Color(0.6, 0.5, 1.0, 0.4)
 	return st
 
 
@@ -313,7 +308,7 @@ func _style_slider(s: HSlider) -> void:
 	track.content_margin_top = 4
 	track.content_margin_bottom = 4
 	var fill := track.duplicate() as StyleBoxFlat
-	fill.bg_color = Color(0.62, 0.48, 1.0)
+	fill.bg_color = UIKit.GOLD
 	s.add_theme_stylebox_override("slider", track)
 	s.add_theme_stylebox_override("grabber_area", fill)
 	s.add_theme_stylebox_override("grabber_area_highlight", fill)
