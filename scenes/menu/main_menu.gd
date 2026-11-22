@@ -26,10 +26,10 @@ func _ready() -> void:
 
 	# Menükarten fächerförmig auf dem Tisch
 	var specs := [
-		["SPIELEN", "Neuer Run", "♠", Color("1b1426"), _start_run],
-		["DECKS", "Karten wählen", "♥", Color("92201b"), _open_decks],
-		["OPTIONEN", "Bild · Ton · Spiel", "♦", Color("92201b"), _open_options],
-		["BEENDEN", "Aufstehen und gehen", "♣", Color("1b1426"), _quit],
+		["SPIELEN", "Neuer Run", "♠", Color("ecc87c"), _start_run],
+		["DECKS", "Karten wählen", "♥", Color("f2625c"), _open_decks],
+		["OPTIONEN", "Bild · Ton · Spiel", "♦", Color("f2625c"), _open_options],
+		["BEENDEN", "Aufstehen und gehen", "♣", Color("ecc87c"), _quit],
 	]
 	for i in specs.size():
 		var s: Array = specs[i]

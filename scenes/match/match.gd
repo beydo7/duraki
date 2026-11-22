@@ -84,7 +84,9 @@ func _ready() -> void:
 			world.figure.laugh()
 			if count >= 3:
 				_maybe_say(LINES_GLOAT, 0.6))
-	duel.transferred.connect(func(who: int, _card: Card) -> void:
+	duel.transferred.connect(func(who: int, card: Card) -> void:
+		world.note_transfer(card)
+		hud.speed_lines(who == DurakMatch.PLAYER)
 		hud.close_choice()
 		if who == DurakMatch.OPPONENT:
 			world.figure.laugh()
@@ -94,6 +96,7 @@ func _ready() -> void:
 		else:
 			world.figure.recoil()
 			hud.show_banner("WEITERGESCHOBEN"))
+	duel.cards_discarded.connect(func(_count: int) -> void: hud.stamp("БИТО", "BITO"))
 	duel.take_declared.connect(func(who: int) -> void:
 		if who == DurakMatch.OPPONENT and duel.taking:
 			hud.toast("%s nimmt – du darfst passende Karten nachwerfen." % opponent.display_name, MatchHUD.COLOR_GOLD))

@@ -33,6 +33,10 @@ func _detach() -> void:
 			for rank in [7, 10, 12, 14]:
 				Run.card_enhancements["%d:%d" % [suit, rank]] = 1 + (suit + rank) % 3
 	Run.goto(Run.SCENE_MATCH)
+	if "film" in OS.get_cmdline_user_args():
+		await _film()
+		get_tree().quit()
+		return
 	await get_tree().create_timer(2.5).timeout
 	var scene := get_tree().current_scene
 	var duel: DurakMatch = scene.duel
@@ -88,6 +92,22 @@ func _detach() -> void:
 		await _shot("transfer_3_done")
 		get_tree().quit()
 		return
+	if "bito" in args:
+		# Du greifst an, Gegner schlägt, Bito → Stempel + Abwurf
+		scene._ai_pending = true
+		duel.attack(duel.legal_attacks()[0])
+		await get_tree().create_timer(0.6).timeout
+		var defs: Array = duel.legal_defenses()
+		if not defs.is_empty():
+			duel.defend(defs[0])
+			await get_tree().create_timer(0.5).timeout
+			if duel.can_pass():
+				duel.pass_bout()
+			for k in 3:
+				await get_tree().create_timer(0.25).timeout
+				await _shot("bito_%d" % k)
+		get_tree().quit()
+		return
 	if "result" in args:
 		# Ergebnis-Fenster prüfen: Ziel erreichen und Duell beenden
 		scene.score.total = scene.score.target
@@ -106,6 +126,50 @@ func _detach() -> void:
 		await get_tree().create_timer(1.2).timeout
 		await _shot("2_step%d" % step)
 	get_tree().quit()
+
+
+## Nimmt eine Bildfolge auf (film_0000.png …), um Animationen zu prüfen:
+## Austeilen, Hover-Kippen, Schieben, danach ein paar Züge (Ausspielen, Schlagen, Bito, Nehmen).
+var _frame := 0
+var _recording := false
+
+
+func _film() -> void:
+	# Zeitlupe, damit trotz langsamem Software-Rendering genug Bilder pro Bewegung entstehen
+	Engine.time_scale = 0.15
+	_recording = true
+	_record_loop()
+	await get_tree().create_timer(2.6).timeout
+	var scene := get_tree().current_scene
+	var duel: DurakMatch = scene.duel
+	# Hover über die erste Handkarte wandern lassen
+	var world: TableWorld = scene.world
+	var hand_node: Card3D = world._cards.get(duel.player_hand[duel.player_hand.size() - 1])
+	if hand_node != null:
+		hand_node._set_hovered(true)
+		for k in 30:
+			hand_node._hover_uv = Vector2(0.15 + 0.7 * k / 29.0, 0.2 + 0.6 * k / 29.0)
+			await get_tree().create_timer(0.04).timeout
+		hand_node._set_hovered(false)
+	await get_tree().create_timer(0.4).timeout
+	# ein paar echte Züge, beide Seiten von der KI gespielt
+	var bot := SimpleAI.new(RandomNumberGenerator.new(), 0.0)
+	for step in 9:
+		if duel.is_over:
+			break
+		if duel.current_actor() == DurakMatch.PLAYER:
+			bot.take_turn(duel, DurakMatch.PLAYER)
+		await get_tree().create_timer(1.1).timeout
+	_recording = false
+
+
+func _record_loop() -> void:
+	while _recording:
+		await RenderingServer.frame_post_draw
+		var img := get_viewport().get_texture().get_image()
+		img.resize(960, 540, Image.INTERPOLATE_BILINEAR)
+		img.save_png(out_dir.path_join("film_%04d.png" % _frame))
+		_frame += 1
 
 
 func _shot(name: String) -> void:

@@ -845,6 +845,76 @@ func show_result(won: bool, title: String, text: String, score_text: String) -> 
 		continue_button.grab_focus())
 
 
+## Rote Tempo-Streifen quer durchs Bild (Schieben). `up` = Richtung Gegner.
+func speed_lines(up: bool) -> void:
+	var c := Control.new()
+	c.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	c.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_float_layer.add_child(c)
+	var rng := RandomNumberGenerator.new()
+	var lines: Array = []
+	for i in 16:
+		lines.append([rng.randf_range(0.2, 0.8), rng.randf_range(0.0, 0.5), rng.randf_range(0.18, 0.4), rng.randf_range(2.0, 6.0), i % 3 == 0])
+	var state := {"t": 0.0}
+	c.draw.connect(func() -> void:
+		var sz := c.size
+		var t: float = state["t"]
+		for l: Array in lines:
+			var x: float = l[0] * sz.x
+			var start: float = l[1]
+			var length: float = l[2]
+			var p := clampf((t - start * 0.4) / 0.6, 0.0, 1.0)
+			if p <= 0.0 or p >= 1.0:
+				continue
+			# von unten nach oben (oder umgekehrt), leicht schräg wie auf einem Plakat
+			var y_head := lerpf(1.15, -0.15, p) if up else lerpf(-0.15, 1.15, p)
+			var y_tail := y_head + (length if up else -length)
+			var a := Vector2(x + (y_head - 0.5) * 120.0, y_head * sz.y)
+			var b := Vector2(x + (y_tail - 0.5) * 120.0, y_tail * sz.y)
+			var col := CREAM if l[4] else RED
+			col.a = 0.55 * sin(p * PI)
+			c.draw_line(a, b, col, l[3], true))
+	var tw := c.create_tween()
+	tw.tween_method(func(v: float) -> void:
+		state["t"] = v
+		c.queue_redraw(), 0.0, 1.0, 0.55 * Settings.anim_time_factor())
+	tw.tween_callback(c.queue_free)
+
+
+## Roter Stempel über dem Spielfeld (z. B. „БИТО“ beim Abwerfen).
+func stamp(text: String, sub := "") -> void:
+	var s := _slab(Color(0, 0, 0, 0), [Vector2(0, 0.04), Vector2(1, 0), Vector2(0.99, 1), Vector2(0.01, 0.96)], 0.0, Vector4(26, 6, 26, 8))
+	s.outline_color = RED
+	s.outline_width = 5.0
+	s.shadow_offset = Vector2.ZERO
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", -6)
+	col.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	s.add_child(col)
+	var l := UIKit.poster_label(text, UIKit.display_font(4), 46, RED)
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	col.add_child(l)
+	if sub != "":
+		var l2 := UIKit.poster_label(sub, UIKit.body_font(700, 6), 13, RED)
+		l2.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		col.add_child(l2)
+	_float_layer.add_child(s)
+	s.reset_size()
+	# mitten auf dem Spielfeld, knapp unter dem Bereich der Schrägbanner
+	s.position = Vector2(size.x * 0.5 - s.size.x * 0.5, size.y * 0.655)
+	s.pivot_offset = s.size * 0.5
+	s.rotation_degrees = -9.0
+	s.scale = Vector2(2.2, 2.2)
+	s.modulate.a = 0.0
+	var f := Settings.anim_time_factor()
+	var tw := s.create_tween()
+	tw.tween_property(s, "modulate:a", 1.0, 0.08 * f)
+	tw.parallel().tween_property(s, "scale", Vector2.ONE, 0.16 * f).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tw.tween_interval(0.7 * f)
+	tw.tween_property(s, "modulate:a", 0.0, 0.35 * f)
+	tw.tween_callback(s.queue_free)
+
+
 func is_result_open() -> bool:
 	return _result.visible
 

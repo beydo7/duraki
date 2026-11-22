@@ -4,7 +4,7 @@ Dieses Dokument fasst zusammen, was in den Chats zwischen Pascal (beydo7) und Cl
 gebaut wurde. Es ist für das Team **und für Claude-Instanzen** gedacht, damit alle auf demselben Stand
 sind. Bitte aktuell halten, wenn sich etwas Grundlegendes ändert.
 
-Stand: 22.11.2026 · Godot 4.7.2 (GL Compatibility) · Build 0.5
+Stand: 22.11.2026 · Godot 4.7.2 (GL Compatibility) · Build 0.6
 
 ---
 
@@ -93,9 +93,31 @@ nutzen dasselbe Theme; Hauptmenü, Weg und Händler haben den roten Keil hinter 
 **Verworfene Stile** (nicht wieder einführen): lila Glas mit Marker-Schrift („zu KI“),
 „Papier & Tinte“ mit gerissenen Zetteln („wie ein Browsergame, billig“).
 
-### Karten
-Holzschnitt-Stil auf gealtertem Papier, erzeugt mit `tools/generate_cards.py`
-(Bildkarten mit Figuren, Ass-Strahlen, Pik-Ass „DURAKI“, Glasvarianten, 12 Deck-Rückseiten).
+### Karten (Stil „Okkult-Gold“, von Pascal gewählt)
+Nachtblaue Karten mit leuchtender Goldlinie und Sternenstaub, erzeugt mit `tools/generate_cards.py`.
+Herz/Karo in Korallenrot, Pik/Kreuz in Gold; Indizes in Cinzel Decorative (OFL).
+Bildkarten als doppelköpfige Goldlinien-Figuren mit Heiligenschein (König mit Krone/Bart/Zepter,
+Dame mit Kokoschnik/Zöpfen/Kerze, Bube mit Pelzmütze/Feder/Hellebarde). Asse mit Himmelsmotiven:
+Herz = Sonne, Karo = Auge, Pik = Mond (+ „DURAKI“), Kreuz = Stern. Glasversionen und alle
+12 Deck-Rückseiten (Deckfarbe ins Nachtblau gemischt, Gold-Sternengitter, Medaillon mit Emblem)
+im selben Stil. Nachtblau/Gold der Karten und Rot/Schwarz/Creme des HUDs sind bewusst
+zwei Ebenen: Karten = Spielwelt, HUD = Plakat darüber.
+
+### Karten-Animationen
+- Vorderseite: `scenes/match/card_face.gdshader` (+ `_glass`, gemeinsamer Teil `.gdshaderinc`):
+  Folienglanz, der mit Blickwinkel und Zeit wandert (Trumpf leicht gold, Goldkarte kräftig,
+  Glückskarte grün, Glas irisierend), Lichtreflex an der Mausposition, Leuchten für spielbare Karten.
+- `Card3D` (`scenes/match/card_3d.gd`): alle sichtbaren Teile hängen an `_body`; darauf liegen
+  Kippen zur Maus (Hover), Wiegen in der Hand, Anheben spielbarer Karten, Federn beim Landen
+  (`land()`) und Schubsen (`nudge()`). Die Wurzel bewegt `TableWorld`.
+- `TableWorld.sync` merkt sich die Zone jeder Karte und wählt daraus die Bewegung (`_move` mit Stil):
+  Austeilen (Bogen, Drehung, Federn), Ausspielen (hoher Bogen, Wumms, Staubring, kurzes Wackeln
+  der Kamera – bei Trumpf stärker mit Goldblitz), Schlagen (Angriffskarte wird geschubst),
+  Schieben (Wirbel um die Hochachse + rote Tempo-Streifen im HUD), Nehmen (hoch und zurück in die
+  Hand), Bito (Stempel „БИТО“ im HUD, Karten drehen sich zum Ablagestapel).
+- Kamerawackeln nur, wenn „Kamera-Schwenk“ in den Optionen an ist; alle Zeiten folgen der
+  Einstellung „Kartenanimationen“.
+- Prüfen: `tests/screenshot.tscn -- film` nimmt eine Bildfolge in Zeitlupe auf.
 
 ### Gegner / 3D-Modelle
 Modelle aus Blender (Skripte in `art/blender/`), HD-Version bisher nur für die **Krähe**
@@ -112,16 +134,16 @@ Allgemein (Bedenkzeit der Gegner, Kartenanimationen, Meldungen, Kamera-Schwenk, 
 - `godot --headless --path . res://tests/deck_tests.tscn` → Decks/Seelen (39 Checks)
 - `godot --headless --path . res://tests/autoplay.tscn` → 5 komplette Runs automatisch
 - `xvfb-run godot --path . res://tests/click_test.tscn` → Handkarten per Klick
-- `tests/screenshot.tscn` (Args: transfer, result, boss, opp=<id>, nohud, many) und
+- `tests/screenshot.tscn` (Args: transfer, result, boss, opp=<id>, nohud, many, enh, film) und
   `tests/ui_shots.tscn` → Screenshots aller Bildschirme
 - Tests rufen `Profile.reset_for_tests()` auf, damit das echte Profil nicht überschrieben wird.
 
 ## 8. Offene Punkte / nächste Schritte
-1. Die 3D-Menükarten im Hauptmenü noch im Plakat-Stil drucken.
+1. Juice ausbauen: rollende Zahlen beim Punkten, Sounds zu den Kartenbewegungen.
 2. Restliche 7 Gegner in HD modellieren (wie die Krähe).
 3. Lila Lampen-Scheiben im Raum sind Platzhalter → echte Lampen.
 4. Sound & Musik (Busse „Music“ und „SFX“ existieren schon).
-5. Juice ausbauen: rollende Zahlen beim Punkten, mehr Screenshake bei großen Treffern.
+5. Die 3D-Menükarten im Hauptmenü an den Okkult-Gold-Stil der Karten anpassen.
 
 ## 9. Zusammenarbeit
 - Repo: https://github.com/beydo7/duraki (Team: beydo7/Pascal, Florry7, Leon).

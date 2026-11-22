@@ -58,6 +58,13 @@ var _cam_base: Transform3D
 var _mouse := Vector2(0.5, 0.5)
 var _env: Environment
 var _lamp: SpotLight3D
+## Wo jede Karte gerade liegt ("hand", "opp", "table_a", "table_d", "trump") –
+## daraus ergibt sich, welche Bewegung sie beim nächsten sync macht.
+var _zone := {}
+## Karte, die gerade geschoben wurde (bekommt den Wirbel-Flug)
+var _transfer_card: Card
+var _shake := 0.0
+var _ring_tex: Texture2D
 
 
 func _ready() -> void:
@@ -110,7 +117,7 @@ func build(opponent: OpponentData) -> void:
 	add_child(_discard_pile)
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	# leichtes Mitschwenken der Kamera mit der Maus
 	if camera == null:
 		return
@@ -122,28 +129,35 @@ func _process(_delta: float) -> void:
 	var sway := sway_strength if Settings.camera_sway() else 0.0
 	var yaw := (_mouse.x - 0.5) * -0.06 * sway
 	var pitch := (_mouse.y - 0.5) * -0.04 * sway
-	camera.transform = _cam_base * Transform3D(Basis.from_euler(Vector3(pitch, yaw, 0)), Vector3.ZERO)
+	var shake := Vector3.ZERO
+	if _shake > 0.0:
+		_shake = maxf(0.0, _shake - delta * 2.5)
+		var amp := _shake * _shake * 0.012
+		shake = Vector3(randf_range(-amp, amp), randf_range(-amp, amp), 0)
+	camera.transform = _cam_base * Transform3D(Basis.from_euler(Vector3(pitch, yaw, 0)), shake)
 
 
 # --- Karten-Layout --------------------------------------------------------------
 
 ## Bringt alle Karten an die Plätze, die dem Spielstand entsprechen.
 func sync(duel: DurakMatch, playable: Array[Card]) -> void:
-	var targets := {} # Card -> [Transform3D, face_up: bool]
+	var targets := {} # Card -> [Transform3D, face_up: bool, zone: String]
+	var beats := {} # Verteidigungskarte -> Angriffskarte darunter
 
 	var hand := duel.player_hand
 	for i in hand.size():
-		targets[hand[i]] = [_player_hand_xf(i, hand.size()), true]
+		targets[hand[i]] = [_player_hand_xf(i, hand.size()), true, "hand"]
 	var opp := duel.opponent_hand
 	for i in opp.size():
-		targets[opp[i]] = [_opp_hand_xf(i, opp.size()), false]
+		targets[opp[i]] = [_opp_hand_xf(i, opp.size()), false, "opp"]
 	for i in duel.attack_cards.size():
-		targets[duel.attack_cards[i]] = [_table_xf(i, duel.attack_cards.size(), false, duel.attack_cards[i]), true]
+		targets[duel.attack_cards[i]] = [_table_xf(i, duel.attack_cards.size(), false, duel.attack_cards[i]), true, "table_a"]
 		var d: Card = duel.defense_cards[i]
 		if d != null:
-			targets[d] = [_table_xf(i, duel.attack_cards.size(), true, d), true]
+			targets[d] = [_table_xf(i, duel.attack_cards.size(), true, d), true, "table_d"]
+			beats[d] = duel.attack_cards[i]
 	if not duel.deck.is_empty():
-		targets[duel.trump_card] = [_trump_xf(), true]
+		targets[duel.trump_card] = [_trump_xf(), true, "trump"]
 
 	# Stapelhöhe
 	var deck_left := duel.deck.size() - (1 if not duel.deck.is_empty() else 0)
@@ -153,14 +167,18 @@ func sync(duel: DurakMatch, playable: Array[Card]) -> void:
 	var now := Time.get_ticks_msec() / 1000.0
 	var deal_start := maxf(now, _deal_queue_until)
 	var new_count := 0
+	var take_i := 0
 
 	for card: Card in targets:
 		var xf: Transform3D = targets[card][0]
 		var face_up: bool = targets[card][1]
+		var zone: String = targets[card][2]
 		if not face_up:
 			xf.basis = xf.basis * Basis(Vector3.FORWARD, PI) # umdrehen
 		var node: Card3D = _cards.get(card)
 		var delay := 0.0
+		var style := ""
+		var prev: String = _zone.get(card, "new")
 		if node == null:
 			node = Card3D.create(card, card.suit == duel.trump_suit)
 			node.transform = _deck_top_xf()
@@ -171,16 +189,33 @@ func sync(duel: DurakMatch, playable: Array[Card]) -> void:
 			if card != duel.trump_card or duel.deck.is_empty():
 				delay = deal_start - now + new_count * DEAL_STAGGER
 				new_count += 1
+				style = "deal"
 			else:
 				node.transform = xf # Trumpfkarte liegt von Anfang an
+		elif prev in ["hand", "opp"] and zone in ["table_a", "table_d"]:
+			style = "whirl" if card == _transfer_card else "play"
+		elif prev in ["table_a", "table_d"] and zone in ["hand", "opp"]:
+			style = "take"
+			delay = take_i * 0.06
+			take_i += 1
+		elif prev == "trump" and zone in ["hand", "opp"]:
+			style = "deal"
+		_zone[card] = zone
+		node.in_hand = zone == "hand"
 		node.set_state(playable.has(card))
 		if not _base.has(node) or not _base[node].is_equal_approx(xf):
 			_base[node] = xf
-			_move(node, _with_hover(node, xf), delay)
+			var tw := _move(node, _with_hover(node, xf), delay, MOVE_TIME, style)
+			if style != "":
+				var strong := card.suit == duel.trump_suit and style in ["play", "whirl"]
+				var under: Card = beats.get(card)
+				tw.finished.connect(_on_landed.bind(node, style, strong, under))
+		if card == _transfer_card:
+			_transfer_card = null
 	if new_count > 0:
 		_deal_queue_until = deal_start + new_count * DEAL_STAGGER
 
-	# Karten, die nirgends mehr sind → Ablagestapel
+	# Karten, die nirgends mehr sind → Ablagestapel (Bito: umdrehen, wegwirbeln)
 	var discard_i := 0
 	for card: Card in _cards.keys():
 		if targets.has(card):
@@ -188,16 +223,86 @@ func sync(duel: DurakMatch, playable: Array[Card]) -> void:
 		var node: Card3D = _cards[card]
 		_cards.erase(card)
 		_base.erase(node)
+		_zone.erase(card)
+		node.in_hand = false
 		node.set_state(false)
 		var xf := Transform3D(Basis(Vector3.UP, randf_range(-0.3, 0.3)) * Basis(Vector3.FORWARD, PI), DISCARD_POS + Vector3(0, 0.02, 0))
 		# Karten bleiben kurz liegen, bevor sie abgeräumt werden
-		var tw := _move(node, xf, DISCARD_DELAY + discard_i * 0.06)
+		var tw := _move(node, xf, DISCARD_DELAY + discard_i * 0.07, 0.45, "bito")
 		discard_i += 1
 		tw.finished.connect(func() -> void:
 			_discard_count += 1
 			_discard_pile.visible = true
 			_set_pile_height(_discard_pile, DISCARD_POS, _discard_count)
 			node.queue_free())
+
+
+## Die nächste Karte, die aus einer Hand auf den Tisch geht, wurde geschoben.
+func note_transfer(card: Card) -> void:
+	_transfer_card = card
+
+
+## Bildschirm kurz wackeln lassen (nur wenn Kamera-Schwenk an ist).
+func shake(amount: float) -> void:
+	if Settings.camera_sway():
+		_shake = maxf(_shake, amount)
+
+
+func _on_landed(node: Card3D, style: String, strong: bool, under: Card) -> void:
+	if not is_instance_valid(node):
+		return
+	match style:
+		"deal":
+			node.land(0.45)
+		"take":
+			node.land(0.35)
+		"play", "whirl":
+			node.land(1.0)
+			_impact(node.global_position, strong)
+			shake(0.9 if strong else 0.45)
+			if under != null and _cards.has(under):
+				var below: Card3D = _cards[under]
+				below.nudge(below.global_position - node.global_position, 1.0)
+
+
+## Staubring auf dem Filz, wo eine Karte aufschlägt (Trumpf: goldener Blitz).
+func _impact(pos: Vector3, strong: bool) -> void:
+	if _ring_tex == null:
+		var grad := Gradient.new()
+		grad.set_offset(0, 0.0)
+		grad.set_color(0, Color(1, 1, 1, 0))
+		grad.set_offset(1, 1.0)
+		grad.set_color(1, Color(1, 1, 1, 0))
+		grad.add_point(0.62, Color(1, 1, 1, 0.0))
+		grad.add_point(0.8, Color(1, 1, 1, 1))
+		var gt := GradientTexture2D.new()
+		gt.gradient = grad
+		gt.fill = GradientTexture2D.FILL_RADIAL
+		gt.fill_from = Vector2(0.5, 0.5)
+		gt.fill_to = Vector2(1.0, 0.5)
+		gt.width = 128
+		gt.height = 128
+		_ring_tex = gt
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.albedo_texture = _ring_tex
+	mat.albedo_color = Color(1, 0.85, 0.5, 0.8) if strong else Color(0.95, 0.9, 0.8, 0.45)
+	mat.no_depth_test = false
+	var q := QuadMesh.new()
+	q.size = Vector2(0.3, 0.3)
+	var mi := MeshInstance3D.new()
+	mi.mesh = q
+	mi.material_override = mat
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.rotation_degrees.x = -90
+	mi.position = Vector3(pos.x, TABLE_Y + 0.0012, pos.z)
+	mi.scale = Vector3.ONE * 0.35
+	add_child(mi)
+	var tw := mi.create_tween()
+	tw.tween_property(mi, "scale", Vector3.ONE * (1.4 if strong else 1.0), 0.4).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.parallel().tween_property(mat, "albedo_color:a", 0.0, 0.4)
+	tw.tween_callback(mi.queue_free)
 
 
 func _on_hover(node: Card3D, _hovered: bool) -> void:
@@ -211,7 +316,14 @@ func _with_hover(node: Card3D, xf: Transform3D) -> Transform3D:
 	return xf
 
 
-func _move(node: Node3D, to: Transform3D, delay: float, time := MOVE_TIME) -> Tween:
+## Bewegt eine Karte. `style`:
+##   ""      Umordnen (kurz, weich)
+##   "deal"  Austeilen: Bogen vom Stapel, dreht sich dabei um, federt beim Landen
+##   "play"  Ausspielen: hoher Bogen, schnell herunter (Wumms)
+##   "whirl" Schieben: wirbelt einmal um sich selbst
+##   "take"  Nehmen: hoch und zurück in die Hand
+##   "bito"  Abwerfen: umdrehen und mit Drall zum Ablagestapel
+func _move(node: Node3D, to: Transform3D, delay: float, time := MOVE_TIME, style := "") -> Tween:
 	if node.has_meta("tween"):
 		var old: Tween = node.get_meta("tween")
 		if old.is_valid():
@@ -219,21 +331,56 @@ func _move(node: Node3D, to: Transform3D, delay: float, time := MOVE_TIME) -> Tw
 	var from := node.transform
 	var tw := create_tween()
 	node.set_meta("tween", tw)
+	var lift := 0.05 if from.origin.distance_to(to.origin) > 0.15 else 0.0
+	var spin := 0.0 # volle Drehungen um die Hochachse (Vielfache von TAU)
+	var sway := 0.0 # Drehung hin und zurück (Bogenmaß)
+	var trans := Tween.TRANS_CUBIC
+	var ease_mode := Tween.EASE_OUT
+	match style:
+		"deal":
+			time = 0.42
+			lift = 0.1
+			sway = 0.5
+			trans = Tween.TRANS_QUART
+		"play":
+			time = 0.3
+			lift = 0.09
+			trans = Tween.TRANS_SINE
+			ease_mode = Tween.EASE_IN_OUT
+		"whirl":
+			time = 0.5
+			lift = 0.14
+			spin = TAU
+			trans = Tween.TRANS_SINE
+			ease_mode = Tween.EASE_IN_OUT
+		"take":
+			time = 0.5
+			lift = 0.16
+			trans = Tween.TRANS_SINE
+			ease_mode = Tween.EASE_IN_OUT
+		"bito":
+			lift = 0.12
+			spin = TAU
+			trans = Tween.TRANS_QUAD
+			ease_mode = Tween.EASE_IN_OUT
 	var f := Settings.anim_time_factor()
 	time *= f
 	delay *= f
 	if delay > 0.0:
 		tw.tween_interval(delay)
-	var lift := 0.05 if from.origin.distance_to(to.origin) > 0.15 else 0.0
 	var q_from := from.basis.get_rotation_quaternion()
 	var q_to := to.basis.get_rotation_quaternion()
 	var s_from := from.basis.get_scale()
 	var s_to := to.basis.get_scale()
 	tw.tween_method(func(t: float) -> void:
-		var b := Basis(q_from.slerp(q_to, t)).scaled_local(s_from.lerp(s_to, t))
+		var rot := q_from.slerp(q_to, t)
+		var turn := spin * t + sway * sin(t * PI)
+		if turn != 0.0:
+			rot = Quaternion(Vector3.UP, turn) * rot
+		var b := Basis(rot).scaled_local(s_from.lerp(s_to, t))
 		var pos := from.origin.lerp(to.origin, t) + Vector3(0, sin(t * PI) * lift, 0)
 		node.transform = Transform3D(b, pos),
-		0.0, 1.0, time).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+		0.0, 1.0, time).set_trans(trans).set_ease(ease_mode)
 	return tw
 
 

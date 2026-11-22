@@ -2,6 +2,11 @@ class_name Card3D
 extends Node3D
 ## Eine Spielkarte als 3D-Objekt. Liegt flach in der XZ-Ebene,
 ## die Vorderseite zeigt nach +Y. Umdrehen = 180° um die Z-Achse.
+##
+## Die Wurzel wird vom Tisch (TableWorld) bewegt. Alle Teile, die man sieht,
+## hängen an `_body` – darauf liegen die kleinen Eigenbewegungen:
+## Kippen zur Maus (Hover), leichtes Wiegen in der Hand, Federn beim Landen
+## und Schubsen. Die Vorderseite nutzt card_face.gdshader (Folienglanz, Lichtreflex).
 
 signal clicked(card: Card)
 signal hover_changed(card3d: Card3D, hovered: bool)
@@ -10,28 +15,55 @@ const WIDTH := 0.10
 const HEIGHT := 0.14
 const THICKNESS := 0.0025
 
-const COLOR_FACE := Color("e9e1cc")
-const COLOR_EDGE := Color("b9ad92")
-const COLOR_TRUMP := Color("c9953f")
-const COLOR_BACK := Color("3b2a6e")
-const COLOR_BACK_BORDER := Color("e9dcc0")
-const COLOR_RED := Color("a3221c")
-const COLOR_BLACK := Color("171512")
+const COLOR_EDGE := Color("2a2440")
+const COLOR_TRUMP := Color("d9b06a")
+const COLOR_BACK := Color("1b1834")
+const COLOR_BACK_BORDER := Color("2a2440")
+const COLOR_PLAYABLE := Color("f0d79a")
 const INDEX_FONT := preload("res://assets/fonts/DejaVuSans-Bold.ttf")
-## Färbung der Vorderseite + Etikettfarbe je Card.Enhancement
-const ENH_FACE := [Color("e9e1cc"), Color("f3dc9a"), Color("cfe6f3"), Color("d3eccb")]
-const ENH_TAG := [Color.WHITE, Color("9a6a08"), Color("2c6e9e"), Color("2f7a3c")]
+const FACE_SHADER := preload("res://scenes/match/card_face.gdshader")
+const GLASS_SHADER := preload("res://scenes/match/card_face_glass.gdshader")
+## Rahmen-/Etikettfarbe je Card.Enhancement
+const ENH_TAG := [Color.WHITE, Color("ffd36a"), Color("9fd8ff"), Color("8ff0a0")]
+## Folienglanz je Card.Enhancement: [Stärke, Farbe, Regenbogen]
+const ENH_FOIL := [
+	[0.0, Color.WHITE, 0.0],
+	[1.0, Color(1.0, 0.8, 0.42), 0.0],
+	[0.75, Color(0.8, 0.95, 1.0), 1.0],
+	[0.85, Color(0.45, 1.0, 0.55), 0.0],
+]
+## Maximales Kippen zur Maus (Bogenmaß)
+const TILT := 0.42
 
 var card: Card
 var is_trump := false
 var playable := false
 var hovered := false
+## Liegt in der eigenen Hand (Wiegen, Kippen, Anheben)
+var in_hand := false
 
-var _face_mat: StandardMaterial3D
+var _body: Node3D
+var _face_mat: ShaderMaterial
 var _border_mat: StandardMaterial3D
-var _labels: Array[Label3D] = []
 var _border: Node3D
 var _special := false
+var _phase := 0.0
+var _skew := 0.0
+var _t := 0.0
+var _hover_uv := Vector2(0.5, 0.5)
+var _tilt := Vector2.ZERO        # aktuelles Kippen (x um X-Achse, y um Z-Achse)
+var _shine := 0.0
+var _glow := 0.0
+var _lift := 0.0
+# Federn: Höhe (lokal +Y), Wackeln (um X) und Versatz (lokal XZ)
+var _hop := 0.0
+var _hop_v := 0.0
+var _wob := 0.0
+var _wob_v := 0.0
+var _off := Vector3.ZERO
+var _off_v := Vector3.ZERO
+## eigener Zufall, damit Optik nicht den Spiel-Zufall verschiebt
+var _rng := RandomNumberGenerator.new()
 
 
 const SUIT_FILES := ["h", "d", "c", "s"]
@@ -62,6 +94,9 @@ static func create(p_card: Card, p_is_trump: bool) -> Card3D:
 
 
 func _ready() -> void:
+	_rng.randomize()
+	_phase = _rng.randf() * TAU
+	_skew = _rng.randf_range(-0.018, 0.018)
 	_build()
 
 
@@ -70,8 +105,55 @@ func set_state(p_playable: bool) -> void:
 	_update_look()
 
 
+## Karte ist gelandet: kurz federn und wackeln (`strength` 0..1).
+func land(strength := 0.5) -> void:
+	_hop_v += 0.12 * strength
+	_wob_v += (7.0 if _rng.randf() < 0.5 else -7.0) * strength
+
+
+## Kurz in Richtung `dir` (Weltkoordinaten) geschubst werden.
+func nudge(dir: Vector3, strength := 1.0) -> void:
+	var local := global_transform.basis.inverse() * dir
+	local.y = 0.0
+	_off_v += local.normalized() * 0.2 * strength
+	_wob_v += 4.0 * strength
+
+
+func _process(delta: float) -> void:
+	_t += delta
+	var dt := minf(delta, 1.0 / 30.0)
+	# Kippen zur Maus nur für die eigene Hand
+	var tilt_target := Vector2.ZERO
+	if hovered and in_hand:
+		tilt_target = Vector2((0.5 - _hover_uv.y) * TILT, (_hover_uv.x - 0.5) * TILT)
+	_tilt = _tilt.lerp(tilt_target, 1.0 - exp(-dt * 14.0))
+	_shine = lerpf(_shine, 1.0 if hovered and in_hand else 0.0, 1.0 - exp(-dt * 10.0))
+	_glow = lerpf(_glow, (1.0 if hovered else 0.45) if playable else 0.0, 1.0 - exp(-dt * 10.0))
+	_lift = lerpf(_lift, 0.006 if playable and in_hand else 0.0, 1.0 - exp(-dt * 8.0))
+	# Federn (gedämpfte Schwingungen)
+	_hop_v += (-260.0 * _hop - 16.0 * _hop_v) * dt
+	_hop += _hop_v * dt
+	_wob_v += (-300.0 * _wob - 14.0 * _wob_v) * dt
+	_wob += _wob_v * dt
+	_off_v += (-220.0 * _off - 15.0 * _off_v) * dt
+	_off += _off_v * dt
+	# Wiegen in der Hand
+	var sway := Vector2.ZERO
+	if in_hand:
+		sway = Vector2(sin(_t * 0.9 + _phase) * 0.012, sin(_t * 1.3 + _phase * 1.7) * 0.014)
+	if _body != null:
+		_body.rotation = Vector3(_tilt.x + sway.x + _wob * 0.12, _skew if in_hand else 0.0, _tilt.y + sway.y)
+		# beim Wackeln etwas anheben, damit keine Kante in den Tisch taucht
+		_body.position = Vector3(_off.x, _hop + absf(sin(_wob * 0.12)) * HEIGHT * 0.5, _off.z - _lift)
+	if _face_mat != null:
+		_face_mat.set_shader_parameter("shine", _shine)
+		_face_mat.set_shader_parameter("shine_uv", _hover_uv)
+		_face_mat.set_shader_parameter("glow", _glow)
+
+
 func _build() -> void:
-	# Kartenkörper (Kante)
+	_body = Node3D.new()
+	add_child(_body)
 	var body := MeshInstance3D.new()
 	var box := BoxMesh.new()
 	box.size = Vector3(WIDTH, THICKNESS, HEIGHT)
@@ -79,44 +161,41 @@ func _build() -> void:
 	var enh := card.enhancement if card != null else Card.Enhancement.NONE
 	var glass := enh == Card.Enhancement.GLASS
 	if glass:
-		var gm := _mat(Color(0.75, 0.9, 1.0, 0.35), 0.05)
+		var gm := _mat(Color(0.75, 0.9, 1.0, 0.3), 0.05)
 		gm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 		gm.metallic_specular = 1.0
 		body.material_override = gm
 	else:
-		body.material_override = _mat(COLOR_EDGE, 0.9)
-	add_child(body)
+		body.material_override = _mat(COLOR_EDGE, 0.6)
+	_body.add_child(body)
 
-	# Rahmen hinter dem Bild: Farbe der Verbesserung, sonst Trumpf-Lila, sonst unsichtbar
-	var border_color := COLOR_FACE
+	# Rahmen: Farbe der Verbesserung, sonst Gold für Trumpf/spielbar
+	var border_color := COLOR_PLAYABLE
 	if enh != Card.Enhancement.NONE:
-		border_color = ENH_TAG[enh].lightened(0.25)
+		border_color = ENH_TAG[enh]
 	elif is_trump:
 		border_color = COLOR_TRUMP
 	_special = enh != Card.Enhancement.NONE or is_trump
-	_border_mat = _mat(border_color, 0.8)
-	# etwas größer als die Karte → sichtbarer Rand (nur bei spielbar/Trumpf/Verbesserung)
-	_border = _add_frame(0.004, THICKNESS * 0.5 + 0.0001, _border_mat)
+	_border_mat = _mat(border_color, 0.6)
+	_border = _add_frame(0.0035, THICKNESS * 0.5 + 0.0001, _border_mat)
 
-	# Vorderseite: das Kartenbild (bei Verbesserung leicht getönt)
-	var inset := 0.0
-	# leicht gedämpft, damit die Karten unter der Lampe nicht überstrahlen
-	_face_mat = _mat(ENH_FACE[enh].lightened(0.35).darkened(0.08) if enh != Card.Enhancement.NONE else Color(0.9, 0.9, 0.9), 0.85)
+	# Vorderseite mit Folien-Shader
+	_face_mat = ShaderMaterial.new()
+	_face_mat.shader = GLASS_SHADER if glass else FACE_SHADER
 	if card != null:
-		_face_mat.albedo_texture = face_texture(card, glass)
-	if glass:
-		# durchscheinend, glänzend, leicht bläulich schimmernd
-		_face_mat.albedo_color = Color.WHITE
-		_face_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		_face_mat.roughness = 0.04
-		_face_mat.metallic_specular = 1.0
-		_face_mat.rim_enabled = true
-		_face_mat.rim = 0.6
-		_face_mat.rim_tint = 0.2
-	_add_quad(Vector2(WIDTH - inset, HEIGHT - inset), THICKNESS * 0.5 + 0.0004, _face_mat, false)
+		_face_mat.set_shader_parameter("tex", face_texture(card, glass))
+	var foil: Array = ENH_FOIL[enh]
+	var foil_amount: float = foil[0]
+	if enh == Card.Enhancement.NONE and is_trump:
+		foil_amount = 0.5
+	_face_mat.set_shader_parameter("foil", foil_amount)
+	_face_mat.set_shader_parameter("foil_color", foil[1])
+	_face_mat.set_shader_parameter("rainbow", foil[2])
+	_face_mat.set_shader_parameter("rough", 0.55)
+	_add_quad(Vector2(WIDTH, HEIGHT), THICKNESS * 0.5 + 0.0004, _face_mat, false)
 
 	# Rückseite
-	var back_mat := _mat(Color.WHITE, 0.75)
+	var back_mat := _mat(Color.WHITE, 0.6)
 	back_mat.albedo_texture = back_texture()
 	_add_quad(Vector2(WIDTH, HEIGHT), THICKNESS * 0.5 + 0.0002, back_mat, true)
 
@@ -124,12 +203,12 @@ func _build() -> void:
 		var tag := _label(Card.ENHANCEMENT_TAGS[enh], 80, ENH_TAG[enh], false, 0.0002)
 		tag.font = INDEX_FONT
 		tag.shaded = false
-		tag.outline_size = 14
-		tag.outline_modulate = Color("f6f0e2")
+		tag.outline_size = 16
+		tag.outline_modulate = Color("120f24")
 		tag.position = Vector3(0, THICKNESS * 0.5 + 0.0008, HEIGHT * 0.5 - 0.011)
-		add_child(tag)
+		_body.add_child(tag)
 
-	# Klickfläche
+	# Klickfläche (an der Wurzel, damit Kippen das Hovern nicht stört)
 	var area := Area3D.new()
 	area.input_ray_pickable = true
 	var shape := CollisionShape3D.new()
@@ -144,7 +223,10 @@ func _build() -> void:
 	_update_look()
 
 
-func _on_input_event(_cam: Node, event: InputEvent, _pos: Vector3, _normal: Vector3, _idx: int) -> void:
+func _on_input_event(_cam: Node, event: InputEvent, pos: Vector3, _normal: Vector3, _idx: int) -> void:
+	if event is InputEventMouseMotion or event is InputEventMouseButton:
+		var local := to_local(pos)
+		_hover_uv = Vector2(clampf(local.x / WIDTH + 0.5, 0.0, 1.0), clampf(local.z / HEIGHT + 0.5, 0.0, 1.0))
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		if playable and card != null:
 			clicked.emit(card)
@@ -157,24 +239,22 @@ func _set_hovered(value: bool) -> void:
 
 
 func _update_look() -> void:
-	if _face_mat == null:
+	if _border_mat == null:
 		return
 	var lit := playable and hovered
-	_face_mat.emission_enabled = lit
-	_face_mat.emission = Color("fff2c0")
-	_face_mat.emission_energy_multiplier = 0.25
 	_border.visible = playable or _special
-	_border_mat.emission_enabled = playable
-	_border_mat.emission = _border_mat.albedo_color if _special else Color("f3e3a0")
+	_border_mat.emission_enabled = playable or _special
+	_border_mat.emission = _border_mat.albedo_color
 	if not _special:
-		_border_mat.albedo_color = Color("f3e3a0")
-	_border_mat.emission_energy_multiplier = 0.9 if lit else (0.35 if playable else 0.0)
+		_border_mat.albedo_color = COLOR_PLAYABLE
+		_border_mat.emission = COLOR_PLAYABLE
+	_border_mat.emission_energy_multiplier = 1.0 if lit else (0.45 if playable else 0.25)
 
 
 ## Schmaler Rahmen rund um die Karte (für Leuchten/Trumpf/Verbesserung).
 func _add_frame(width: float, y: float, material: Material) -> Node3D:
 	var frame := Node3D.new()
-	add_child(frame)
+	_body.add_child(frame)
 	var w := WIDTH + width * 2
 	var h := HEIGHT + width * 2
 	for side in [-1.0, 1.0]:
@@ -197,7 +277,7 @@ func _add_quad(size: Vector2, y: float, material: Material, bottom: bool) -> Mes
 	mi.rotation_degrees = Vector3(90 if bottom else -90, 0, 0)
 	mi.position = Vector3(0, -y if bottom else y, 0)
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	add_child(mi)
+	_body.add_child(mi)
 	return mi
 
 
@@ -223,5 +303,5 @@ static func _mat(color: Color, roughness: float) -> StandardMaterial3D:
 	m.albedo_color = color
 	m.roughness = roughness
 	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
-	m.metallic_specular = 0.15 # Papier glänzt kaum
+	m.metallic_specular = 0.2
 	return m

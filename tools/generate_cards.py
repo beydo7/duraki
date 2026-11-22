@@ -1,23 +1,33 @@
 #!/usr/bin/env python3
-"""Erzeugt das Kartenblatt für Duraki im Stil „Papier & Tinte“.
+"""Erzeugt das Kartenblatt für Duraki im Stil „Okkult-Gold“.
+
+Nachtblaue Karten mit leuchtender Goldlinie und Sternenstaub. Rote Farben (Herz, Karo)
+in Korallenrot, schwarze Farben (Pik, Kreuz) in Gold. Bildkarten als doppelköpfige
+Goldlinien-Figuren mit Heiligenschein, Asse mit Himmelsmotiven
+(Herz = Sonne, Karo = Auge, Pik = Mond, Kreuz = Stern).
 
 Aufruf (aus dem Projektordner):
-    python tools/generate_cards.py
+    python tools/generate_cards.py            # alles
+    python tools/generate_cards.py faces      # nur Vorderseiten (+ Glas)
+    python tools/generate_cards.py backs      # nur Rückseiten
 Benötigt: Pillow und numpy  (pip install pillow numpy)
 
 Ausgabe:
-  assets/cards/<farbe>_<rang>.png         Vorderseiten (gealtertes Papier, Tintendruck)
-  assets/cards/glass/<farbe>_<rang>.png   Glaskarten (durchscheinend)
+  assets/cards/<farbe>_<rang>.png         Vorderseiten
+  assets/cards/glass/<farbe>_<rang>.png   Glaskarten (durchscheinend, Linien bleiben)
+  assets/cards/blank.png                   leere Vorderseite (Menükarten)
   assets/cards/back.png                    Standard-Rückseite (= Deck „hinterzimmer“)
   assets/cards/backs/<deck>.png            Rückseiten aller Decks (siehe DECK_BACKS)
     farbe: h = Herz, d = Karo, c = Kreuz, s = Pik
     rang:  6..14 (11 = Bube/J, 12 = Dame, 13 = König, 14 = Ass)
 
 Alle Motive sind eigene Zeichnungen aus Grundformen (keine fremden Vorlagen).
+Schriften: Cinzel Decorative (OFL), DejaVu Sans (frei).
 """
 import math
 import os
 import random
+import zlib
 
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
@@ -27,21 +37,23 @@ OUT = os.path.join(ROOT, "assets", "cards")
 FONTS = os.path.join(ROOT, "assets", "fonts")
 FONT_SYM = os.path.join(FONTS, "DejaVuSans.ttf")
 FONT_SYM_B = os.path.join(FONTS, "DejaVuSans-Bold.ttf")
-FONT_DISP = os.path.join(FONTS, "RuslanDisplay-Regular.ttf")
-FONT_SERIF = os.path.join(FONTS, "OldStandard-Bold.ttf")
-FONT_TYPE = os.path.join(FONTS, "SpecialElite-Regular.ttf")
+FONT_IDX = os.path.join(FONTS, "CinzelDecorative-Bold.ttf")
 
 S = 2                      # Supersampling, am Ende wird verkleinert
 W, H = 500 * S, 700 * S    # Seitenverhältnis 1 : 1.4 wie die 3D-Karte
 
-PAPER = (232, 221, 196)
-RED = (158, 28, 24)
-INK = (28, 23, 28)
-OCHRE = (196, 148, 66)
-BLUE = (44, 66, 110)
-SKIN = (236, 214, 180)
+NAVY_TOP = (27, 24, 52)
+NAVY_BOT = (11, 10, 24)
+PANEL = (34, 30, 66)
+ROBE = (40, 34, 78)
+ROBE_DARK = (26, 22, 52)
+SKIN = (58, 52, 96)
+GOLD = (236, 200, 124)
+GOLD_DIM = (168, 136, 82)
+CORAL = (242, 98, 92)
+STAR = (206, 196, 255)
 
-SUITS = {"h": ("♥", RED), "d": ("♦", RED), "c": ("♣", INK), "s": ("♠", INK)}
+SUITS = {"h": ("♥", CORAL), "d": ("♦", CORAL), "c": ("♣", GOLD), "s": ("♠", GOLD)}
 RANK_TEXT = {6: "6", 7: "7", 8: "8", 9: "9", 10: "10", 11: "J", 12: "D", 13: "K", 14: "A"}
 
 L, C, R = 0.31, 0.5, 0.69
@@ -60,40 +72,20 @@ def font(path, size):
     return ImageFont.truetype(path, int(size))
 
 
-def blur(a, r):
-    img = Image.fromarray(np.clip(a * 60 + 128, 0, 255).astype(np.uint8))
-    return (np.asarray(img.filter(ImageFilter.GaussianBlur(r))).astype(np.float32) - 128) / 60
+def rgba(c, a=255):
+    return tuple(c[:3]) + (int(a),)
 
 
-def aged_paper(w, h, col=PAPER, seed=0, stains=2, edge_wear=0.35):
-    rng = np.random.default_rng(seed)
-    n = blur(rng.normal(0, 1, (h, w)), 18) * 6 + blur(rng.normal(0, 1, (h, w)), 3) * 3 + rng.normal(0, 1, (h, w)) * 2.5
-    yy, xx = np.mgrid[0:h, 0:w]
-    # Ränder vergilbt/abgegriffen
-    ed = np.minimum.reduce([xx, yy, w - 1 - xx, h - 1 - yy]).astype(np.float32) / (0.09 * w)
-    wear = np.clip(1 - ed, 0, 1) ** 2 * edge_wear
-    rgb = np.zeros((h, w, 3), np.float32)
-    for i in range(3):
-        rgb[..., i] = col[i] + n
-    rgb *= (1 - wear[..., None] * np.array([0.25, 0.32, 0.45]))
-    r = random.Random(seed)
-    for _ in range(stains):
-        cx, cy = r.uniform(0.15, 0.85) * w, r.uniform(0.15, 0.85) * h
-        rad = r.uniform(0.1, 0.22) * w
-        d = np.sqrt((xx - cx) ** 2 + (yy - cy) ** 2) / rad
-        ring = np.exp(-((d - 1.0) ** 2) / 0.004) * 0.06 + np.clip(1 - d, 0, 1) * 0.025
-        rgb *= (1 - ring[..., None] * np.array([0.3, 0.45, 0.75]))
-    a = np.full((h, w, 1), 255, np.float32)
-    return Image.fromarray(np.clip(np.concatenate([rgb, a], axis=2), 0, 255).astype(np.uint8), "RGBA")
+def layer(w=W, h=H):
+    return Image.new("RGBA", (w, h), (0, 0, 0, 0))
 
 
-def ink_texture(layer, seed=0, strength=0.22):
-    """Macht gedruckte Flächen unregelmäßig wie Hochdruck (Alpha + leichte Aufhellung)."""
-    a = np.asarray(layer).astype(np.float32)
-    rng = np.random.default_rng(seed)
-    g = blur(rng.normal(0, 1, a.shape[:2]), 1.4) * 0.6 + rng.normal(0, 1, a.shape[:2]) * 0.25
-    a[..., 3] *= np.clip(1 - strength + g * strength, 0.55, 1)
-    return Image.fromarray(np.clip(a, 0, 255).astype(np.uint8), "RGBA")
+def glow(img, radius, strength=0.8):
+    """Weiches Leuchten einer Linienebene (wird darunter gelegt)."""
+    g = img.filter(ImageFilter.GaussianBlur(radius))
+    a = np.asarray(g).astype(np.float32)
+    a[..., 3] *= strength
+    return Image.fromarray(a.clip(0, 255).astype(np.uint8), "RGBA")
 
 
 def glyph(text, size, color, fnt=FONT_SYM):
@@ -111,233 +103,359 @@ def put(img, tile, center, rotate=False):
     img.alpha_composite(tile, (int(center[0] - tile.width / 2), int(center[1] - tile.height / 2)))
 
 
-def draw_index(img, rank, sym, color):
-    for rotate in (False, True):
-        layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-        tx = RANK_TEXT[rank]
-        size = 0.16 * W if len(tx) == 1 else 0.125 * W
-        cx = 0.115 * W
-        put(layer, glyph(tx, size, color, FONT_DISP), (cx, 0.085 * H))
-        put(layer, glyph(sym, 0.1 * W, color), (cx, 0.175 * H))
-        if rotate:
-            layer = layer.rotate(180)
-        img.alpha_composite(ink_texture(layer, seed=rank))
+def bez(p0, p1, p2, p3, n=28):
+    pts = []
+    for i in range(n + 1):
+        t = i / n
+        a, b, c, d = (1 - t) ** 3, 3 * (1 - t) ** 2 * t, 3 * (1 - t) * t * t, t ** 3
+        pts.append((a * p0[0] + b * p1[0] + c * p2[0] + d * p3[0], a * p0[1] + b * p1[1] + c * p2[1] + d * p3[1]))
+    return pts
 
 
-def base_card(seed):
-    img = aged_paper(W, H, seed=seed)
+def star4(d, cx, cy, r, col):
+    """Vierzackiger Funkelstern."""
+    k = r * 0.22
+    d.polygon([(cx, cy - r), (cx + k, cy - k), (cx + r, cy), (cx + k, cy + k), (cx, cy + r), (cx - k, cy + k), (cx - r, cy), (cx - k, cy - k)], fill=col)
+
+
+def background(seed, top=NAVY_TOP, bot=NAVY_BOT, stars=70):
+    """Nachtblauer Verlauf mit feinem Korn, Vignette und Sternenstaub."""
+    rng = np.random.RandomState(seed)
+    t = np.linspace(0, 1, H)[:, None, None]
+    a = np.array(top, np.float32) * (1 - t) + np.array(bot, np.float32) * t
+    a = np.broadcast_to(a, (H, W, 3)).copy()
+    yy, xx = np.mgrid[0:H, 0:W]
+    dist = np.sqrt(((xx - W / 2) / W) ** 2 + ((yy - H * 0.45) / H) ** 2)
+    a *= (1.08 - 0.55 * np.clip(dist, 0, 1) ** 1.6)[..., None]
+    noise = rng.normal(0, 3.0, (H // 2, W // 2)).repeat(2, 0).repeat(2, 1)
+    a += noise[..., None]
+    img = Image.fromarray(a.clip(0, 255).astype(np.uint8)).convert("RGBA")
     d = ImageDraw.Draw(img)
-    m = 0.035 * W
-    d.rounded_rectangle([m, m, W - m, H - m], radius=0.045 * W, outline=INK + (150,), width=int(0.004 * W))
-    m2 = 0.048 * W
-    d.rounded_rectangle([m2, m2, W - m2, H - m2], radius=0.035 * W, outline=INK + (70,), width=int(0.002 * W))
+    r = random.Random(seed)
+    for _ in range(stars):
+        x, y = r.uniform(0.04, 0.96) * W, r.uniform(0.04, 0.96) * H
+        s = r.uniform(0.6, 1.8) * S
+        d.ellipse([x - s, y - s, x + s, y + s], fill=rgba(STAR, r.randint(50, 130)))
     return img
 
 
-def hatch(d, box, col, step, width, angle=1.0):
-    """Schraffur innerhalb eines Rechtecks (für Holzschnitt-Schatten)."""
-    x0, y0, x1, y1 = box
-    h = y1 - y0
-    for x in range(int(x0 - h), int(x1), int(step)):
-        d.line([(x, y1), (x + h * angle, y0)], fill=col, width=width)
+def frame(d, col=GOLD):
+    m1, m2 = 0.035 * W, 0.052 * W
+    d.rounded_rectangle([m1, m1, W - m1, H - m1], radius=0.03 * W, outline=rgba(col, 190), width=int(0.0045 * W))
+    d.rounded_rectangle([m2, m2, W - m2, H - m2], radius=0.022 * W, outline=rgba(col, 95), width=int(0.0025 * W))
+    for x, y in ((m2, m2), (W - m2, m2), (m2, H - m2), (W - m2, H - m2)):
+        star4(d, x, y, 0.016 * W, rgba(col, 230))
+    star4(d, W / 2, m1 + (m2 - m1) / 2, 0.012 * W, rgba(col, 200))
+    star4(d, W / 2, H - m1 - (m2 - m1) / 2, 0.012 * W, rgba(col, 200))
 
 
-# --- Zahlenkarten / Ass -----------------------------------------------------------------
+def draw_index(art, rank, sym, color):
+    tile = layer(int(0.2 * W), int(0.26 * W))
+    d = ImageDraw.Draw(tile)
+    tx = RANK_TEXT[rank]
+    f = font(FONT_IDX, (0.1 if len(tx) > 1 else 0.125) * W)
+    d.text((tile.width / 2, 0.075 * W), tx, font=f, fill=rgba(color), anchor="mm")
+    put(tile, glyph(sym, 0.085 * W, rgba(color)), (tile.width / 2, 0.19 * W))
+    pos = (0.115 * W, 0.185 * W)
+    put(art, tile, pos)
+    put(art, tile, (W - pos[0], H - pos[1]), rotate=True)
+
+
+def compose(bg, art, glow_r=6, glow_s=0.75):
+    out = bg.copy()
+    out.alpha_composite(glow(art, glow_r * S, glow_s))
+    out.alpha_composite(art)
+    return out
+
+
+def sacred(d, cx, cy, r, col, alpha=40):
+    """Feine Ringe und Hexagramm hinter den Zahlen (kaum sichtbar)."""
+    for k, rr in enumerate((r, r * 0.93, r * 0.55)):
+        d.ellipse([cx - rr, cy - rr, cx + rr, cy + rr], outline=rgba(col, alpha if k != 1 else alpha * 0.6), width=max(1, int(0.002 * W)))
+    for off in (0, math.pi):
+        pts = [(cx + r * 0.93 * math.cos(off + -math.pi / 2 + i * 2 * math.pi / 3), cy + r * 0.93 * math.sin(off + -math.pi / 2 + i * 2 * math.pi / 3)) for i in range(3)]
+        d.line(pts + [pts[0]], fill=rgba(col, alpha * 0.8), width=max(1, int(0.002 * W)))
+
+
+# --- Zahlenkarten --------------------------------------------------------------------
 
 def pip_card(rank, suit, seed):
-    sym, color = SUITS[suit]
-    img = base_card(seed)
-    draw_index(img, rank, sym, color)
-    layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    tile = glyph(sym, 0.19 * W, color)
-    for (x, y) in PIPS[rank]:
-        put(layer, tile, (x * W, y * H), rotate=y > 0.5)
-    img.alpha_composite(ink_texture(layer, seed=seed, strength=0.12))
-    return img
+    sym, col = SUITS[suit]
+    art = layer()
+    d = ImageDraw.Draw(art)
+    frame(d)
+    sacred(d, W / 2, H / 2, 0.3 * W, GOLD, 34)
+    draw_index(art, rank, sym, col)
+    tile = glyph(sym, 0.15 * W, rgba(col))
+    for (u, v) in PIPS[rank]:
+        put(art, tile, (0.12 * W + u * 0.76 * W, 0.08 * H + v * 0.84 * H), rotate=v > 0.5)
+    return background(seed), art
 
+
+# --- Asse -----------------------------------------------------------------------------
 
 def ace_card(suit, seed):
-    sym, color = SUITS[suit]
-    img = base_card(seed)
-    draw_index(img, 14, sym, color)
-    layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    d = ImageDraw.Draw(layer)
-    cx, cy = W / 2, H / 2
-    # Strahlenkranz wie auf alten Spielkarten-Stempeln
-    for k in range(48):
-        a = k / 48 * math.tau
-        r0, r1 = 0.24 * W, (0.33 if k % 2 == 0 else 0.29) * W
-        d.line([(cx + math.cos(a) * r0, cy + math.sin(a) * r0), (cx + math.cos(a) * r1, cy + math.sin(a) * r1)],
-               fill=OCHRE + (255,), width=int(0.006 * W))
-    r = 0.23 * W
-    d.ellipse([cx - r, cy - r, cx + r, cy + r], outline=INK + (255,), width=int(0.007 * W))
-    d.ellipse([cx - r * 0.93, cy - r * 0.93, cx + r * 0.93, cy + r * 0.93], outline=color + (255,), width=int(0.003 * W))
-    put(layer, glyph(sym, 0.34 * W, color), (cx, cy))
-    if suit == "s":
-        # Pik-Ass trägt den Spielnamen
-        put(layer, glyph("DURAKI", 0.075 * W, INK, FONT_DISP), (cx, cy + 0.4 * W))
-        put(layer, glyph("·  HINTERZIMMER  ·", 0.035 * W, INK, FONT_TYPE), (cx, cy + 0.47 * W))
-    img.alpha_composite(ink_texture(layer, seed=seed + 3))
-    return img
-
-
-# --- Bildkarten (Holzschnitt-Stil, nach Art alter russischer Blätter) -------------------
-
-def figure_half(rank, suit):
-    """Obere Hälfte einer Bildkarte; unten wird gespiegelt."""
-    sym, color = SUITS[suit]
-    fw, fh = int(0.6 * W), int(0.375 * H)
-    img = Image.new("RGBA", (fw, fh), (0, 0, 0, 0))
-    d = ImageDraw.Draw(img)
-    lw = max(2, int(0.007 * W))
-    robe = color if color == RED else BLUE
-    cx = fw * 0.5
-    hr = fw * 0.12
-    hy = fh * 0.42
-    ink = INK + (255,)
-
-    # Gewand mit Pelz-/Borte und Schraffur
-    body = [(cx - fw * 0.46, fh), (cx - fw * 0.34, fh * 0.6), (cx - fw * 0.1, fh * 0.55),
-            (cx + fw * 0.1, fh * 0.55), (cx + fw * 0.34, fh * 0.6), (cx + fw * 0.46, fh)]
-    d.polygon(body, fill=robe + (255,), outline=ink)
-    mask = Image.new("L", (fw, fh), 0)
-    ImageDraw.Draw(mask).polygon(body, fill=255)
-    hl = Image.new("RGBA", (fw, fh), (0, 0, 0, 0))
-    hatch(ImageDraw.Draw(hl), (0, fh * 0.55, fw, fh), INK + (110,), fw * 0.03, max(1, lw // 2))
-    img.paste(hl, (0, 0), Image.composite(hl.split()[3], Image.new("L", (fw, fh), 0), mask))
-    d = ImageDraw.Draw(img)
-    # Ornamentborte
-    d.line([(cx - fw * 0.4, fh * 0.83), (cx + fw * 0.4, fh * 0.83)], fill=OCHRE + (255,), width=lw * 3)
-    for i in range(9):
-        x = cx - fw * 0.36 + i * fw * 0.09
-        d.polygon([(x, fh * 0.80), (x + fw * 0.022, fh * 0.83), (x, fh * 0.86), (x - fw * 0.022, fh * 0.83)], fill=ink)
-    # Kragen
-    if rank == 13:
-        d.ellipse([cx - fw * 0.3, fh * 0.5, cx + fw * 0.3, fh * 0.7], fill=(240, 234, 220, 255), outline=ink, width=lw)
-        for k in range(14):
-            x = cx - fw * 0.26 + k * fw * 0.04
-            d.point([(x, fh * 0.6 + (k % 3) * 4)], fill=ink)
-            d.ellipse([x - 3, fh * 0.6 - 3 + (k % 3) * 5, x + 3, fh * 0.6 + 3 + (k % 3) * 5], fill=ink)
-    else:
-        d.polygon([(cx - fw * 0.16, fh * 0.56), (cx, fh * 0.74), (cx + fw * 0.16, fh * 0.56)], fill=OCHRE + (255,), outline=ink)
-
-    # Hals und Kopf
-    d.rectangle([cx - hr * 0.33, hy + hr * 0.7, cx + hr * 0.33, fh * 0.58], fill=SKIN + (255,), outline=ink)
-    hair = (60, 40, 28, 255) if rank != 13 else (215, 210, 200, 255)
-    if rank == 12:
-        # zwei Zöpfe über die Schultern
-        for side in (-1, 1):
-            for k in range(5):
-                y = hy + hr * (0.6 + k * 0.42)
-                x = cx + side * hr * (1.0 + k * 0.06)
-                d.ellipse([x - hr * 0.2, y - hr * 0.24, x + hr * 0.2, y + hr * 0.24], fill=hair, outline=ink)
-        d.rounded_rectangle([cx - hr * 1.15, hy - hr * 0.6, cx + hr * 1.15, hy + hr * 1.5], radius=hr, fill=hair, outline=ink)
-    else:
-        d.ellipse([cx - hr * 1.08, hy - hr * 1.02, cx + hr * 1.08, hy + hr * 0.55], fill=hair, outline=ink)
-    # Gesicht: länglich, ernst
-    d.ellipse([cx - hr * 0.9, hy - hr * 0.95, cx + hr * 0.9, hy + hr * 1.1], fill=SKIN + (255,), outline=ink, width=lw)
-    for side in (-1, 1):
-        ex = cx + side * hr * 0.36
-        d.polygon([(ex - hr * 0.2, hy - hr * 0.05), (ex, hy - hr * 0.16), (ex + hr * 0.2, hy - hr * 0.05), (ex, hy + hr * 0.04)], fill=ink)
-        d.line([(ex - hr * 0.24, hy - hr * 0.32), (ex + hr * 0.2, hy - hr * 0.26 - side * hr * 0.04)], fill=ink, width=lw)
-    d.line([(cx + hr * 0.02, hy - hr * 0.1), (cx - hr * 0.1, hy + hr * 0.42), (cx + hr * 0.1, hy + hr * 0.46)], fill=ink, width=lw)
-    d.line([(cx - hr * 0.22, hy + hr * 0.7), (cx + hr * 0.22, hy + hr * 0.7)], fill=RED + (255,), width=lw)
-    # Wangen-Schraffur
-    for side in (-1, 1):
-        for k in range(3):
-            x = cx + side * hr * (0.62 + k * 0.08)
-            d.line([(x, hy + hr * 0.15), (x - side * hr * 0.05, hy + hr * 0.55)], fill=INK + (90,), width=max(1, lw // 2))
-
-    if rank == 13:
-        # König: Vollbart, Krone mit Kreuzen, Zepter
-        d.polygon([(cx - hr * 0.82, hy + hr * 0.4), (cx - hr * 0.55, hy + hr * 1.7), (cx, hy + hr * 2.0),
-                   (cx + hr * 0.55, hy + hr * 1.7), (cx + hr * 0.82, hy + hr * 0.4), (cx + hr * 0.3, hy + hr * 0.85),
-                   (cx - hr * 0.3, hy + hr * 0.85)], fill=(225, 220, 210, 255), outline=ink)
-        for k in range(5):
-            x = cx - hr * 0.5 + k * hr * 0.25
-            d.line([(x, hy + hr * 1.0), (x + hr * 0.05, hy + hr * 1.6)], fill=INK + (120,), width=max(1, lw // 2))
-        by = hy - hr * 0.82
-        crown = [(cx - hr * 1.05, by), (cx - hr * 1.0, by - hr * 0.95), (cx - hr * 0.5, by - hr * 0.55),
-                 (cx, by - hr * 1.25), (cx + hr * 0.5, by - hr * 0.55), (cx + hr * 1.0, by - hr * 0.95), (cx + hr * 1.05, by)]
-        d.polygon(crown, fill=OCHRE + (255,), outline=ink)
-        d.line([(cx - hr * 1.05, by - hr * 0.12), (cx + hr * 1.05, by - hr * 0.12)], fill=ink, width=lw)
-        for jx in (-0.5, 0, 0.5):
-            d.ellipse([cx + hr * jx - hr * 0.1, by - hr * 0.45, cx + hr * jx + hr * 0.1, by - hr * 0.25], fill=RED + (255,), outline=ink)
-        d.line([(cx, by - hr * 1.25), (cx, by - hr * 1.6)], fill=ink, width=lw)
-        d.line([(cx - hr * 0.15, by - hr * 1.45), (cx + hr * 0.15, by - hr * 1.45)], fill=ink, width=lw)
-        sx = cx + fw * 0.35
-        d.line([(sx, fh), (sx, fh * 0.16)], fill=ink, width=lw * 3)
-        d.ellipse([sx - fw * 0.045, fh * 0.08, sx + fw * 0.045, fh * 0.18], fill=OCHRE + (255,), outline=ink, width=lw)
-    elif rank == 12:
-        # Dame: Kokoschnik (hoher Kopfschmuck) mit Perlen, Fächer
-        by = hy - hr * 0.7
-        kok = [(cx - hr * 1.2, by + hr * 0.15)]
-        for k in range(21):
-            a = math.pi - k / 20 * math.pi
-            kok.append((cx + math.cos(a) * hr * 1.2, by - math.sin(a) * hr * 1.55))
-        kok.append((cx + hr * 1.2, by + hr * 0.15))
-        d.polygon(kok, fill=RED + (255,) if color != RED else BLUE + (255,), outline=ink)
-        inner = [(cx + math.cos(math.pi - k / 20 * math.pi) * hr * 0.95, by - math.sin(math.pi - k / 20 * math.pi) * hr * 1.25) for k in range(21)]
-        d.line(inner, fill=OCHRE + (255,), width=lw * 2)
-        for k in range(1, 20, 2):
-            a = math.pi - k / 20 * math.pi
-            x, y = cx + math.cos(a) * hr * 1.08, by - math.sin(a) * hr * 1.4
-            d.ellipse([x - hr * 0.06, y - hr * 0.06, x + hr * 0.06, y + hr * 0.06], fill=(245, 240, 230, 255), outline=ink)
-        d.ellipse([cx - hr * 0.16, by - hr * 0.85, cx + hr * 0.16, by - hr * 0.53], fill=OCHRE + (255,), outline=ink)
-        # Fächer
-        fx, fy = cx + fw * 0.3, fh * 0.62
+    sym, col = SUITS[suit]
+    art = layer()
+    d = ImageDraw.Draw(art)
+    frame(d)
+    draw_index(art, 14, sym, col)
+    cx, cy = W / 2, H * 0.5
+    lw = int(0.004 * W)
+    g = rgba(GOLD)
+    if suit == "h":   # Sonne
+        r = 0.2 * W
+        d.ellipse([cx - r, cy - r, cx + r, cy + r], outline=g, width=lw)
+        d.ellipse([cx - r * 0.9, cy - r * 0.9, cx + r * 0.9, cy + r * 0.9], outline=rgba(GOLD, 110), width=max(1, lw // 2))
+        for k in range(32):
+            a = k * math.pi / 16
+            r2 = r * (1.55 if k % 2 == 0 else 1.3)
+            if k % 4 == 0:
+                d.polygon([(cx + math.cos(a) * r2, cy + math.sin(a) * r2),
+                           (cx + math.cos(a + 0.05) * r * 1.08, cy + math.sin(a + 0.05) * r * 1.08),
+                           (cx + math.cos(a - 0.05) * r * 1.08, cy + math.sin(a - 0.05) * r * 1.08)], fill=g)
+            else:
+                d.line([(cx + math.cos(a) * r * 1.1, cy + math.sin(a) * r * 1.1), (cx + math.cos(a) * r2, cy + math.sin(a) * r2)], fill=g, width=max(1, lw // 2))
+        put(art, glyph(sym, 0.26 * W, rgba(col)), (cx, cy + 0.01 * W))
+    elif suit == "d":  # Auge
+        r = 0.27 * W
+        top = bez((cx - r, cy), (cx - r * 0.45, cy - r * 0.62), (cx + r * 0.45, cy - r * 0.62), (cx + r, cy))
+        bot = bez((cx + r, cy), (cx + r * 0.45, cy + r * 0.62), (cx - r * 0.45, cy + r * 0.62), (cx - r, cy))
+        d.line(top + bot, fill=g, width=lw, joint="curve")
+        ri = r * 0.36
+        d.ellipse([cx - ri, cy - ri, cx + ri, cy + ri], outline=g, width=lw)
+        put(art, glyph(sym, 0.17 * W, rgba(col)), (cx, cy + 0.005 * W))
+        for k in range(13):
+            a = math.pi + (k + 1) * math.pi / 14
+            d.line([(cx + math.cos(a) * r * 0.72, cy - 0.04 * W + math.sin(a) * r * 0.72),
+                    (cx + math.cos(a) * r * (1.05 if k % 2 else 1.18), cy - 0.04 * W + math.sin(a) * r * (1.05 if k % 2 else 1.18))], fill=g, width=max(1, lw // 2))
         for k in range(7):
-            a = -math.pi * 0.9 + k * math.pi * 0.13
-            d.line([(fx, fy + fw * 0.12), (fx + math.cos(a) * fw * 0.13, fy + math.sin(a) * fw * 0.13)], fill=ink, width=lw)
-        d.pieslice([fx - fw * 0.13, fy - fw * 0.13, fx + fw * 0.13, fy + fw * 0.13], 198, 342, outline=ink, width=lw)
-    else:
-        # Bube: Barett mit Feder, Schnurrbart, Hellebarde
-        by = hy - hr * 0.62
-        d.polygon([(cx - hr * 1.3, by + hr * 0.1), (cx - hr * 1.1, by - hr * 0.55), (cx + hr * 0.9, by - hr * 0.75),
-                   (cx + hr * 1.35, by + hr * 0.05)], fill=robe + (255,), outline=ink)
-        d.line([(cx - hr * 1.3, by + hr * 0.1), (cx + hr * 1.35, by + hr * 0.05)], fill=OCHRE + (255,), width=lw * 2)
-        feather = [(cx + hr * 0.5, by - hr * 0.6), (cx + hr * 1.9, by - hr * 1.9), (cx + hr * 2.1, by - hr * 1.6), (cx + hr * 0.9, by - hr * 0.45)]
-        d.polygon(feather, fill=(240, 234, 220, 255), outline=ink)
-        for k in range(5):
-            t = 0.2 + k * 0.15
-            x = cx + hr * (0.6 + 1.3 * t)
-            y = by - hr * (0.6 + 1.2 * t)
-            d.line([(x, y), (x + hr * 0.2, y + hr * 0.12)], fill=ink, width=max(1, lw // 2))
-        for side in (-1, 1):
-            d.line([(cx, hy + hr * 0.55), (cx + side * hr * 0.5, hy + hr * 0.62)], fill=ink, width=lw * 2)
-        sx = cx - fw * 0.36
-        d.line([(sx, fh), (sx, fh * 0.12)], fill=(90, 66, 44, 255), width=lw * 3)
-        d.polygon([(sx, fh * 0.02), (sx + fw * 0.07, fh * 0.14), (sx, fh * 0.2), (sx - fw * 0.05, fh * 0.12)], fill=(200, 196, 190, 255), outline=ink)
+            a = (k + 1) * math.pi / 8
+            d.line([(cx + math.cos(a) * r * 0.75, cy + 0.04 * W + math.sin(a) * r * 0.75),
+                    (cx + math.cos(a) * r * 0.98, cy + 0.04 * W + math.sin(a) * r * 0.98)], fill=rgba(GOLD, 120), width=max(1, lw // 2))
+    elif suit == "s":  # Mond
+        r = 0.23 * W
+        moon = layer()
+        md = ImageDraw.Draw(moon)
+        md.ellipse([cx - r, cy - r, cx + r, cy + r], fill=g)
+        md.ellipse([cx - r * 0.72, cy - r * 1.02, cx + r * 1.15, cy + r * 0.86], fill=(0, 0, 0, 0))
+        art.alpha_composite(moon)
+        put(art, glyph(sym, 0.22 * W, rgba(GOLD)), (cx + 0.06 * W, cy + 0.015 * W))
+        rr = random.Random(3)
+        for k in range(7):
+            a = -2.4 + k * 0.55
+            star4(d, cx + math.cos(a) * r * 1.5, cy + math.sin(a) * r * 1.45, (0.012 + rr.random() * 0.012) * W, g)
+        d.text((cx, H * 0.79), "DURAKI", font=font(FONT_IDX, 0.07 * W), fill=g, anchor="mm")
+    else:  # Kreuz: Stern
+        r = 0.26 * W
+        for rot in (0, math.pi / 4):
+            pts = []
+            for k in range(8):
+                a = rot + k * math.pi / 4
+                rr = r if k % 2 == 0 else r * 0.38
+                pts.append((cx + math.cos(a - math.pi / 2) * rr, cy + math.sin(a - math.pi / 2) * rr))
+            d.line(pts + [pts[0]], fill=g if rot == 0 else rgba(GOLD, 140), width=lw if rot == 0 else max(1, lw // 2), joint="curve")
+        ri = r * 0.42
+        d.ellipse([cx - ri, cy - ri, cx + ri, cy + ri], fill=rgba(NAVY_BOT), outline=g, width=lw)
+        put(art, glyph(sym, 0.17 * W, rgba(col)), (cx, cy + 0.003 * W))
+    return background(seed), art
 
-    put(img, glyph(sym, 0.085 * W, color), (fw * 0.13 if rank != 11 else fw * 0.87, fh * 0.16))
-    return ink_texture(img, seed=rank * 7 + ord(suit), strength=0.12)
+
+# --- Bildkarten ----------------------------------------------------------------------
+
+def figure_half(rank, suit, w, h):
+    """Obere Hälfte einer doppelköpfigen Figur (Goldlinien auf Nachtblau)."""
+    sym, col = SUITS[suit]
+    img = layer(w, h)
+    d = ImageDraw.Draw(img)
+    lw = max(2, int(0.0042 * W))
+    thin = max(1, int(0.0024 * W))
+    g = rgba(GOLD)
+
+    def P(u, v):
+        return (u * w, v * h)
+
+    # Heiligenschein mit Strahlen
+    hc, hr = P(0.5, 0.36), 0.25 * w
+    d.ellipse([hc[0] - hr, hc[1] - hr, hc[0] + hr, hc[1] + hr], outline=rgba(GOLD, 120), width=thin)
+    d.ellipse([hc[0] - hr * 0.94, hc[1] - hr * 0.94, hc[0] + hr * 0.94, hc[1] + hr * 0.94], outline=rgba(GOLD, 60), width=thin)
+    for k in range(36):
+        a = k * math.pi / 18
+        if math.sin(a) > 0.55:
+            continue
+        r1, r2 = hr * 1.04, hr * (1.16 if k % 2 else 1.26)
+        d.line([(hc[0] + math.cos(a) * r1, hc[1] + math.sin(a) * r1), (hc[0] + math.cos(a) * r2, hc[1] + math.sin(a) * r2)], fill=rgba(GOLD, 120), width=thin)
+
+    # Gewand: Schultern als Kurven bis zum unteren Rand
+    left = bez(P(0.04, 1.0), P(0.06, 0.8), P(0.2, 0.68), P(0.42, 0.64))
+    right = bez(P(0.58, 0.64), P(0.8, 0.68), P(0.94, 0.8), P(0.96, 1.0))
+    robe = left + right + [P(0.96, 1.0), P(0.04, 1.0)]
+    d.polygon(robe, fill=rgba(ROBE))
+    # Muster im Gewand: feine Rautenschraffur
+    pat = layer(w, h)
+    pd = ImageDraw.Draw(pat)
+    step = int(0.05 * w)
+    for x in range(-h, w + h, step):
+        pd.line([(x, 0), (x + h, h)], fill=rgba(GOLD, 38), width=thin)
+        pd.line([(x, h), (x + h, 0)], fill=rgba(GOLD, 38), width=thin)
+    mask = Image.new("L", (w, h), 0)
+    ImageDraw.Draw(mask).polygon(robe, fill=255)
+    img.paste(pat, (0, 0), Image.composite(pat.split()[3], Image.new("L", (w, h), 0), mask))
+    d = ImageDraw.Draw(img)
+    d.line(robe[:-2], fill=g, width=lw, joint="curve")
+    # Kragen / Brustlatz mit Edelsteinen
+    collar = [P(0.36, 0.66), P(0.64, 0.66), P(0.6, 0.78), P(0.5, 0.86), P(0.4, 0.78)]
+    d.polygon(collar, fill=rgba(ROBE_DARK), outline=g)
+    d.line(collar + [collar[0]], fill=g, width=thin)
+    for k, (u, v) in enumerate(((0.43, 0.7), (0.5, 0.74), (0.57, 0.7), (0.5, 0.81))):
+        c = P(u, v)
+        rr = 0.013 * w
+        d.ellipse([c[0] - rr, c[1] - rr, c[0] + rr, c[1] + rr], fill=rgba(col if k == 1 else GOLD))
+    # Saum mit Perlen
+    d.line([P(0.08, 0.95), P(0.92, 0.95)], fill=g, width=thin)
+    for k in range(15):
+        c = P(0.1 + k * 0.057, 0.975)
+        rr = 0.008 * w
+        d.ellipse([c[0] - rr, c[1] - rr, c[0] + rr, c[1] + rr], fill=rgba(GOLD, 200))
+
+    # Hals + Kopf
+    d.rectangle([P(0.46, 0.55)[0], P(0.46, 0.55)[1], P(0.54, 0.66)[0], P(0.54, 0.66)[1]], fill=rgba(SKIN))
+    d.line([P(0.46, 0.56), P(0.46, 0.65)], fill=g, width=thin)
+    d.line([P(0.54, 0.56), P(0.54, 0.65)], fill=g, width=thin)
+    head = [P(0.395, 0.38), P(0.605, 0.6)]
+    if rank == 12:
+        # Zöpfe hinter dem Kopf
+        for s in (-1, 1):
+            x0 = 0.5 + s * 0.105
+            pts = []
+            for k in range(9):
+                v = 0.42 + k * 0.035
+                pts.append(P(x0 + s * 0.02 * (1 if k % 2 else -1), v))
+            d.line(pts, fill=g, width=lw * 2, joint="curve")
+            d.line(pts, fill=rgba(ROBE_DARK), width=lw, joint="curve")
+            end = P(x0, 0.74)
+            d.ellipse([end[0] - 0.015 * w, end[1] - 0.015 * w, end[0] + 0.015 * w, end[1] + 0.015 * w], fill=rgba(col))
+    d.ellipse(head, fill=rgba(SKIN), outline=g, width=lw)
+    # Gesicht
+    for s in (-1, 1):
+        ex = 0.5 + s * 0.045
+        eye = bez(P(ex - 0.028, 0.475), P(ex - 0.01, 0.458), P(ex + 0.01, 0.458), P(ex + 0.028, 0.475), 10) + \
+            bez(P(ex + 0.028, 0.475), P(ex + 0.01, 0.488), P(ex - 0.01, 0.488), P(ex - 0.028, 0.475), 10)
+        d.line(eye, fill=g, width=thin)
+        c = P(ex, 0.474)
+        d.ellipse([c[0] - 0.007 * w, c[1] - 0.007 * w, c[0] + 0.007 * w, c[1] + 0.007 * w], fill=g)
+        brow = bez(P(ex - 0.035, 0.448), P(ex - 0.01, 0.435), P(ex + 0.015, 0.438), P(ex + 0.035, 0.447), 10)
+        d.line(brow, fill=g, width=thin)
+    d.line(bez(P(0.5, 0.48), P(0.495, 0.51), P(0.49, 0.525), P(0.505, 0.532), 8), fill=g, width=thin)
+
+    if rank == 13:  # König: Krone, Bart, Zepter
+        crown = [P(0.39, 0.4), P(0.39, 0.29), P(0.43, 0.34), P(0.465, 0.25), P(0.5, 0.32), P(0.535, 0.25), P(0.57, 0.34), P(0.61, 0.29), P(0.61, 0.4)]
+        d.polygon(crown, fill=rgba(ROBE_DARK))
+        d.line(crown + [crown[0]], fill=g, width=lw, joint="curve")
+        d.line([P(0.39, 0.385), P(0.61, 0.385)], fill=g, width=thin)
+        for u in (0.465, 0.535):
+            c = P(u, 0.25)
+            d.ellipse([c[0] - 0.013 * w, c[1] - 0.013 * w, c[0] + 0.013 * w, c[1] + 0.013 * w], fill=g)
+        c = P(0.5, 0.36)
+        d.ellipse([c[0] - 0.016 * w, c[1] - 0.016 * w, c[0] + 0.016 * w, c[1] + 0.016 * w], fill=rgba(col))
+        beard = bez(P(0.405, 0.52), P(0.4, 0.62), P(0.45, 0.7), P(0.5, 0.74), 16) + bez(P(0.5, 0.74), P(0.55, 0.7), P(0.6, 0.62), P(0.595, 0.52), 16)
+        d.polygon(beard, fill=rgba(ROBE_DARK))
+        d.line(beard, fill=g, width=lw, joint="curve")
+        for k in range(4):
+            u = 0.44 + k * 0.04
+            d.line(bez(P(u, 0.56), P(u - 0.01, 0.62), P(u + 0.01, 0.66), P(u, 0.7), 10), fill=rgba(GOLD, 150), width=thin)
+        d.line(bez(P(0.44, 0.545), P(0.47, 0.53), P(0.53, 0.53), P(0.56, 0.545), 10), fill=g, width=lw)
+        # Zepter
+        d.line([P(0.83, 0.2), P(0.83, 1.0)], fill=g, width=lw)
+        c = P(0.83, 0.17)
+        d.ellipse([c[0] - 0.035 * w, c[1] - 0.035 * w, c[0] + 0.035 * w, c[1] + 0.035 * w], outline=g, width=lw, fill=rgba(ROBE_DARK))
+        star4(d, c[0], c[1], 0.022 * w, rgba(col))
+        for v in (0.4, 0.6, 0.8):
+            c = P(0.83, v)
+            d.ellipse([c[0] - 0.012 * w, c[1] - 0.012 * w, c[0] + 0.012 * w, c[1] + 0.012 * w], fill=g)
+    elif rank == 12:  # Dame: Kokoschnik, Kerze
+        kok = bez(P(0.36, 0.42), P(0.33, 0.2), P(0.67, 0.2), P(0.64, 0.42), 30)
+        d.polygon(kok + [P(0.6, 0.4), P(0.4, 0.4)], fill=rgba(ROBE_DARK))
+        d.line(kok, fill=g, width=lw, joint="curve")
+        inner = bez(P(0.4, 0.4), P(0.38, 0.26), P(0.62, 0.26), P(0.6, 0.4), 20)
+        d.line(inner, fill=rgba(GOLD, 160), width=thin)
+        for k in range(9):
+            t = (k + 1) / 10
+            idx = int(t * (len(kok) - 1))
+            c = kok[idx]
+            d.ellipse([c[0] - 0.009 * w, c[1] - 0.009 * w, c[0] + 0.009 * w, c[1] + 0.009 * w], fill=rgba(GOLD, 230))
+        c = P(0.5, 0.3)
+        d.polygon([(c[0], c[1] - 0.03 * w), (c[0] + 0.02 * w, c[1]), (c[0], c[1] + 0.03 * w), (c[0] - 0.02 * w, c[1])], fill=rgba(col))
+        d.line(bez(P(0.47, 0.555), P(0.49, 0.565), P(0.51, 0.565), P(0.53, 0.555), 8), fill=rgba(col), width=lw)
+        # Kerze links
+        d.rectangle([P(0.135, 0.42)[0], P(0.135, 0.42)[1], P(0.175, 0.9)[0], P(0.175, 0.9)[1]], fill=rgba(ROBE_DARK), outline=g, width=thin)
+        d.line([P(0.155, 0.42), P(0.155, 0.39)], fill=g, width=thin)
+        fl = bez(P(0.155, 0.27), P(0.19, 0.33), P(0.18, 0.39), P(0.155, 0.395), 12) + bez(P(0.155, 0.395), P(0.13, 0.39), P(0.12, 0.33), P(0.155, 0.27), 12)
+        d.polygon(fl, fill=rgba(col))
+        d.line([P(0.1, 0.9), P(0.21, 0.9)], fill=g, width=lw)
+    else:  # Bube: Pelzmütze mit Feder, Hellebarde
+        hat = [P(0.37, 0.41), P(0.37, 0.3), P(0.4, 0.26), P(0.6, 0.26), P(0.63, 0.3), P(0.63, 0.41)]
+        d.polygon(hat, fill=rgba(ROBE_DARK))
+        d.line(hat + [hat[0]], fill=g, width=lw, joint="curve")
+        for k in range(10):
+            u = 0.385 + k * 0.026
+            d.line([P(u, 0.36), P(u + 0.01, 0.41)], fill=rgba(GOLD, 140), width=thin)
+        d.line([P(0.37, 0.36), P(0.63, 0.36)], fill=g, width=thin)
+        feather = bez(P(0.6, 0.28), P(0.68, 0.18), P(0.74, 0.1), P(0.8, 0.06), 20)
+        d.line(feather, fill=g, width=lw)
+        for k in range(2, 19, 2):
+            x, y = feather[k]
+            d.line([(x, y), (x + 0.03 * w, y + 0.025 * w)], fill=rgba(GOLD, 170), width=thin)
+            d.line([(x, y), (x - 0.02 * w, y - 0.03 * w)], fill=rgba(GOLD, 170), width=thin)
+        c = P(0.6, 0.29)
+        d.ellipse([c[0] - 0.014 * w, c[1] - 0.014 * w, c[0] + 0.014 * w, c[1] + 0.014 * w], fill=rgba(col))
+        d.line(bez(P(0.46, 0.545), P(0.48, 0.535), P(0.52, 0.535), P(0.54, 0.545), 8), fill=g, width=thin)
+        # Hellebarde rechts... links
+        d.line([P(0.16, 0.14), P(0.16, 1.0)], fill=g, width=lw)
+        blade = [P(0.16, 0.06), P(0.2, 0.16), P(0.16, 0.2), P(0.12, 0.16)]
+        d.polygon(blade, fill=rgba(ROBE_DARK))
+        d.line(blade + [blade[0]], fill=g, width=lw, joint="curve")
+        axe = bez(P(0.16, 0.22), P(0.25, 0.2), P(0.27, 0.3), P(0.16, 0.32), 12)
+        d.polygon(axe, fill=rgba(ROBE_DARK))
+        d.line(axe, fill=g, width=lw)
+        c = P(0.16, 0.36)
+        d.ellipse([c[0] - 0.012 * w, c[1] - 0.012 * w, c[0] + 0.012 * w, c[1] + 0.012 * w], fill=rgba(col))
+    return img
 
 
 def face_card(rank, suit, seed):
-    sym, color = SUITS[suit]
-    img = base_card(seed)
-    draw_index(img, rank, sym, color)
-    half = figure_half(rank, suit)
-    fx = int(0.2 * W)
-    fy = int(0.125 * H)
-    d = ImageDraw.Draw(img)
-    # Hintergrund des Bildfelds: helles Ocker mit feinen Linien
-    box = [fx, fy, fx + half.width, H - fy]
-    d.rectangle(box, fill=(226, 208, 168, 255))
-    for y in range(box[1], box[3], int(0.012 * W)):
-        d.line([(box[0], y), (box[2], y)], fill=(196, 172, 128, 110), width=1)
-    img.alpha_composite(half, (fx, fy))
-    img.alpha_composite(half.rotate(180), (fx, int(H - fy - half.height)))
-    d = ImageDraw.Draw(img)
-    d.rectangle(box, outline=INK + (255,), width=int(0.007 * W))
-    d.rectangle([box[0] + 8, box[1] + 8, box[2] - 8, box[3] - 8], outline=INK + (90,), width=2)
-    d.line([(fx, H / 2), (fx + half.width, H / 2)], fill=INK + (255,), width=int(0.005 * W))
-    return img
+    sym, col = SUITS[suit]
+    art = layer()
+    d = ImageDraw.Draw(art)
+    frame(d)
+    draw_index(art, rank, sym, col)
+    x0, y0, x1, y1 = int(0.225 * W), int(0.12 * H), int(0.775 * W), int(0.88 * H)
+    pw, ph = x1 - x0, y1 - y0
+    # Feld der Figur: etwas helleres Blau mit Goldrahmen
+    panel = Image.new("RGBA", (pw, ph), rgba(PANEL, 170))
+    pm = Image.new("L", (pw, ph), 0)
+    ImageDraw.Draw(pm).rounded_rectangle([0, 0, pw - 1, ph - 1], radius=int(0.02 * W), fill=255)
+    art.paste(panel, (x0, y0), pm)
+    d = ImageDraw.Draw(art)
+    half = figure_half(rank, suit, pw, ph // 2)
+    fig = layer(pw, ph)
+    fig.alpha_composite(half, (0, 0))
+    fig.alpha_composite(half.rotate(180), (0, ph - half.height))
+    m = Image.new("L", (pw, ph), 0)
+    ImageDraw.Draw(m).rounded_rectangle([0, 0, pw - 1, ph - 1], radius=int(0.02 * W), fill=255)
+    art.paste(fig, (x0, y0), Image.fromarray(np.minimum(np.asarray(fig.split()[3]), np.asarray(m))))
+    d = ImageDraw.Draw(art)
+    d.rounded_rectangle([x0, y0, x1, y1], radius=int(0.02 * W), outline=rgba(GOLD), width=int(0.004 * W))
+    # Mittellinie mit Farbsymbol
+    cy = (y0 + y1) / 2
+    d.line([(x0, cy), (x1, cy)], fill=rgba(GOLD, 200), width=int(0.003 * W))
+    d.ellipse([W / 2 - 0.045 * W, cy - 0.045 * W, W / 2 + 0.045 * W, cy + 0.045 * W], fill=rgba(NAVY_BOT), outline=rgba(GOLD), width=int(0.003 * W))
+    put(art, glyph(sym, 0.06 * W, rgba(col)), (W / 2, cy))
+    return background(seed), art
 
 
-# --- Rückseiten ---------------------------------------------------------------------------
+# --- Rückseiten --------------------------------------------------------------------------
 
-## id: (Grundfarbe, Musterfarbe, Motiv)
 DECK_BACKS = {
     "hinterzimmer": ((92, 24, 30), (122, 40, 44), "diamond"),
     "bandit": ((58, 40, 28), (86, 60, 40), "mask"),
@@ -443,41 +561,52 @@ def emblem(d, kind, cx, cy, r, ink, light):
     return None
 
 
+def _mix(a, b, t):
+    return tuple(int(a[i] * (1 - t) + b[i] * t) for i in range(3))
+
+
 def back_card(deck_id):
     base, pattern, kind = DECK_BACKS[deck_id]
-    img = aged_paper(W, H, CREAM, seed=hash(deck_id) % 997, stains=1)
-    d = ImageDraw.Draw(img)
-    m = int(0.055 * W)
-    inner = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    idr = ImageDraw.Draw(inner)
-    idr.rounded_rectangle([m, m, W - m, H - m], radius=int(0.035 * W), fill=base + (255,))
-    # Muster: Rautengitter + kleine Punkte
-    pat = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    pd = ImageDraw.Draw(pat)
-    step = int(0.07 * W)
-    for x in range(-H, W + H, step):
-        pd.line([(x, 0), (x + H, H)], fill=pattern + (255,), width=int(0.004 * W))
-        pd.line([(x, H), (x + H, 0)], fill=pattern + (255,), width=int(0.004 * W))
+    # Deckfarbe in das Nachtblau mischen, damit alle Rückseiten zur Familie gehören
+    top = _mix(NAVY_TOP, base, 0.55)
+    bot = _mix(NAVY_BOT, base, 0.3)
+    img = background(zlib.crc32(deck_id.encode()) % 997, top, bot, stars=40)
+    gold = GOLD if deck_id != "goldrand" else (255, 222, 150)
+    art = layer()
+    d = ImageDraw.Draw(art)
+    frame(d, gold)
+    # Sternengitter
+    m = 0.075 * W
+    step = 0.1 * W
+    lat = layer()
+    ld = ImageDraw.Draw(lat)
+    for x in np.arange(-H, W + H, step):
+        ld.line([(x, 0), (x + H, H)], fill=rgba(gold, 55), width=max(1, int(0.0022 * W)))
+        ld.line([(x, H), (x + H, 0)], fill=rgba(gold, 55), width=max(1, int(0.0022 * W)))
+    for iy in range(-1, int(H / step) + 2):
+        for ix in range(-1, int(W / step) + 2):
+            x = ix * step + (step / 2 if iy % 2 else 0)
+            y = iy * step * 0.5 + W * 0.02
+            star4(ld, x, y, 0.009 * W, rgba(gold, 130))
     mask = Image.new("L", (W, H), 0)
-    ImageDraw.Draw(mask).rounded_rectangle([m + 10, m + 10, W - m - 10, H - m - 10], radius=int(0.03 * W), fill=255)
-    inner.paste(pat, (0, 0), Image.composite(pat.split()[3], Image.new("L", (W, H), 0), mask))
-    img.alpha_composite(ink_texture(inner, seed=5, strength=0.18))
-    d = ImageDraw.Draw(img)
-    d.rounded_rectangle([m + 14, m + 14, W - m - 14, H - m - 14], radius=int(0.03 * W), outline=CREAM + (220,), width=int(0.006 * W))
+    ImageDraw.Draw(mask).rounded_rectangle([m, m, W - m, H - m], radius=0.02 * W, fill=255)
+    art.paste(lat, (0, 0), Image.fromarray(np.minimum(np.asarray(lat.split()[3]), np.asarray(mask))))
+    d = ImageDraw.Draw(art)
     # Medaillon
-    cx, cy, r = W / 2, H / 2, 0.24 * W
-    med = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    md = ImageDraw.Draw(med)
-    md.ellipse([cx - r * 1.12, cy - r * 1.12, cx + r * 1.12, cy + r * 1.12], fill=base + (255,), outline=CREAM + (255,), width=int(0.008 * W))
-    md.ellipse([cx - r, cy - r, cx + r, cy + r], fill=CREAM + (255,), outline=base + (255,), width=int(0.006 * W))
-    extra = emblem(md, kind, cx, cy, r * 0.78, base + (255,), CREAM + (255,))
+    cx, cy, r = W / 2, H / 2, 0.25 * W
+    med_fill = rgba(_mix(bot, (0, 0, 0), 0.35))
+    for k in range(48):
+        a = k * math.pi / 24
+        r2 = r * (1.32 if k % 2 == 0 else 1.2)
+        d.line([(cx + math.cos(a) * r * 1.08, cy + math.sin(a) * r * 1.08), (cx + math.cos(a) * r2, cy + math.sin(a) * r2)], fill=rgba(gold, 170), width=max(1, int(0.0025 * W)))
+    d.ellipse([cx - r * 1.05, cy - r * 1.05, cx + r * 1.05, cy + r * 1.05], fill=med_fill, outline=rgba(gold), width=int(0.005 * W))
+    d.ellipse([cx - r * 0.95, cy - r * 0.95, cx + r * 0.95, cy + r * 0.95], outline=rgba(gold, 120), width=max(1, int(0.0025 * W)))
+    em = layer()
+    extra = emblem(ImageDraw.Draw(em), kind, cx, cy, r * 0.66, rgba(gold), med_fill)
     if extra is not None:
-        put(med, extra, (cx, cy))
-    img.alpha_composite(ink_texture(med, seed=9, strength=0.15))
-    # Ecken-Ornamente
-    for (x, y) in ((m + 0.09 * W, m + 0.09 * W), (W - m - 0.09 * W, m + 0.09 * W), (m + 0.09 * W, H - m - 0.09 * W), (W - m - 0.09 * W, H - m - 0.09 * W)):
-        d.polygon([(x, y - 0.035 * W), (x + 0.022 * W, y), (x, y + 0.035 * W), (x - 0.022 * W, y)], fill=CREAM + (230,))
-    return img
+        put(em, extra, (cx, cy))
+    art.alpha_composite(em)
+    return compose(img, art, 5, 0.6)
 
 
 # --- Glaskarten / Ausgabe -------------------------------------------------------------------
@@ -487,34 +616,43 @@ def save(img, name):
     img.save(os.path.join(OUT, name + ".png"), optimize=True)
 
 
-def glass_version(img):
-    """Papier wird durchscheinend bläulich, Druck bleibt kräftig, dazu Lichtreflexe."""
-    a = np.asarray(img.convert("RGB")).astype(np.float32)
-    paper = np.array(PAPER, dtype=np.float32)
-    dist = np.sqrt(((a - paper) ** 2).sum(axis=2)) / 110.0
-    ink = np.clip((dist - 0.25) * 1.6, 0.0, 1.0)
-    h, w = ink.shape
-    glass_rgb = np.array([205, 232, 250], dtype=np.float32)
-    rgb = a * ink[..., None] + glass_rgb * (1 - ink[..., None])
-    alpha = 0.22 + 0.78 * ink
+def glass_version(art):
+    """Durchscheinendes Glas: Hintergrund fast klar mit Frost am Rand und Lichtbändern,
+    die Goldlinien bleiben kräftig."""
+    w, h = W // S, H // S
+    a = np.zeros((h, w, 4), np.float32)
+    a[..., :3] = (190, 215, 250)
+    a[..., 3] = 0.16
     yy, xx = np.mgrid[0:h, 0:w]
     edge = np.minimum.reduce([xx, yy, w - 1 - xx, h - 1 - yy]).astype(np.float32)
     frost = np.clip(1.0 - edge / (0.06 * w), 0, 1)
-    rgb = rgb * (1 - frost[..., None] * 0.6) + np.array([235, 247, 255]) * frost[..., None] * 0.6
-    alpha = np.maximum(alpha, 0.55 * frost)
-    for offset, width, strength in ((0.18, 0.05, 0.55), (0.30, 0.018, 0.4), (0.78, 0.03, 0.3)):
-        d = (xx / w + yy / h * 0.6) - offset * 1.6
-        band = np.clip(1 - np.abs(d) / width, 0, 1) ** 2 * strength
-        rgb = rgb * (1 - band[..., None]) + 255 * band[..., None]
-        alpha = np.maximum(alpha, band * 0.9)
-    out = np.dstack([np.clip(rgb, 0, 255), np.clip(alpha * 255, 0, 255)]).astype(np.uint8)
-    return Image.fromarray(out, "RGBA")
+    a[..., 3] = np.maximum(a[..., 3], 0.5 * frost)
+    for offset, width, strength in ((0.18, 0.05, 0.45), (0.30, 0.018, 0.35), (0.78, 0.03, 0.25)):
+        dd = (xx / w + yy / h * 0.6) - offset * 1.6
+        band = np.clip(1 - np.abs(dd) / width, 0, 1) ** 2 * strength
+        a[..., :3] = a[..., :3] * (1 - band[..., None]) + 255 * band[..., None]
+        a[..., 3] = np.maximum(a[..., 3], band * 0.8)
+    a[..., 3] *= 255
+    glass = Image.fromarray(a.clip(0, 255).astype(np.uint8), "RGBA")
+    small = art.resize((w, h), Image.LANCZOS)
+    glass.alpha_composite(glow(small, 3, 0.7))
+    glass.alpha_composite(small)
+    return glass
 
 
-def save_glass(img, name):
+def blank_card():
+    """Leere Vorderseite (Rahmen, Sterne, feine Ringe) für die Menükarten im Hauptmenü."""
+    art = layer()
+    d = ImageDraw.Draw(art)
+    frame(d)
+    sacred(d, W / 2, H * 0.42, 0.3 * W, GOLD, 40)
+    return compose(background(99), art)
+
+
+def save_card(bg, art, name):
+    save(compose(bg, art), name)
     os.makedirs(os.path.join(OUT, "glass"), exist_ok=True)
-    small = img.convert("RGB").resize((W // S, H // S), Image.LANCZOS)
-    glass_version(small).save(os.path.join(OUT, "glass", name + ".png"), optimize=True)
+    glass_version(art).save(os.path.join(OUT, "glass", name + ".png"), optimize=True)
 
 
 def main():
@@ -527,14 +665,14 @@ def main():
             for rank in range(6, 15):
                 seed += 1
                 if rank <= 10:
-                    img = pip_card(rank, suit, seed)
+                    bg, art = pip_card(rank, suit, seed)
                 elif rank == 14:
-                    img = ace_card(suit, seed)
+                    bg, art = ace_card(suit, seed)
                 else:
-                    img = face_card(rank, suit, seed)
-                save(img, "%s_%d" % (suit, rank))
-                save_glass(img, "%s_%d" % (suit, rank))
+                    bg, art = face_card(rank, suit, seed)
+                save_card(bg, art, "%s_%d" % (suit, rank))
                 print("  ", suit, rank)
+        save(blank_card(), "blank")
     if not only or "backs" in only:
         os.makedirs(os.path.join(OUT, "backs"), exist_ok=True)
         for deck_id in DECK_BACKS:

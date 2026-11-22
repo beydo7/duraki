@@ -9,10 +9,12 @@ signal hovered_changed(card: MenuCard3D, hovered: bool)
 const W := 0.17
 const H := 0.238
 const T := 0.003
-const BRUSH := preload("res://assets/fonts/RussoOne-Regular.ttf")
+const BRUSH := preload("res://assets/fonts/CinzelDecorative-Bold.ttf")
+const FACE := preload("res://assets/cards/blank.png")
 const SYM := preload("res://assets/fonts/DejaVuSans-Bold.ttf")
 var MONO: Font = UIKit.body_font(500, 2)
-const INK := Color("1b1426")
+## Goldschrift wie auf den Spielkarten (Okkult-Gold)
+const INK := Color("ecc87c")
 
 var title := "SPIELEN"
 var subtitle := ""
@@ -43,9 +45,9 @@ func _ready() -> void:
 	add_child(_body)
 
 	var paper := StandardMaterial3D.new()
-	paper.albedo_color = Color("ece3cf")
-	paper.roughness = 0.8
-	paper.metallic_specular = 0.15
+	paper.albedo_color = Color("2a2440")
+	paper.roughness = 0.6
+	paper.metallic_specular = 0.2
 	var box := MeshInstance3D.new()
 	var bm := BoxMesh.new()
 	bm.size = Vector3(W, T, H)
@@ -67,29 +69,21 @@ func _ready() -> void:
 	frame.position.y = -T * 0.5 - 0.0004
 	_body.add_child(frame)
 
-	# Innenrahmen + Beschriftung
-	var inner := MeshInstance3D.new()
-	var im := QuadMesh.new()
-	im.size = Vector2(W - 0.018, H - 0.018)
-	inner.mesh = im
-	var line_mat := StandardMaterial3D.new()
-	line_mat.albedo_color = Color("d9cdb3")
-	line_mat.roughness = 0.9
-	inner.material_override = line_mat
-	inner.rotation_degrees.x = -90
-	inner.position.y = T * 0.5 + 0.0003
-	_body.add_child(inner)
-	var inner2 := MeshInstance3D.new()
-	var im2 := QuadMesh.new()
-	im2.size = Vector2(W - 0.024, H - 0.024)
-	inner2.mesh = im2
-	inner2.material_override = paper
-	inner2.rotation_degrees.x = -90
-	inner2.position.y = T * 0.5 + 0.0005
-	_body.add_child(inner2)
-
+	# Vorderseite: leere Okkult-Gold-Karte (Rahmen, Sterne), darauf die Beschriftung
+	var face := MeshInstance3D.new()
+	var qm := QuadMesh.new()
+	qm.size = Vector2(W, H)
+	face.mesh = qm
+	var face_mat := StandardMaterial3D.new()
+	face_mat.albedo_texture = FACE
+	face_mat.roughness = 0.55
+	face_mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	face.material_override = face_mat
+	face.rotation_degrees.x = -90
+	face.position.y = T * 0.5 + 0.0003
+	_body.add_child(face)
 	_text(symbol, SYM, 260, symbol_color, Vector3(0, 0, -0.03), 0.00028)
-	_text(title, BRUSH, 100, INK, Vector3(0, 0, 0.055), 0.00026)
+	_text(title, BRUSH, 84, INK, Vector3(0, 0, 0.055), 0.00026)
 	if not subtitle.is_empty():
 		_text(subtitle, MONO, 52, Color(INK, 0.7), Vector3(0, 0, 0.088), 0.00022)
 	_text(symbol, SYM, 70, symbol_color, Vector3(-W * 0.5 + 0.016, 0, -H * 0.5 + 0.02), 0.00024)

@@ -33,7 +33,9 @@ Duraki verbindet das klassische Durak mit Roguelike-Elementen: Du kämpfst dich 
   Schatten, kyrillische Unterzeilen. Schriften: **Russo One** (Titel/Zahlen) und **Oswald** (Text), beide OFL,
   in `assets/fonts/`. Bausteine: `ui/slab.gd` (Plakatfläche), `ui/roundel.gd` (runde Plakette/Stern),
   `ui/seg_bar.gd` (Segmentbalken), Farben/Animationen in `ui/ui_kit.gd`, Theme `ui/theme.tres`.
-- **Kartenblatt** im Holzschnitt-Stil auf gealtertem Papier (`tools/generate_cards.py`).
+- **Kartenblatt „Okkult-Gold“** (nachtblau mit Goldlinie, erzeugt mit `tools/generate_cards.py`),
+  dazu Karten-Animationen: Austeilen im Bogen, Hover-Kippen mit Lichtreflex, Ausspielen mit Wumms,
+  Schubsen beim Schlagen, Wirbel beim Schieben, Stempel „БИТО“, Folienglanz für Trumpf/Spezialkarten.
 - **Decks (Skins mit kleinem Effekt):** 12 Decks mit eigener Rückseite (`data/decks/`). Freischalten,
   indem man den passenden Gegner besiegt oder mit **Seelen** kauft (gibt es am Run-Ende).
   Auswahl im Hauptmenü unter „Decks“. Fortschritt in `user://profile.cfg` (Autoload `Profile`).
