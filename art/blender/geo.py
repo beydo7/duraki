@@ -331,8 +331,11 @@ def save_blend(path: str) -> None:
 
 
 def export_glb(path: str) -> None:
+    """Exportiert die Szene als .glb – ohne Vorschau-Objekte (Preview_*: Tisch, Karten, Arm-Kopien)."""
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    kwargs = dict(filepath=path, export_format="GLB", export_apply=True, export_yup=True,
+    for ob in bpy.context.scene.objects:
+        ob.select_set(not ob.name.startswith("Preview_"))
+    kwargs = dict(filepath=path, export_format="GLB", export_apply=True, export_yup=True, use_selection=True,
                   export_cameras=False, export_lights=False, export_texcoords=True, export_normals=True)
     try:
         bpy.ops.export_scene.gltf(export_image_format="AUTO", **kwargs)
