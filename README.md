@@ -29,20 +29,24 @@ Duraki verbindet das klassische Durak mit Roguelike-Elementen: Du kämpfst dich 
 - **Echtes Kartenblatt:** Symbole nach Rang, Bildkarten mit Figuren, Glaskarten.
 - **Shop nach jedem Sieg:** Relikte, verbesserte Karten (Gold/Glas/Glück),
   Verbesserungen (Farb-Schliff, Trumpf-Kenner, Pflaster, Sparschwein), Neu mischen, Zinsen.
-- **Stil „Papier & Tinte“:** HUD und Menüs bestehen aus Zetteln mit gerissenen Kanten, Stempeln,
-  Notizblock und Pokerchips. Schriften: Ruslan Display (Titel), Old Standard (Text), Special Elite
-  (Schreibmaschine) – alle unter freien Lizenzen in `assets/fonts/`. UI-Texturen erzeugt
-  `tools/generate_ui.py`, Bausteine/Animationen liegen in `ui/ui_kit.gd`, weiche Szenenwechsel (`Fade`).
+- **Stil „Plakat“** (russisches Konstruktivismus-Plakat, Rot / Schwarz / Creme): schräge Flächen mit hartem
+  Schatten, kyrillische Unterzeilen. Schriften: **Russo One** (Titel/Zahlen) und **Oswald** (Text), beide OFL,
+  in `assets/fonts/`. Bausteine: `ui/slab.gd` (Plakatfläche), `ui/roundel.gd` (runde Plakette/Stern),
+  `ui/seg_bar.gd` (Segmentbalken), Farben/Animationen in `ui/ui_kit.gd`, Theme `ui/theme.tres`.
 - **Kartenblatt** im Holzschnitt-Stil auf gealtertem Papier (`tools/generate_cards.py`).
 - **Decks (Skins mit kleinem Effekt):** 12 Decks mit eigener Rückseite (`data/decks/`). Freischalten,
   indem man den passenden Gegner besiegt oder mit **Seelen** kauft (gibt es am Run-Ende).
   Auswahl im Hauptmenü unter „Decks“. Fortschritt in `user://profile.cfg` (Autoload `Profile`).
 - **Hauptmenü in 3D:** Kamera fährt an den Tisch, Menüpunkte liegen als Karten auf dem Filz.
-- **Duell-HUD (Hybrid):** Gegner-Plakette mit Sprechblase, Zug-Anzeige oben, Punkte (Chips × Mult),
-  Trumpf/Stapel/Angriff, „Schieben möglich“, Relikte, Tastenkürzel (Leertaste = Bito/Fertig, E = Nehmen).
+- **Duell-HUD (Plakat, komplett im Code in `scenes/match/hud.gd`):** roter Punkte-Keil mit Segmentbalken,
+  Chips × Mult, Gegnerbalken (Foto, Name kyrillisch + deutsch, Handkarten), Relikte als Briefmarken,
+  runde Plaketten für Leben/Gold/Stapel, Trumpf-Stern, Zug-Plakette mit „Schieben möglich“, Schrägbanner,
+  Tastenkürzel (Leertaste = Bito/Fertig, E = Nehmen).
   Im Raum: **Kerzen = Leben** (erlöschen mit Rauch), **Münzstapel = Gold**, roter Rand bei Verteidigung.
 - Weg, Händler und Run-Ende vor dem weichgezeichneten Hinterzimmer (`ui/room_backdrop.gd`).
 - Run-Ablauf: 3 Gegner + Boss, 3 Leben, Gold.
+
+Design-Dokument und aktueller Stand: [`docs/GD.md`](docs/GD.md).
 
 ## Team
 

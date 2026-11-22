@@ -1,0 +1,129 @@
+# Duraki – Game Design & aktueller Stand
+
+Dieses Dokument fasst zusammen, was in den Chats zwischen Pascal (beydo7) und Claude entschieden und
+gebaut wurde. Es ist für das Team **und für Claude-Instanzen** gedacht, damit alle auf demselben Stand
+sind. Bitte aktuell halten, wenn sich etwas Grundlegendes ändert.
+
+Stand: 22.11.2026 · Godot 4.7.2 (GL Compatibility) · Build 0.5
+
+---
+
+## 1. Kurzbeschreibung
+
+Duraki ist ein **Roguelike auf Basis von Schiebe-Durak (Perevodnoy)**. Man sitzt nachts in einem
+Hinterzimmer (Ich-Perspektive, 3D) an einem Kartentisch und spielt nacheinander gegen unheimliche
+Gestalten. Die Wertung funktioniert wie bei **Balatro** (Chips × Mult, Punkteziel pro Tisch).
+Ein Run = 3 normale Gegner + Boss, 3 Leben (Kerzen). Wer verliert, ist der Durak.
+
+## 2. Regeln (fest, nicht verhandelbar)
+
+- 36 Karten (6 bis Ass), Trumpf, 1 gegen 1, Hand 6.
+- Angreifen, Nachlegen (passende Ränge, auch mehrere auf einmal, nie mehr ungeschlagene Karten als
+  der Verteidiger auf der Hand hat, höchstens 6), Schlagen, Nehmen, Bito.
+- **Schieben ist Grundregel:** solange noch nichts geschlagen ist, darf der Verteidiger eine Karte
+  gleichen Rangs dazulegen und den Angriff weitergeben (nur wenn der andere genug Karten hat).
+  Kann die Karte auch schlagen, fragt das Spiel „Schlagen oder Schieben?“.
+- **Nachwerfen:** Nimmt der Verteidiger auf, darf der Angreifer passende Karten hinterherwerfen
+  (Knopf „FERTIG“).
+- Bube wird als **„J“** angezeigt (nicht „B“), Dame als „D“, König „K“, Ass „A“.
+- Logik: `scripts/core/durak_match.gd` (`transfer()`, `take()`/`finish_take()`, Signale
+  `transferred`, `take_declared`), KI: `scripts/ai/simple_ai.gd`.
+
+## 3. Wertung (Balatro-artig)
+
+`scripts/core/score_tracker.gd`
+- Jede eigene Karte bringt Chips (nach Rang), jede Verteidigung +1 Mult, jede nachgelegte
+  Angriffskarte ab der zweiten +1 Mult, jeder gespielte Trumpf +1 Mult.
+- Rundenende: Bito/abgewehrter Angriff → Chips × Mult; Gegner muss nehmen → × 2 („Volltreffer“);
+  du musst nehmen → 0.
+- Ist der Gegner am Ende der Durak: +15 pro Karte auf seiner Hand.
+- Punkteziele: 300 / 380 / 450 / 550 (Boss), danach × 1,25. Ziel erreicht → Tisch gewonnen,
+  sonst ein Leben weg.
+
+## 4. Run-Struktur & Meta
+
+- `scripts/autoload/run_state.gd` (Autoload `Run`): Weg → Duell → Händler → … → Boss → Run-Ende.
+- **Händler** nach jedem Sieg: Relikte (Ass im Ärmel, Glücksmünze, Samowar, Wodka), verbesserte
+  Karten (Gold/Glas/Glück), Verbesserungen (Farb-Schliff, Trumpf-Kenner, Pflaster, Sparschwein),
+  Neu mischen, Zinsen (je 5 Gold +1, max. 5).
+- **Decks = Skins mit kleinem Effekt** (`data/decks/*.tres`, `scripts/data/deck_data.gd`), 12 Stück:
+  Starter „Hinterzimmer“; je eins pro besiegtem Gegner (Bandit, Sumpfmann, Krähe, Wölfin, Gaukler,
+  Knochenmann, Hexe, Riese/Run-Sieg); kaufbar mit **Seelen**: Kaufmann 25, Zar 40, Goldrand 60.
+  Effekte z. B. +6 Gold, +1 Leben, Farbe +3 Chips, Trumpf +1 Mult, Start-Glaskarten.
+- **Seelen** (Autoload `Profile`, `user://profile.cfg`): 3 pro gewonnenem Tisch, 10 für Run-Sieg.
+- Gegner (`data/opponents/`): Bandit, Sumpfmann, Krähe, Wölfin, Gaukler, Knochenmann, Hexe, Riese (Boss).
+
+## 5. Look & Feel
+
+### Raum (3D)
+Dunkles Hinterzimmer, lila Nachtlicht, grüner Filz. **Kerzen = Leben** (erlöschen mit Rauch),
+**Münzstapel = Gold**. Gegner sitzen gegenüber, mit Reaktionen und Denk-Animationen.
+3D wird in voller Bildschirmauflösung gerendert (`UIKit.fit_viewport`), damit Karten scharf sind.
+
+### UI-Stil „Plakat“ (aktuell, von Pascal gewählt)
+Russisches Konstruktivismus-Plakat, modern umgesetzt (Referenz-Gefühl: Balatro-Lesbarkeit,
+Persona-Dynamik). **Rot `#CE2628` / Schwarz `#120E0E` / Creme `#F0E4CC`**, Gold `#E8B446` als Akzent,
+Chips blau, Mult rot.
+- Schräge Flächen mit hartem Versatz-Schatten, keine runden „Web“-Panels.
+- Kyrillische Unterzeilen als Würze (ОЧКИ · PUNKTE, Gegnernamen, ЗАЩИТА / АТАКА / ПЕРЕВОД).
+- Schriften: **Russo One** (Titel, Zahlen), **Oswald** (Text, variable Stärke) – beide OFL.
+- Bausteine: `ui/slab.gd` (Plakatfläche aus Vielecken), `ui/roundel.gd` (runde Plakette / Stern),
+  `ui/seg_bar.gd` (Segmentbalken). Helfer in `ui/ui_kit.gd`: `body_font()`, `display_font()`,
+  `poster_label()`, `poster_wedge()`, `paper()`/`dark()`/`stamp()` (liefern Plakat-Styles), Animationen
+  `pop`, `shake`, `appear`, `hover`, `count`. Theme: `ui/theme.tres` (Variationen PrimaryButton,
+  DangerButton, CardButton, ActivePanel, InkTitle …).
+
+**Duell-HUD** (`scenes/match/hud.gd`, komplett im Code gebaut, Basis 1280×720, an Rändern verankert):
+- links oben roter Keil: Punkte groß, „/Ziel“, Segmentbalken; darunter Chips × Mult + Hinweis
+- darunter Spielprotokoll (Toasts)
+- links runde Plaketten Leben / Gold / Stapel, roter Stern = Trumpf, „ANGRIFF x/y“
+- rechts oben schwarzer Balken: Foto, Name kyrillisch + deutsch, Tisch x/y, Handkarten
+- darunter Relikte als Briefmarken (Tooltip)
+- rechts unten Zug-Plakette (Farbe je Zustand: Angriff creme, Verteidigung rot, Warten schwarz,
+  Nachwerfen gold) mit Etikett „SCHIEBEN MÖGLICH“, darunter Knöpfe NEHMEN [E] / BITO [LEER]
+- Mitte: kurze Schrägbanner; Ergebnis als rotes (Sieg) bzw. schwarzes (Durak) Plakat
+- `match.gd` nutzt nur die öffentliche API: `setup`, `set_turn`, `set_danger`, `set_opponent_cards`,
+  `set_thinking`, `say`, `set_run_info`, `set_bout`, `set_relics`, `set_score`, `bout_scored`, `toast`,
+  `show_banner`, `set_actions`, `ask_choice`, `close_choice`, `show_result`, sowie
+  `take_button` / `pass_button` / `continue_button`.
+
+Menüs (Hauptmenü in 3D mit Karten auf dem Tisch, Weg, Händler, Pause, Optionen, Decks, Run-Ende)
+nutzen dasselbe Theme; Hauptmenü, Weg und Händler haben den roten Keil hinter dem Titel.
+
+**Verworfene Stile** (nicht wieder einführen): lila Glas mit Marker-Schrift („zu KI“),
+„Papier & Tinte“ mit gerissenen Zetteln („wie ein Browsergame, billig“).
+
+### Karten
+Holzschnitt-Stil auf gealtertem Papier, erzeugt mit `tools/generate_cards.py`
+(Bildkarten mit Figuren, Ass-Strahlen, Pik-Ass „DURAKI“, Glasvarianten, 12 Deck-Rückseiten).
+
+### Gegner / 3D-Modelle
+Modelle aus Blender (Skripte in `art/blender/`), HD-Version bisher nur für die **Krähe**
+(`art/blender/hd_crow.py`). Exporte als glb in `assets/models/`.
+
+## 6. Optionen
+Grafik (Anzeigemodus, Fenstergröße, VSync, FPS-Limit, Kantenglättung, Renderauflösung, Schatten,
+Glow, Helligkeit), Audio (Gesamt/Musik/Effekte, stumm im Hintergrund – Sounds fehlen noch),
+Allgemein (Bedenkzeit der Gegner, Kartenanimationen, Meldungen, Kamera-Schwenk, UI-Größe).
+`user://settings.cfg`, Autoload `Settings`. Esc = Pause.
+
+## 7. Tests
+- `godot --headless --path . -s res://tests/run_tests.gd` → Regeln/KI (47 Checks)
+- `godot --headless --path . res://tests/deck_tests.tscn` → Decks/Seelen (39 Checks)
+- `godot --headless --path . res://tests/autoplay.tscn` → 5 komplette Runs automatisch
+- `xvfb-run godot --path . res://tests/click_test.tscn` → Handkarten per Klick
+- `tests/screenshot.tscn` (Args: transfer, result, boss, opp=<id>, nohud, many) und
+  `tests/ui_shots.tscn` → Screenshots aller Bildschirme
+- Tests rufen `Profile.reset_for_tests()` auf, damit das echte Profil nicht überschrieben wird.
+
+## 8. Offene Punkte / nächste Schritte
+1. Die 3D-Menükarten im Hauptmenü noch im Plakat-Stil drucken.
+2. Restliche 7 Gegner in HD modellieren (wie die Krähe).
+3. Lila Lampen-Scheiben im Raum sind Platzhalter → echte Lampen.
+4. Sound & Musik (Busse „Music“ und „SFX“ existieren schon).
+5. Juice ausbauen: rollende Zahlen beim Punkten, mehr Screenshake bei großen Treffern.
+
+## 9. Zusammenarbeit
+- Repo: https://github.com/beydo7/duraki (Team: beydo7/Pascal, Florry7, Leon).
+- **Auf GitHub wird nur gepusht, wenn Pascal ausdrücklich „veröffentlichen“ sagt.**
+- Sprache im Projekt: Deutsch (Code-Kommentare, UI-Texte, Commits).
