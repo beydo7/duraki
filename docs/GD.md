@@ -120,8 +120,14 @@ zwei Ebenen: Karten = Spielwelt, HUD = Plakat darüber.
 - Prüfen: `tests/screenshot.tscn -- film` nimmt eine Bildfolge in Zeitlupe auf.
 
 ### Gegner / 3D-Modelle
-Modelle aus Blender (Skripte in `art/blender/`), HD-Version bisher nur für die **Krähe**
-(`art/blender/hd_crow.py`). Exporte als glb in `assets/models/`.
+Modelle aus Blender (Skripte in `art/blender/`), Vorlage ist das Konzeptblatt „Am Spieltisch“.
+HD-Versionen auf aktuellem Stand: **Bandit** (`hd_bandit.py`), **Sumpfmann** (`hd_swamp_man.py`),
+**Wölfin** (`hd_wolf.py`). Die **Krähe** (`hd_crow.py`) ist HD, aber noch vom alten Stand (steifer
+Ärmel, kein Kartenfächer in den Händen). Wie die Figuren gebaut werden: **`docs/CHARAKTERE.md`**.
+Exporte als glb in `assets/models/opponents/`, .blend-Dateien in `art/blender/opponents/`,
+Porträts per `art/blender/render_portraits.py`.
+- Gegner halten die Karten als Fächer zwischen beiden Händen; Arme mit Ellbogen (Zwei-Knochen-IK
+  in `opponent_figure.gd`). `OpponentData.eye_glow = false` bei Figuren mit echten Augen.
 
 ## 6. Optionen
 Grafik (Anzeigemodus, Fenstergröße, VSync, FPS-Limit, Kantenglättung, Renderauflösung, Schatten,
@@ -140,12 +146,13 @@ Allgemein (Bedenkzeit der Gegner, Kartenanimationen, Meldungen, Kamera-Schwenk, 
 
 ## 8. Offene Punkte / nächste Schritte
 1. Juice ausbauen: rollende Zahlen beim Punkten, Sounds zu den Kartenbewegungen.
-2. Restliche 6 Gegner in HD modellieren (fertig: Krähe, Bandit – Vorlage `art/blender/hd_bandit.py`: gemaltes Gesicht, Alpha-Fell, Zwei-Segment-Arme, Kartenfächer in den Händen).
+2. Restliche Gegner in HD (Rezept `docs/CHARAKTERE.md`): als Nächstes Gaukler + Knochenmann,
+   dann Hexe + Riese, danach die Krähe auf den neuen Stand bringen. Fertig: Bandit, Sumpfmann, Wölfin.
 3. Lila Lampen-Scheiben im Raum sind Platzhalter → echte Lampen.
 4. Sound & Musik (Busse „Music“ und „SFX“ existieren schon).
 5. Die 3D-Menükarten im Hauptmenü an den Okkult-Gold-Stil der Karten anpassen.
 
 ## 9. Zusammenarbeit
 - Repo: https://github.com/beydo7/duraki (Team: beydo7/Pascal, Florry7, Leon).
-- **Auf GitHub wird nur gepusht, wenn Pascal ausdrücklich „veröffentlichen“ sagt.**
+- **Auf GitHub wird nur gepusht, wenn Pascal es ausdrücklich sagt („veröffentlichen“ / „hochladen“).**
 - Sprache im Projekt: Deutsch (Code-Kommentare, UI-Texte, Commits).
