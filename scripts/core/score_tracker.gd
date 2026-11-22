@@ -57,6 +57,8 @@ func attach(duel: DurakMatch, me := DurakMatch.PLAYER) -> void:
 	_duel = duel
 	_me = me
 	duel.card_played.connect(_on_card_played)
+	# Nach dem Schieben zählt der Schiebende als Angreifer dieser Runde.
+	duel.transferred.connect(func(who: int, _card: Card) -> void: _bout_attacker = who)
 	duel.bout_ended.connect(_on_bout_ended)
 	duel.finished.connect(_on_finished)
 

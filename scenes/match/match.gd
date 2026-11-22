@@ -42,6 +42,8 @@ func _ready() -> void:
 	world = TableWorld.new()
 	%Viewport.add_child(world)
 	world.build(opponent)
+	Settings.apply_viewport(%Viewport)
+	Settings.changed.connect(_on_settings_changed)
 	world.card_clicked.connect(_on_player_card)
 
 	ai = SimpleAI.new(Run.rng, opponent.mistake_chance)
@@ -72,9 +74,27 @@ func _ready() -> void:
 			world.figure.recoil()
 		else:
 			world.figure.laugh())
+	duel.transferred.connect(func(who: int, _card: Card) -> void:
+		hud.close_choice()
+		if who == DurakMatch.OPPONENT:
+			world.figure.laugh()
+			hud.show_banner("GESCHOBEN!")
+			_was_my_turn = true # kein zweites Banner „Verteidige dich“
+		else:
+			world.figure.recoil()
+			hud.show_banner("WEITERGESCHOBEN"))
+	duel.take_declared.connect(func(who: int) -> void:
+		if who == DurakMatch.OPPONENT and duel.taking:
+			hud.toast("%s nimmt – du darfst passende Karten nachwerfen." % opponent.display_name, MatchHUD.COLOR_GOLD))
 
-	%TakeButton.pressed.connect(func() -> void: duel.take())
-	%PassButton.pressed.connect(func() -> void: duel.pass_bout())
+	%TakeButton.pressed.connect(func() -> void:
+		hud.close_choice()
+		duel.take())
+	%PassButton.pressed.connect(func() -> void:
+		if duel.taking:
+			duel.finish_take()
+		else:
+			duel.pass_bout())
 	%ContinueButton.pressed.connect(func() -> void: Run.on_match_finished(_result()))
 
 	hud.setup(opponent, score.target)
@@ -83,6 +103,10 @@ func _ready() -> void:
 	hud.toast("Punkteziel: %d" % score.target, MatchHUD.COLOR_GOLD)
 	duel.start(Run.rng, Run.player_hand_size(), opponent.hand_size, Run.apply_card_enhancements)
 	_render_score()
+
+
+func _on_settings_changed() -> void:
+	Settings.apply_viewport(%Viewport)
 
 
 ## Für den Run zählt nur das Punkteziel: erreicht → Gegner verliert.
@@ -122,10 +146,10 @@ func _run_ai_turn() -> void:
 		world.figure.think(_think_style)
 		hud.set_thinking(true, THINK_VERB[_think_style])
 		_render()
-	var wait := randf_range(delay.x, delay.y)
+	var wait := randf_range(delay.x, delay.y) * Settings.ai_delay_factor()
 	if duel.defender() == DurakMatch.OPPONENT:
 		wait = maxf(wait, 0.9) # Zeit, um noch Karten dazuzuwerfen
-	await get_tree().create_timer(wait).timeout
+	await get_tree().create_timer(wait, false).timeout
 	if _thinking:
 		_thinking = false
 		world.figure.stop_thinking()
@@ -136,8 +160,22 @@ func _run_ai_turn() -> void:
 
 
 func _on_player_card(card: Card) -> void:
+	hud.close_choice()
 	if duel.defender() == DurakMatch.PLAYER:
-		if duel.current_actor() == DurakMatch.PLAYER:
+		if duel.current_actor() != DurakMatch.PLAYER:
+			return
+		var can_beat := duel.can_defend_with(card)
+		var can_shift := duel.can_transfer_with(card)
+		if can_beat and can_shift:
+			hud.ask_choice("%s: schlagen oder weiterschieben?" % card, ["SCHLAGEN", "SCHIEBEN"],
+				func(i: int) -> void:
+					if i == 0:
+						duel.defend(card)
+					else:
+						duel.transfer(card))
+		elif can_shift:
+			duel.transfer(card)
+		else:
 			duel.defend(card)
 	else:
 		# als Angreifer jederzeit (auch während der Gegner noch überlegt)
@@ -149,13 +187,15 @@ func _maybe_throw_more() -> void:
 	var extra := ai.extra_attack(duel, DurakMatch.OPPONENT)
 	if extra == null:
 		return
-	await get_tree().create_timer(randf_range(0.35, 0.65)).timeout
+	await get_tree().create_timer(randf_range(0.35, 0.65) * Settings.ai_delay_factor(), false).timeout
 	if duel.can_attack_with(extra):
 		duel.attack(extra)
 
 
+## Spielprotokoll („Du legst 7♥.“ …) – lässt sich in den Optionen ausblenden.
 func _on_message(text: String) -> void:
-	hud.toast(text)
+	if Settings.show_messages():
+		hud.toast(text)
 
 
 func _on_finished(_loser: int) -> void:
@@ -180,11 +220,17 @@ func _render() -> void:
 	if defending:
 		if my_turn:
 			playable = duel.legal_defenses()
+			for c in duel.legal_transfers():
+				if not playable.has(c):
+					playable.append(c)
 	else:
 		playable = duel.legal_attacks() # auch während der Gegner verteidigt
 	world.sync(duel, playable)
 
-	hud.set_actions(my_turn and defending and not duel.is_over, not defending and duel.can_pass(), duel.can_pass())
+	if duel.taking:
+		hud.set_actions(false, not defending, not defending, "FERTIG")
+	else:
+		hud.set_actions(my_turn and defending and duel.can_take(), not defending and duel.can_pass(), duel.can_pass())
 	hud.set_status(_status_text(my_turn, defending), my_turn and not duel.is_over)
 	_announce_turn(my_turn, defending)
 	_render_score()
@@ -220,11 +266,17 @@ func _status_text(my_turn: bool, defending: bool) -> String:
 		if duel.loser == DurakMatch.PLAYER:
 			return "Verloren – du bist der Durak und hast das Ziel verfehlt."
 		return "Verloren – Ziel verfehlt (%d / %d)." % [score.total, score.target]
+	if duel.taking:
+		if defending:
+			return "Du nimmst auf – %s wirft noch Karten nach …" % opponent.display_name
+		return "%s nimmt auf – wirf passende Karten nach oder klicke FERTIG." % opponent.display_name
 	if not my_turn:
 		if not defending and not duel.legal_attacks().is_empty():
 			return "%s verteidigt – du kannst noch passende Karten dazuwerfen." % opponent.display_name
 		return "%s ist am Zug …" % opponent.display_name
 	if defending:
+		if not duel.legal_transfers().is_empty():
+			return "Verteidige dich – schlagen, mit gleichem Rang weiterschieben oder alles nehmen."
 		return "Verteidige dich – klicke eine Karte zum Schlagen oder nimm alles."
 	if duel.attack_cards.is_empty():
 		return "Du greifst an – klicke Karten (gleiche Ränge auch mehrere auf einmal)."

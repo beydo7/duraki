@@ -16,6 +16,9 @@ func _init() -> void:
 	test_score_target_ends_match()
 	test_enhancements()
 	test_multi_attack()
+	test_transfer()
+	test_transfer_needs_cards()
+	test_throw_in_on_take()
 	print("\n%d Checks, %d Fehler" % [_checks, _failures])
 	quit(1 if _failures > 0 else 0)
 
@@ -58,6 +61,8 @@ func test_take_keeps_attacker() -> void:
 	duel.attack(duel.legal_attacks()[0])
 	var defender_cards_before := duel.hand(duel.defender()).size()
 	duel.take()
+	if duel.taking:
+		duel.finish_take()
 	check(duel.attacker == attacker, "nach dem Nehmen bleibt der Angreifer gleich")
 	check(duel.hand(1 - attacker).size() >= defender_cards_before + 1, "Verteidiger hat die Karte genommen")
 
@@ -69,9 +74,14 @@ func test_ai_vs_ai_simulation() -> void:
 	rng.seed = 1234
 	var finished := 0
 	var card_loss := false
+	var counts := [0, 0] # [geschoben, nachgeworfen] (Array, weil Lambdas Zahlen kopieren)
 	for game in 500:
 		var duel := DurakMatch.new()
 		duel.start(rng)
+		duel.transferred.connect(func(_w: int, _c: Card) -> void: counts[0] += 1)
+		duel.card_played.connect(func(_w: int, _c: Card, _a: bool) -> void:
+			if duel.taking:
+				counts[1] += 1)
 		var ais := [SimpleAI.new(rng, 0.2), SimpleAI.new(rng, 0.2)]
 		var steps := 0
 		while not duel.is_over and steps < 2000:
@@ -86,6 +96,9 @@ func test_ai_vs_ai_simulation() -> void:
 			finished += 1
 	check(finished == 500, "alle KI-Partien enden (%d/500)" % finished)
 	check(not card_loss, "Kartenanzahl bleibt immer 36")
+	check(counts[0] > 50, "KI schiebt weiter (%d mal)" % counts[0])
+	check(counts[1] > 50, "KI wirft beim Aufnehmen nach (%d mal)" % counts[1])
+	print("Simulation: %d× geschoben, %d× nachgeworfen" % counts)
 
 
 func test_score_values() -> void:
@@ -183,3 +196,68 @@ func test_multi_attack() -> void:
 	check(duel.unbeaten_count() == 2, "zwei ungeschlagene Karten")
 	check(not duel.can_attack_with(duel.player_hand[0]),
 		"nicht mehr ungeschlagene Karten als der Verteidiger Handkarten hat")
+
+
+func _fixed_duel(player: Array, opponent: Array, trump := Card.Suit.SPADES) -> DurakMatch:
+	var duel := DurakMatch.new()
+	duel.start(RandomNumberGenerator.new())
+	duel.trump_suit = trump
+	var ph: Array[Card] = []
+	var oh: Array[Card] = []
+	for pair in player:
+		ph.append(Card.new(pair[0], pair[1]))
+	for pair in opponent:
+		oh.append(Card.new(pair[0], pair[1]))
+	duel.player_hand.assign(ph)
+	duel.opponent_hand.assign(oh)
+	duel.attacker = DurakMatch.PLAYER
+	return duel
+
+
+## Schieben: Verteidiger legt eine Karte gleichen Rangs dazu, die Rollen tauschen.
+func test_transfer() -> void:
+	var H := Card.Suit.HEARTS
+	var C := Card.Suit.CLUBS
+	var D := Card.Suit.DIAMONDS
+	var duel := _fixed_duel([[H, 7], [D, 9], [D, 10], [H, 13]], [[C, 7], [H, 8], [D, 12]])
+	duel.attack(duel.player_hand[0]) # 7♥
+	var seven: Card = duel.opponent_hand[0]
+	check(duel.can_transfer_with(seven), "7 kann auf 7 geschoben werden")
+	check(not duel.can_transfer_with(duel.opponent_hand[1]), "8 kann nicht geschoben werden")
+	check(duel.transfer(seven), "Schieben klappt")
+	check(duel.attacker == DurakMatch.OPPONENT, "Schiebender wird Angreifer")
+	check(duel.defender() == DurakMatch.PLAYER, "bisheriger Angreifer muss verteidigen")
+	check(duel.attack_cards.size() == 2 and duel.unbeaten_count() == 2, "beide Karten liegen offen")
+	check(duel.current_actor() == DurakMatch.PLAYER, "neuer Verteidiger ist am Zug")
+	# nach dem ersten Schlag darf nicht mehr geschoben werden
+	var duel2 := _fixed_duel([[H, 7], [D, 9]], [[C, 7], [H, 8], [D, 12]])
+	duel2.attack(duel2.player_hand[0])
+	duel2.defend(duel2.opponent_hand[1]) # 8♥ schlägt 7♥
+	check(not duel2.can_transfer_with(duel2.opponent_hand[0]), "nach einem Schlag kein Schieben mehr")
+
+
+## Schieben nur, wenn der neue Verteidiger genug Karten hat.
+func test_transfer_needs_cards() -> void:
+	var H := Card.Suit.HEARTS
+	var C := Card.Suit.CLUBS
+	var duel := _fixed_duel([[H, 7]], [[C, 7], [H, 8]])
+	duel.attack(duel.player_hand[0]) # Spieler hat danach 0 Karten
+	check(not duel.can_transfer_with(duel.opponent_hand[0]), "kein Schieben auf leere Hand")
+
+
+## Nachwerfen: Nach „nehmen“ darf der Angreifer passende Karten hinterherwerfen.
+func test_throw_in_on_take() -> void:
+	var H := Card.Suit.HEARTS
+	var C := Card.Suit.CLUBS
+	var D := Card.Suit.DIAMONDS
+	var duel := _fixed_duel([[H, 7], [D, 7], [D, 13]], [[C, 6], [H, 6], [D, 6]])
+	duel.deck.cards.clear()
+	duel.attack(duel.player_hand[0]) # 7♥
+	check(duel.take(), "Gegner sagt nehmen an")
+	check(duel.taking, "Nachwerfen läuft")
+	check(duel.current_actor() == DurakMatch.PLAYER, "Angreifer darf nachwerfen")
+	check(not duel.can_defend_with(duel.opponent_hand[0]), "während des Nachwerfens kein Schlagen")
+	check(duel.attack(duel.player_hand[0]), "7♦ nachwerfen")
+	check(not duel.taking, "nichts mehr passend → automatisch aufgenommen")
+	check(duel.opponent_hand.size() == 5, "Gegner hat beide Karten aufgenommen")
+	check(duel.attacker == DurakMatch.PLAYER, "Angreifer bleibt Angreifer")

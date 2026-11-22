@@ -53,6 +53,19 @@ var _discard_count := 0
 var _deal_queue_until := 0.0
 var _cam_base: Transform3D
 var _mouse := Vector2(0.5, 0.5)
+var _env: Environment
+var _lamp: SpotLight3D
+
+
+func _ready() -> void:
+	Settings.changed.connect(_on_settings_changed)
+
+
+## Optionen live übernehmen (Leuchten, Helligkeit, Schatten).
+func _on_settings_changed() -> void:
+	Settings.apply_environment(_env, 1.05)
+	if _lamp != null:
+		_lamp.shadow_enabled = Settings.shadows_enabled()
 
 
 func build(opponent: OpponentData) -> void:
@@ -84,8 +97,9 @@ func _process(_delta: float) -> void:
 		var size := vp.get_visible_rect().size
 		if size.x > 0:
 			_mouse = _mouse.lerp(vp.get_mouse_position() / size, 0.08)
-	var yaw := (_mouse.x - 0.5) * -0.06
-	var pitch := (_mouse.y - 0.5) * -0.04
+	var sway := 1.0 if Settings.camera_sway() else 0.0
+	var yaw := (_mouse.x - 0.5) * -0.06 * sway
+	var pitch := (_mouse.y - 0.5) * -0.04 * sway
 	camera.transform = _cam_base * Transform3D(Basis.from_euler(Vector3(pitch, yaw, 0)), Vector3.ZERO)
 
 
@@ -183,6 +197,9 @@ func _move(node: Node3D, to: Transform3D, delay: float, time := MOVE_TIME) -> Tw
 	var from := node.transform
 	var tw := create_tween()
 	node.set_meta("tween", tw)
+	var f := Settings.anim_time_factor()
+	time *= f
+	delay *= f
 	if delay > 0.0:
 		tw.tween_interval(delay)
 	var lift := 0.05 if from.origin.distance_to(to.origin) > 0.15 else 0.0
@@ -312,6 +329,8 @@ func _build_environment() -> void:
 	var we := WorldEnvironment.new()
 	we.environment = env
 	add_child(we)
+	_env = env
+	Settings.apply_environment(env, 1.05)
 
 
 func _build_models() -> void:
@@ -346,8 +365,9 @@ func _build_lights() -> void:
 	lamp.spot_range = 3.5
 	lamp.spot_angle = 48.0
 	lamp.spot_attenuation = 1.1
-	lamp.shadow_enabled = true
+	lamp.shadow_enabled = Settings.shadows_enabled()
 	add_child(lamp)
+	_lamp = lamp
 
 	for side in [-1, 1]:
 		var stage := SpotLight3D.new()

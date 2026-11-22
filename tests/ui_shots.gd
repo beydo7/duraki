@@ -19,12 +19,23 @@ func _run() -> void:
 	get_tree().current_scene = placeholder
 	Run.goto(Run.SCENE_MENU)
 	await _wait_shot("1_menu")
+	var options := OptionsMenu.new()
+	get_tree().current_scene.add_child(options)
+	await _wait_shot("1b_options_grafik")
+	options._tab_buttons[1].pressed.emit()
+	await _wait_shot("1c_options_audio")
+	options._tab_buttons[2].pressed.emit()
+	await _wait_shot("1d_options_allgemein")
+	options.close()
 	Run.start_new_run(4242)
 	await get_tree().create_timer(0.2).timeout
 	Run.floor_index = 1
 	Run.relics.append(load("res://data/relics/lucky_coin.tres"))
 	Run.goto(Run.SCENE_MAP)
 	await _wait_shot("2_map")
+	Pause.open()
+	await _wait_shot("2b_pause")
+	Pause.close()
 	Run.last_gold_reward = 8
 	Run.last_interest = 2
 	Run.gold = 14

@@ -2,10 +2,17 @@ class_name DurakMatch
 extends RefCounted
 ## Ein Durak-Duell (1 gegen 1) als reine Spiellogik ohne UI.
 ##
-## Ablauf vereinfacht und rundenbasiert:
-## - Der Angreifer legt eine Karte, der Verteidiger schlägt sie oder nimmt alles.
-## - Ist alles geschlagen, darf der Angreifer Karten mit Rängen vom Tisch
-##   nachlegen oder die Runde beenden („Bito“).
+## Regeln (Schiebe-Durak / Perevodnoy, 1 gegen 1):
+## - Der Angreifer legt eine Karte (oder mehrere gleichen Rangs), der Verteidiger
+##   schlägt sie, schiebt weiter oder nimmt alles.
+## - Schieben: Solange noch nichts geschlagen ist und alle Angriffskarten denselben
+##   Rang haben, darf der Verteidiger eine Karte dieses Rangs dazulegen. Dann tauschen
+##   die Rollen und der bisherige Angreifer muss sich gegen alle Karten verteidigen
+##   (nur wenn er genug Karten auf der Hand hat).
+## - Der Angreifer darf Karten mit Rängen vom Tisch nachlegen oder die Runde
+##   beenden („Bito“).
+## - Nimmt der Verteidiger auf, darf der Angreifer noch passende Karten
+##   hinterherwerfen (nachwerfen), die ebenfalls aufgenommen werden.
 ## - Danach wird auf die Handgröße aufgefüllt (Angreifer zuerst).
 ## - Wer bei leerem Stapel als Letzter Karten hält, ist der Durak.
 
@@ -20,6 +27,10 @@ signal cards_drawn(who: int, count: int)
 signal cards_taken(who: int, count: int)
 ## Bito: die Tischkarten gehen auf den Ablagestapel.
 signal cards_discarded(count: int)
+## Der Verteidiger hat weitergeschoben und ist jetzt Angreifer.
+signal transferred(who: int, card: Card)
+## Der Verteidiger hat „nehmen“ angesagt; der Angreifer darf noch nachwerfen.
+signal take_declared(who: int)
 signal finished(loser: int)
 
 const PLAYER := 0
@@ -40,6 +51,8 @@ var discard_pile: Array[Card] = []
 
 var attacker := PLAYER
 var bout_limit := MAX_ATTACK_CARDS
+## Verteidiger hat „nehmen“ angesagt, Angreifer darf noch nachwerfen.
+var taking := false
 var is_over := false
 var loser := NO_LOSER
 
@@ -96,6 +109,8 @@ func unbeaten_index() -> int:
 func current_actor() -> int:
 	if is_over:
 		return NO_LOSER
+	if taking:
+		return attacker
 	return defender() if unbeaten_index() != -1 else attacker
 
 
@@ -124,9 +139,28 @@ func legal_attacks() -> Array[Card]:
 
 func can_defend_with(card: Card) -> bool:
 	var idx := unbeaten_index()
-	if is_over or idx == -1 or not hand(defender()).has(card):
+	if is_over or taking or idx == -1 or not hand(defender()).has(card):
 		return false
 	return DurakRules.can_beat(attack_cards[idx], card, trump_suit)
+
+
+## Darf der Verteidiger mit `card` weiterschieben?
+func can_transfer_with(card: Card) -> bool:
+	if is_over or taking or attack_cards.is_empty() or not hand(defender()).has(card):
+		return false
+	for d in defense_cards:
+		if d != null:
+			return false # es wurde schon geschlagen
+	for a in attack_cards:
+		if a.rank != card.rank:
+			return false
+	var count := attack_cards.size() + 1
+	# der neue Verteidiger (bisheriger Angreifer) muss alle Karten schlagen können
+	return count <= MAX_ATTACK_CARDS and hand(attacker).size() >= count
+
+
+func legal_transfers() -> Array[Card]:
+	return hand(defender()).filter(can_transfer_with)
 
 
 func legal_defenses() -> Array[Card]:
@@ -134,11 +168,16 @@ func legal_defenses() -> Array[Card]:
 
 
 func can_take() -> bool:
-	return not is_over and unbeaten_index() != -1
+	return not is_over and not taking and unbeaten_index() != -1
 
 
 func can_pass() -> bool:
-	return not is_over and not attack_cards.is_empty() and unbeaten_index() == -1
+	return not is_over and not taking and not attack_cards.is_empty() and unbeaten_index() == -1
+
+
+## Angreifer ist mit dem Nachwerfen fertig (nur während `taking`).
+func can_finish_take() -> bool:
+	return not is_over and taking
 
 
 # --- Aktionen -----------------------------------------------------------------
@@ -152,7 +191,11 @@ func attack(card: Card) -> bool:
 	attack_cards.append(card)
 	defense_cards.append(null)
 	card_played.emit(attacker, card, true)
-	message.emit("%s %s %s." % [name_of(attacker), "legst" if attacker == PLAYER else "legt", card])
+	message.emit("%s %s %s%s." % [name_of(attacker), "legst" if attacker == PLAYER else "legt", card,
+		" nach" if taking else ""])
+	if taking and legal_attacks().is_empty():
+		finish_take() # nichts mehr nachzuwerfen
+		return true
 	changed.emit()
 	return true
 
@@ -171,11 +214,45 @@ func defend(card: Card) -> bool:
 	return true
 
 
-## Verteidiger nimmt alle Karten vom Tisch. Der Angreifer bleibt Angreifer.
+## Verteidiger schiebt weiter: legt eine Karte gleichen Rangs dazu und wird Angreifer.
+func transfer(card: Card) -> bool:
+	if not can_transfer_with(card):
+		return false
+	var who := defender()
+	hand(who).erase(card)
+	attack_cards.append(card)
+	defense_cards.append(null)
+	attacker = who
+	bout_limit = mini(MAX_ATTACK_CARDS, hand(defender()).size())
+	transferred.emit(who, card)
+	card_played.emit(who, card, true)
+	message.emit("%s %s mit %s weiter!" % [name_of(who), "schiebst" if who == PLAYER else "schiebt", card])
+	changed.emit()
+	return true
+
+
+## Verteidiger sagt „nehmen“ an. Der Angreifer darf noch passende Karten
+## nachwerfen und beendet dann mit finish_take(). Kann er nichts mehr legen,
+## werden die Karten sofort aufgenommen.
 func take() -> bool:
 	if not can_take():
 		return false
+	taking = true
 	message.emit("%s %s die Karten." % [name_of(defender()), "nimmst" if defender() == PLAYER else "nimmt"])
+	take_declared.emit(defender())
+	if legal_attacks().is_empty():
+		finish_take()
+	else:
+		changed.emit()
+	return true
+
+
+## Nachwerfen beendet: der Verteidiger nimmt alle Tischkarten auf.
+## Der Angreifer bleibt Angreifer.
+func finish_take() -> bool:
+	if not can_finish_take():
+		return false
+	taking = false
 	var taken := table_cards()
 	hand(defender()).append_array(taken)
 	cards_taken.emit(defender(), taken.size())
@@ -210,11 +287,12 @@ func force_finish(p_loser: int, text := "") -> void:
 # --- Intern -------------------------------------------------------------------
 
 func _auto_pass_if_stuck() -> void:
-	if unbeaten_index() == -1 and legal_attacks().is_empty():
+	if not taking and unbeaten_index() == -1 and legal_attacks().is_empty():
 		pass_bout()
 
 
 func _end_bout(defended: bool) -> void:
+	taking = false
 	attack_cards.clear()
 	defense_cards.clear()
 	var old_attacker := attacker

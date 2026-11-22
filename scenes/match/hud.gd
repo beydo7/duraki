@@ -22,6 +22,7 @@ var _my_turn := false
 var _t := 0.0
 var _status_style: StyleBoxFlat
 var _tweens := {}
+var _choice: Control
 
 
 func _ready() -> void:
@@ -212,14 +213,82 @@ func show_banner(text: String) -> void:
 	tw.parallel().tween_property(%Banner, "scale", Vector2(1.08, 1.08), 0.35)
 
 
-func set_actions(take_visible: bool, pass_visible: bool, pass_enabled: bool) -> void:
+func set_actions(take_visible: bool, pass_visible: bool, pass_enabled: bool, pass_text := "BITO") -> void:
 	_set_button(%TakeButton, take_visible)
 	_set_button(%PassButton, pass_visible)
 	%PassButton.disabled = not pass_enabled
+	%PassButton.text = pass_text
+
+
+## Kleine Auswahl über der Hand (z. B. „Schlagen oder Schieben?“).
+## `callback` bekommt den Index der gewählten Option; Abbrechen ruft nichts auf.
+func ask_choice(title: String, options: Array[String], callback: Callable) -> void:
+	close_choice()
+	var panel := PanelContainer.new()
+	_choice = panel
+	%Actions.add_child(panel)
+	var style := (%OpponentPanel.get_theme_stylebox("panel") as StyleBox).duplicate() as StyleBox
+	if style is StyleBoxFlat:
+		(style as StyleBoxFlat).content_margin_left = 14
+		(style as StyleBoxFlat).content_margin_right = 14
+		(style as StyleBoxFlat).content_margin_top = 14
+		(style as StyleBoxFlat).content_margin_bottom = 14
+	panel.add_theme_stylebox_override("panel", style)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 12)
+	panel.add_child(box)
+	var label := Label.new()
+	label.text = title
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	label.add_theme_font_size_override("font_size", 16)
+	label.add_theme_color_override("font_color", COLOR_GOLD)
+	box.add_child(label)
+	var row := VBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	box.add_child(row)
+	for i in options.size():
+		var b := _action_button(options[i])
+		var index := i
+		b.pressed.connect(func() -> void:
+			close_choice()
+			callback.call(index))
+		row.add_child(b)
+	var cancel := _action_button("ABBRECHEN")
+	cancel.custom_minimum_size = Vector2(140, 40)
+	cancel.add_theme_font_size_override("font_size", 14)
+	cancel.pressed.connect(close_choice)
+	box.add_child(cancel)
+	cancel.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	panel.pivot_offset = Vector2(118, 60)
+	panel.modulate.a = 0.0
+	panel.scale = Vector2(0.85, 0.85)
+	var tw := _tween_key("choice")
+	tw.tween_property(panel, "modulate:a", 1.0, 0.15)
+	tw.parallel().tween_property(panel, "scale", Vector2.ONE, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+
+
+func close_choice() -> void:
+	if _choice != null and is_instance_valid(_choice):
+		_choice.queue_free()
+	_choice = null
+
+
+func _action_button(text: String) -> Button:
+	var b := Button.new()
+	b.text = text
+	b.focus_mode = Control.FOCUS_NONE
+	b.custom_minimum_size = Vector2(0, 50)
+	b.add_theme_font_size_override("font_size", 18)
+	for st in ["normal", "hover", "pressed", "disabled", "focus"]:
+		b.add_theme_stylebox_override(st, %TakeButton.get_theme_stylebox(st))
+	_make_bouncy(b)
+	return b
 
 
 func show_result(won: bool, title: String, text: String, score_text: String) -> void:
 	set_actions(false, false, false)
+	close_choice()
 	%ResultTitle.text = title
 	%ResultTitle.add_theme_color_override("font_color", COLOR_GOLD if won else Color(1, 0.5, 0.5))
 	%ResultText.text = text

@@ -10,9 +10,18 @@ Duraki verbindet das klassische Durak mit Roguelike-Elementen: Du kämpfst dich 
 
 🚧 Frühe Entwicklung – spielbar:
 
-- **Durak 1 gegen 1** (36 Karten, Trumpf, Angreifen/Nachlegen/Schlagen/Nehmen/Bito).
+- **Schiebe-Durak 1 gegen 1** (Perevodnoy: 36 Karten, Trumpf, Angreifen/Nachlegen/Schlagen/Nehmen/Bito).
   Der Angreifer darf passende Ränge jederzeit dazuwerfen – auch mehrere auf einmal
   (nie mehr ungeschlagene Karten, als der Verteidiger auf der Hand hat).
+  - **Schieben:** Solange noch nichts geschlagen ist, legt der Verteidiger eine Karte gleichen
+    Rangs dazu und gibt den Angriff zurück (nur wenn der andere genug Karten hat). Kann die
+    Karte auch schlagen, fragt das Spiel „Schlagen oder Schieben?“.
+  - **Nachwerfen:** Nimmt der Verteidiger auf, darf der Angreifer noch passende Karten
+    hinterherwerfen (Knopf „FERTIG“ beendet das).
+- **Optionen** (Hauptmenü oder Esc im Spiel): Grafik (Anzeigemodus, Fenstergröße, VSync,
+  FPS-Limit, Kantenglättung, Renderauflösung, Schatten, Glow, Helligkeit), Audio (Gesamt/Musik/
+  Effekte, stumm im Hintergrund), Allgemein (Bedenkzeit der Gegner, Kartenanimationen,
+  Spielmeldungen, Kamera-Schwenk, Größe der Oberfläche). Gespeichert in `user://settings.cfg`.
 - **Punkteziel wie bei Balatro:** Chips × Mult pro Runde, Volltreffer ×2, Durak-Bonus.
   Ziel erreicht → Tisch gewonnen, sonst ein Leben weg.
 - **3D-Duell:** dunkle Kammer, Ich-Perspektive am Tisch, Gegner als Gestalt mit
@@ -61,6 +70,8 @@ scripts/
   ai/          Gegner-KI (SimpleAI)
   data/        Ressourcen-Typen: OpponentData, RelicData
   autoload/    run_state.gd → globales "Run" (Run-Zustand, Szenenwechsel)
+               settings.gd → globales "Settings" (Optionen laden/speichern/anwenden)
+               pause_menu.gd → globales "Pause" (Esc-Menü im Spiel)
   core/score_tracker.gd   Punktewertung (Chips × Mult, Kartenverbesserungen)
 scenes/
   menu/        Hauptmenü
@@ -68,7 +79,8 @@ scenes/
   match/       3D-Duell: table_world.gd (lädt Raum/Tisch/Requisiten, Licht, Kamera, Karten-Layout),
                card_3d.gd (3D-Karte), opponent_figure.gd (setzt die Figur zusammen + animiert sie),
                hud.gd (animiertes HUD), match.gd (Ablauf)
-ui/            Theme (Farben, Schriften, Buttons), Hintergrund, gezeichnete Durak-Karte, Masken-Porträt
+ui/            Theme (Farben, Schriften, Buttons), Hintergrund, gezeichnete Durak-Karte, Masken-Porträt,
+               options_menu.gd (Optionen-Fenster)
 data/
   opponents/   Gegner als .tres (im Editor bearbeitbar, inkl. Aussehen der Gestalt)
   relics/      Relikte als .tres
@@ -82,7 +94,7 @@ tools/         generate_cards.py – erzeugt alle Kartenbilder (Python + Pillow 
 tests/         Regeltests, Autoplay, Klicktest, Screenshot-Skripte
 ```
 
-**Grundprinzip:** Die Regeln (`DurakMatch`) kennen keine UI. Szenen hören auf die Signale `changed`, `message` und `finished` und rufen nur Aktionen wie `attack()`, `defend()`, `take()` und `pass_bout()` auf. So lassen sich Regeln testen und Relikte/Mods später sauber einbauen.
+**Grundprinzip:** Die Regeln (`DurakMatch`) kennen keine UI. Szenen hören auf die Signale `changed`, `message` und `finished` und rufen nur Aktionen wie `attack()`, `defend()`, `transfer()`, `take()`/`finish_take()` und `pass_bout()` auf. So lassen sich Regeln testen und Relikte/Mods später sauber einbauen.
 
 ### Neue Gegner oder Relikte
 

@@ -54,6 +54,33 @@ func _detach() -> void:
 		await _shot("boss")
 		get_tree().quit()
 		return
+	if "transfer" in args:
+		# Du verteidigst gegen eine 9; du hast eine Trumpf-9 (schlagen oder schieben)
+		var t := duel.trump_suit
+		var other := (t + 1) % 4 as Card.Suit
+		duel.attack_cards.clear()
+		duel.defense_cards.clear()
+		duel.attacker = DurakMatch.OPPONENT
+		var attack := Card.new(other, 9)
+		duel.attack_cards.append(attack)
+		duel.defense_cards.append(null)
+		var mine: Array[Card] = [Card.new(t, 9), Card.new(other, 12), Card.new((t + 2) % 4 as Card.Suit, 9),
+			Card.new(other, 6), Card.new((t + 3) % 4 as Card.Suit, 11), Card.new(t, 13)]
+		duel.player_hand.assign(mine)
+		DurakRules.sort_hand(duel.player_hand, duel.trump_suit)
+		scene._ai_pending = true # Gegner wartet
+		duel.changed.emit()
+		await get_tree().create_timer(1.5).timeout
+		await _shot("transfer_1")
+		scene._on_player_card(mine[0])
+		await get_tree().create_timer(0.8).timeout
+		await _shot("transfer_2_choice")
+		scene.hud.close_choice()
+		duel.transfer(mine[0])
+		await get_tree().create_timer(1.2).timeout
+		await _shot("transfer_3_done")
+		get_tree().quit()
+		return
 	if "result" in args:
 		# Ergebnis-Fenster prüfen: Ziel erreichen und Duell beenden
 		scene.score.total = scene.score.target
