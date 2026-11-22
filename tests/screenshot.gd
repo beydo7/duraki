@@ -1,6 +1,6 @@
 extends Node
 ## Rendert Screenshots der Duell-Szene (zum Prüfen des Designs).
-##   godot --path . res://tests/screenshot.tscn -- out=/tmp/shots
+##   godot --path . res://tests/screenshot.tscn -- out=/tmp/shots   (close = Nahaufnahme des Gegners)
 ## Ohne Bildschirm z. B. mit xvfb-run starten.
 
 var out_dir := "user://shots"
@@ -54,6 +54,13 @@ func _detach() -> void:
 		await _shot("many")
 		get_tree().quit()
 		return
+	if "close" in args:
+		# Nahaufnahme des Gegners (Modell prüfen)
+		var w: TableWorld = scene.world
+		w.set_process(false)
+		w.camera.fov = 22.0
+		w.camera.look_at(w.figure.global_position + Vector3(0, 1.22, 0))
+		scene.hud.visible = false
 	if "boss" in args or ",".join(args).contains("opp="):
 		await get_tree().create_timer(1.0).timeout
 		await _shot("boss")

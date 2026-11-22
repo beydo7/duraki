@@ -63,16 +63,18 @@ def height_to_normal(height: np.ndarray, strength: float) -> np.ndarray:
     return np.dstack(((nx / ln) * 0.5 + 0.5, (ny / ln) * 0.5 + 0.5, (nz / ln) * 0.5 + 0.5))
 
 
-def to_image(name: str, rgb: np.ndarray, non_color: bool = False) -> bpy.types.Image:
+def to_image(name: str, rgb: np.ndarray, non_color: bool = False, alpha: np.ndarray | None = None) -> bpy.types.Image:
     h, w = rgb.shape[:2]
     old = bpy.data.images.get(name)
     if old is not None:
         bpy.data.images.remove(old)
-    img = bpy.data.images.new(name, w, h, alpha=False)
+    img = bpy.data.images.new(name, w, h, alpha=alpha is not None)
     if non_color:
         img.colorspace_settings.name = "Non-Color"
     rgba = np.ones((h, w, 4), dtype=np.float32)
     rgba[..., :3] = np.clip(rgb, 0, 1)
+    if alpha is not None:
+        rgba[..., 3] = np.clip(alpha, 0, 1)
     img.pixels.foreach_set(rgba.ravel())
     img.file_format = "PNG"
     img.pack()
@@ -240,8 +242,41 @@ def tex_fur(name: str, root, tip, w=128, h=256, seed=81):
             to_image(name + "_normal", height_to_normal(height, 3.0), non_color=True))
 
 
+def tex_hair(name: str, root, tip, w=128, h=256, seed=81, strands=46, density=1.0):
+    """Haarbüschel mit Alpha (für Alpha-Clip): einzelne spitz zulaufende Strähnen, unten dicht,
+    oben ausgefranst – die Silhouette wird haarig statt blattförmig. V = 0 Wurzel, 1 Spitze."""
+    rng = np.random.default_rng(seed)
+    v, u = np.mgrid[0:h, 0:w]
+    u = u / (w - 1)
+    v = v / (h - 1)
+    cov = np.zeros((h, w), np.float32)
+    shade = np.zeros((h, w), np.float32)
+    for _ in range(int(strands * density)):
+        c = rng.uniform(0.08, 0.92)
+        length = rng.uniform(0.55, 1.0)
+        width = rng.uniform(0.018, 0.045) * (1 - 0.85 * np.clip(v / length, 0, 1))
+        bend = rng.uniform(-0.12, 0.12)
+        uu = c + bend * v ** 2 + (0.5 - c) * 0.25 * v  # Strähnen laufen zur Spitze leicht zusammen
+        s = np.exp(-((u - uu) / np.maximum(width, 1e-3)) ** 2) * (v < length)
+        bright = rng.uniform(0.6, 1.15)
+        shade = np.where(s > cov, bright, shade)
+        cov = np.maximum(cov, s)
+    du = np.abs(u - 0.5) * 2
+    # dichter Ansatz unten; Strähnen kräftig, damit sie auch in kleinen Mip-Stufen nicht zerfallen
+    body = np.clip(1.25 - (v / 0.42) ** 2, 0, 1) * np.clip(1.3 - du * 1.1, 0, 1)
+    alpha = np.clip(np.maximum(cov * 2.4, body), 0, 1)
+    root_l, tip_l = srgb_to_linear(root), srgb_to_linear(tip)
+    k = v[..., None] ** 1.3
+    col = root_l[None, None, :] * (1 - k) + tip_l[None, None, :] * k
+    col *= (0.55 + 0.5 * np.clip(shade, 0.6, 1.15) * cov + 0.2 * (1 - cov))[..., None]
+    height = cov * 1.0 - du * 0.3
+    return (to_image(name + "_color", col ** (1 / 2.2), alpha=alpha),
+            to_image(name + "_normal", height_to_normal(height, 3.0), non_color=True))
+
+
 def material(name, color_img=None, normal_img=None, color=(1, 1, 1, 1), rough=0.8, metal=0.0,
-             normal_strength=1.0, double_sided=False, spec=0.5, emission=None, emission_strength=0.0):
+             normal_strength=1.0, double_sided=False, spec=0.5, emission=None, emission_strength=0.0,
+             alpha_clip=False):
     mat = bpy.data.materials.get(name) or bpy.data.materials.new(name)
     mat.use_nodes = True
     nt = mat.node_tree
@@ -263,6 +298,13 @@ def material(name, color_img=None, normal_img=None, color=(1, 1, 1, 1), rough=0.
         t.image = color_img
         t.location = (-800, 200)
         nt.links.new(t.outputs["Color"], bsdf.inputs["Base Color"])
+        if alpha_clip:
+            # Round-Knoten → glTF-Export schreibt alphaMode MASK (Godot: Alpha-Scissor)
+            rnd = nt.nodes.new("ShaderNodeMath")
+            rnd.operation = "ROUND"
+            rnd.location = (-500, 350)
+            nt.links.new(t.outputs["Alpha"], rnd.inputs[0])
+            nt.links.new(rnd.outputs[0], bsdf.inputs["Alpha"])
     if normal_img is not None:
         t = nt.nodes.new("ShaderNodeTexImage")
         t.image = normal_img
@@ -629,6 +671,15 @@ def sleeve_segment(name: str, material, r0: float, r1: float, cuff: float = 0.0,
     mb.bm.faces.new(list(reversed(vs[0])))
     mb.bm.faces.new(vs[-1])
     return mb.finish(name, material)
+
+
+def planar_uv(bm: bmesh.types.BMesh, center: Vector, half_w: float, half_h: float) -> None:
+    """Frontale Projektion (x, z → u, v) um center – für gemalte Gesichtstexturen."""
+    uv = bm.loops.layers.uv.verify()
+    for f in bm.faces:
+        for loop in f.loops:
+            c = loop.vert.co - center
+            loop[uv].uv = ((c.x + half_w) / (2 * half_w), (c.z + half_h) / (2 * half_h))
 
 
 def preview_cards(count: int = 6) -> None:

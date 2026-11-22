@@ -14,6 +14,7 @@ import random
 
 import bmesh
 import bpy
+import numpy as np
 from mathutils import Matrix, Vector, noise
 from mathutils.bvhtree import BVHTree
 
@@ -30,28 +31,132 @@ HEAD_SCALE = 1.4
 #  Materialien
 # =====================================================================================
 
+FACE_HW, FACE_HH = 0.2, 0.26  # Ausschnitt der gemalten Gesichtstextur (Head-Koordinaten um C)
+# Narbe quer über das linke Auge (vom Spieler aus links): von der Stirn bis auf die Wange
+SCAR = ((-0.098, 0.078), (-0.018, -0.03))
+
+
+def _scar_dist(x, z):
+    (x0, z0), (x1, z1) = SCAR
+    dx, dz = x1 - x0, z1 - z0
+    t = np.clip(((x - x0) * dx + (z - z0) * dz) / (dx * dx + dz * dz), 0, 1)
+    return np.hypot(x - (x0 + t * dx), z - (z0 + t * dz)), t
+
+
+def tex_face(size=1024, seed=61):
+    """Gemalte Gesichtshaut (frontal projiziert): Augenschatten, rote Nase und Wangen,
+    Stirnfalten, Zornesfalten, Krähenfüße, Bartschatten und eine alte Narbe übers Auge."""
+    rng = np.random.default_rng(seed)
+    r, c = np.mgrid[0:size, 0:size] / (size - 1)
+    x = c * 2 * FACE_HW - FACE_HW
+    z = r * 2 * FACE_HH - FACE_HH
+    g = lambda a, s: np.exp(-(a * a) / (2 * s * s))
+    big = hd.fractal(size, 2.8, seed)
+    mid = hd.fractal(size, 2.0, seed + 1)
+    fine = hd.fractal(size, 0.6, seed + 2)
+    wob = hd.fractal(size, 2.2, seed + 3) - 0.5
+    pore = np.clip((fine - 0.6) * 5, 0, 1)
+
+    base = hd.srgb_to_linear((0.55, 0.37, 0.26))
+    col = base[None, None, :] * (0.8 + 0.3 * big + 0.12 * mid)[..., None]
+    height = big * 0.15 + mid * 0.12 - pore * 0.25
+
+    # Rötungen: Nasenspitze, Wangen, etwas Stirn (Kälte, Schnaps)
+    red = 0.9 * g(x - 0.005, 0.02) * g(z + 0.045, 0.02)
+    for sx in (-1, 1):
+        red += 0.45 * g(x - sx * 0.072, 0.024) * g(z + 0.012, 0.02)
+    red = np.clip(red * (0.7 + 0.6 * mid), 0, 1)
+    tint = hd.srgb_to_linear((0.62, 0.2, 0.16))
+    col = col * (1 - 0.45 * red[..., None]) + tint[None, None, :] * 0.45 * red[..., None]
+
+    # Augenhöhlen dunkler (müde, verlebt), Tränensäcke
+    sock = np.zeros_like(x)
+    for ex, ez in EYES:
+        sock += g(x - ex, 0.024) * g(z - ez, 0.017)
+        sock += 0.3 * g(x - ex, 0.016) * g(z - (ez - 0.017), 0.004)
+    dark_tint = np.array([0.8, 0.68, 0.72])
+    col *= (1 - 0.42 * np.clip(sock, 0, 1))[..., None] * (1 - (1 - dark_tint) * np.clip(sock, 0, 1)[..., None])
+
+    # Stirnfalten (waagrecht, wellig) und Zornesfalten zwischen den Brauen
+    wr = np.zeros_like(x)
+    env_x = np.clip(1 - (np.abs(x) / 0.1) ** 2, 0, 1)
+    for k, zk in enumerate((0.078, 0.094, 0.111, 0.128)):
+        zz = zk + 0.004 * np.sin(x * 45 + k * 1.7) + 0.006 * wob
+        wr += g(z - zz, 0.0017) * env_x * (0.9 - 0.12 * k)
+    for sx in (-1, 1):
+        zz = np.clip((z - 0.03) / 0.04, 0, 1)
+        wr += 1.1 * g(x - sx * (0.008 + 0.004 * zz), 0.0013) * g(z - 0.05, 0.014)
+    # Krähenfüße
+    for sx in (-1, 1):
+        for ang in (-0.45, 0.0, 0.4):
+            ox, oz = sx * 0.078, 0.02
+            dx, dz = math.cos(ang) * sx, math.sin(ang)
+            t = np.clip((x - ox) * dx + (z - oz) * dz, 0, 0.028)
+            d = np.hypot(x - (ox + t * dx), z - (oz + t * dz))
+            wr += 0.7 * g(d, 0.0012) * (t > 0.002) * (1 - t / 0.028)
+    col *= (1 - 0.35 * np.clip(wr, 0, 1))[..., None]
+    height -= 1.6 * wr
+
+    # Bartschatten (unter dem Tuch und an den Kieferseiten)
+    stub = np.clip((-0.065 - z) / 0.02, 0, 1)  # nur unterm Tuch / am Rand sichtbar
+    dots = (rng.random((size, size)) > 0.72).astype(np.float32)
+    col *= (1 - stub * (0.25 + 0.4 * dots))[..., None]
+
+    # Nasenlöcher (Unterseite)
+    for sx in (-1, 1):
+        col *= (1 - 0.5 * g(x - 0.004 - sx * 0.011, 0.0035) * g(z + 0.067, 0.002))[..., None]
+    # Fake-AO zu den Rändern hin
+    col *= (1 - 0.3 * np.clip((np.abs(x) - 0.085) / 0.06, 0, 1))[..., None]
+
+    # Narbe: blasse, leicht erhabene Linie mit dunklen Rändern und alten Stichen
+    d, t = _scar_dist(x + 0.0015 * np.sin(z * 160), z)
+    scar = g(d, 0.0017)
+    edge = g(d - 0.0035, 0.0012)
+    pale = hd.srgb_to_linear((0.74, 0.5, 0.45))
+    col = col * (1 - 0.65 * scar[..., None]) + pale[None, None, :] * 0.65 * scar[..., None]
+    col *= (1 - 0.12 * edge)[..., None]
+    (x0, z0), (x1, z1) = SCAR
+    ln = math.hypot(x1 - x0, z1 - z0)
+    nx, nz = -(z1 - z0) / ln, (x1 - x0) / ln
+    for k in range(1, 11):
+        tk = k / 11
+        px, pz = x0 + (x1 - x0) * tk, z0 + (z1 - z0) * tk
+        if abs(pz - EYES[0][1]) < 0.012:
+            continue  # nicht über das Auge
+        along = (x - px) * (x1 - x0) / ln + (z - pz) * (z1 - z0) / ln
+        across = (x - px) * nx + (z - pz) * nz
+        st = g(along, 0.0011) * g(across, 0.006) * (np.abs(across) < 0.008)
+        col *= (1 - 0.18 * st)[..., None]
+        height -= 0.3 * st
+    height += 0.8 * scar - 0.25 * edge
+
+    return (hd.to_image("face_color", col ** (1 / 2.2)),
+            hd.to_image("face_normal", hd.height_to_normal(height, 3.5), non_color=True))
+
+
 def materials():
     m = {}
-    c, n = hd.tex_skin("skin", (0.52, 0.35, 0.25), seed=61, pores=1.1, blotch=0.8)
-    m["skin"] = hd.material("Bandit_Haut", c, n, rough=0.55, normal_strength=1.1, spec=0.4)
+    c, n = tex_face()
+    m["skin"] = hd.material("Bandit_Haut", c, n, rough=0.55, normal_strength=1.0, spec=0.4)
     c, n = hd.tex_skin("hands", (0.34, 0.225, 0.16), seed=62, pores=1.0, blotch=1.3)
     m["hands"] = hd.material("Bandit_Haende", c, n, rough=0.72, normal_strength=1.0, spec=0.25)
-    c, n = hd.tex_fur("fur", (0.06, 0.04, 0.025), (0.36, 0.27, 0.18), seed=81)
-    m["fur"] = hd.material("Bandit_Fell", c, n, rough=0.85, normal_strength=0.6, double_sided=True, spec=0.2)
-    c, n = hd.tex_cloth("furbase", (0.2, 0.14, 0.09), (0.05, 0.035, 0.022), size=512, seed=82, weave=140, rag=0.1)
+    c, n = hd.tex_hair("fur", (0.07, 0.05, 0.032), (0.34, 0.25, 0.16), seed=81)
+    m["fur"] = hd.material("Bandit_Fell", c, n, rough=0.92, normal_strength=0.6, double_sided=True, spec=0.12,
+                           alpha_clip=True)
+    c, n = hd.tex_cloth("furbase", (0.2, 0.145, 0.095), (0.13, 0.09, 0.06), size=512, seed=82, weave=140, rag=0.1)
     m["furbase"] = hd.material("Bandit_Fellgrund", c, n, rough=0.95, normal_strength=1.2, spec=0.15)
-    c, n = hd.tex_fur("brow", (0.03, 0.022, 0.016), (0.1, 0.075, 0.055), w=64, h=128, seed=83)
-    m["brow"] = hd.material("Bandit_Braue", c, n, rough=0.8, double_sided=True, spec=0.2)
+    c, n = hd.tex_hair("brow", (0.03, 0.022, 0.016), (0.11, 0.08, 0.06), w=64, h=128, seed=83, strands=30)
+    m["brow"] = hd.material("Bandit_Braue", c, n, rough=0.8, double_sided=True, spec=0.2, alpha_clip=True)
     c, n = hd.tex_cloth("scarf", (0.5, 0.075, 0.055), (0.16, 0.02, 0.015), seed=84, weave=110, rag=0.55)
     m["scarf"] = hd.material("Bandit_Tuch", c, n, rough=0.9, normal_strength=0.9, double_sided=True, spec=0.2)
-    c, n = hd.tex_leather("coat", (0.34, 0.21, 0.115), (0.1, 0.06, 0.032), seed=71, crease=1.3, wear=0.45)
+    c, n = hd.tex_leather("coat", (0.32, 0.2, 0.11), (0.12, 0.072, 0.04), seed=71, crease=1.2, wear=0.18)
     m["coat"] = hd.material("Bandit_Mantel", c, n, rough=0.62, normal_strength=1.0, double_sided=True, spec=0.35)
     c, n = hd.tex_cloth("shirt", (0.62, 0.55, 0.42), (0.25, 0.2, 0.13), seed=85, rag=0.4)
     m["shirt"] = hd.material("Bandit_Hemd", c, n, rough=0.92, spec=0.2)
-    m["eyewhite"] = hd.material("Bandit_Augenweiss", color=(0.62, 0.56, 0.46, 1), rough=0.15, spec=0.8)
+    m["eyewhite"] = hd.material("Bandit_Augenweiss", color=(0.5, 0.43, 0.35, 1), rough=0.15, spec=0.8)
     m["iris"] = hd.material("Bandit_Iris", color=(0.12, 0.07, 0.035, 1), rough=0.1, spec=0.9)
     m["pupil"] = hd.material("Bandit_Pupille", color=(0.005, 0.004, 0.004, 1), rough=0.05, spec=1.0)
-    m["nail"] = hd.material("Bandit_Nagel", color=(0.3, 0.24, 0.17, 1), rough=0.6, spec=0.2)
+    m["nail"] = hd.material("Bandit_Nagel", color=(0.2, 0.155, 0.11, 1), rough=0.8, spec=0.1)
     m["brass"] = hd.material("Bandit_Messing", color=(0.42, 0.3, 0.12, 1), rough=0.38, metal=0.85)
     m["thread"] = hd.material("Bandit_Faden", color=(0.12, 0.1, 0.07, 1), rough=0.9)
     return m
@@ -88,17 +193,21 @@ def face_shape(c: Vector, d: Vector) -> Vector:
     if front > 0.2:
         t = min(1.0, max(0.0, (0.035 - z) / 0.085))  # 0 = Nasenwurzel, 1 = Spitze
         top = 1.0 if z < 0.04 else _g(z - 0.04, 0.012)
-        amp = (0.014 + 0.055 * t ** 1.3) * top
+        amp = (0.008 + 0.02 * t ** 1.3) * top  # nur Ansatz – die eigentliche Nase ist modelliert (nose())
         if z < -0.05:
             amp *= _g(z + 0.05, 0.012)
         width = 0.013 + 0.014 * t ** 2
         off.y -= amp * _g(x, width) * front
+        # Höcker (mal gebrochen) und leicht schief
+
         # Nasenflügel
         for s in (-1, 1):
             off.y -= 0.016 * front * _g(x - s * 0.024, 0.01) * _g(z + 0.04, 0.012)
     # Wangenknochen und Tränensäcke
     for s in (-1, 1):
-        off += Vector((s * 0.008, -0.012 * front, 0)) * _g(x - s * 0.072, 0.025) * _g(z + 0.012, 0.022)
+        off += Vector((s * 0.01, -0.015 * front, 0)) * _g(x - s * 0.072, 0.026) * _g(z + 0.008, 0.022)
+        # eingefallene Wange darunter
+        off.y += 0.003 * front * _g(x - s * 0.07, 0.022) * _g(z + 0.05, 0.016)
         off.y -= 0.006 * front * _g(x - s * 0.05, 0.018) * _g(z + 0.004, 0.006)
     # Schläfen leicht eingezogen
     for s in (-1, 1):
@@ -111,8 +220,16 @@ def build_head(rig, m, rnd):
     head.deform(face_shape)
     ch.eye_sockets(rig, head, EYES, size=(0.022, 0.012, 0.014), slant=0.2, inset=0.006)
     eyeballs(rig, m)
-    face = rig.headpart("Face", head.bm.copy(), m["skin"], smooth=True, sharp_angle=None)
-    tree = BVHTree.FromBMesh(head.bm)
+    face_bm = ch.geo.merge(head.bm.copy(), nose())
+    face = rig.headpart("Face", face_bm, m["skin"], smooth=True, sharp_angle=None)
+    # Kopf und Nase zu einer durchgehenden Form verschmelzen, dann wieder frontal projizieren
+    hd.organic(face, voxel=0.0016, smooth=3, faces=20000)
+    fb = bmesh.new()
+    fb.from_mesh(face.data)
+    hd.planar_uv(fb, C, FACE_HW, FACE_HH)
+    fb.to_mesh(face.data)
+    tree = BVHTree.FromBMesh(fb)
+    fb.free()
 
     def surf(x, z, lift=0.0):
         """Punkt auf der Gesichtsvorderseite (Strahl von vorne)."""
@@ -126,6 +243,20 @@ def build_head(rig, m, rnd):
     scarf(rig, m, tree, rnd)
     hat(rig, m, rnd)
     return face
+
+
+def nose():
+    """Große, knollige Säufernase mit Höcker (einmal gebrochen, leicht schief)."""
+    parts = []
+    bridge = [Vector((0.0, -0.146, 0.036)), Vector((0.0, -0.16, 0.012)), Vector((0.002, -0.168, -0.004)),
+              Vector((0.004, -0.177, -0.026)), Vector((0.005, -0.184, -0.04))]
+    parts.append(ch.geo.tube([C + p for p in bridge], [0.0095, 0.0125, 0.012, 0.0135, 0.015], seg=14))
+    parts.append(ch.geo.ellipsoid(Vector((0.019, 0.017, 0.017)), C + Vector((0.005, -0.186, -0.047)), 24, 16))
+    for sx in (-1, 1):
+        parts.append(ch.geo.ellipsoid(Vector((0.0115, 0.014, 0.0095)), C + Vector((0.004 + sx * 0.0165, -0.172, -0.05)),
+                                      18, 12))
+    parts.append(ch.geo.ellipsoid(Vector((0.007, 0.012, 0.006)), C + Vector((0.004, -0.18, -0.064)), 14, 10))
+    return ch.geo.merge(*parts)
 
 
 def eyeballs(rig, m):
@@ -158,15 +289,17 @@ def lids(rig, m, surf):
             x = ex + (t - 0.5) * 0.05
             z = ez + 0.012 - 0.012 * (2 * t - 1) ** 2 - side * 0.004 * (t - 0.5)
             up.append(surf(x, z, 0.002)[0])
-        parts.append(ch.geo.tube(up, [0.003, 0.006, 0.008, 0.009, 0.009, 0.009, 0.008, 0.006, 0.003], seg=10))
+        parts.append(ch.geo.tube(up, [0.0025, 0.0045, 0.0058, 0.0064, 0.0066, 0.0064, 0.0058, 0.0045, 0.0025], seg=10))
         low = []
         for k in range(7):
             t = k / 6
             x = ex + (t - 0.5) * 0.042
             z = ez - 0.013 + 0.006 * (2 * t - 1) ** 2
             low.append(surf(x, z, 0.001)[0])
-        parts.append(ch.geo.tube(low, [0.002, 0.004, 0.005, 0.005, 0.005, 0.004, 0.002], seg=8))
-    rig.headpart("Face_Lids", ch.geo.merge(*parts), m["skin"], smooth=True, sharp_angle=None)
+        parts.append(ch.geo.tube(low, [0.0015, 0.0028, 0.0034, 0.0035, 0.0034, 0.0028, 0.0015], seg=8))
+    lid_bm = ch.geo.merge(*parts)
+    hd.planar_uv(lid_bm, C, FACE_HW, FACE_HH)
+    rig.headpart("Face_Lids", lid_bm, m["skin"], smooth=True, sharp_angle=None)
 
 
 def brows(rig, m, surf, rnd):
@@ -174,14 +307,16 @@ def brows(rig, m, surf, rnd):
     mb = hd.MeshBuilder()
     for ex, ez in EYES:
         side = 1 if ex > 0 else -1
-        for k in range(70):
+        for k in range(110):
             t = rnd.random()
             x = ex + side * (t - 0.45) * 0.06
             z = ez + 0.03 - 0.012 * (1 - t) + 0.004 * math.sin(t * 3) + rnd.uniform(-0.004, 0.004)
+            if float(_scar_dist(np.array(x), np.array(z))[0]) < 0.0055:
+                continue  # durch die Narbe wächst nichts
             p, n = surf(x, z, -0.001)
             direction = Vector((side * 1.0, 0, 0.25 - 0.6 * (1 - t)))
             L = rnd.uniform(0.012, 0.022)
-            hd.add_feather(mb, p, n, direction, L, L * 0.35, lift=rnd.uniform(0.2, 0.5), curl=0.1, cup=0.1,
+            hd.add_feather(mb, p, n, direction, L, L * 0.5, lift=rnd.uniform(0.2, 0.5), curl=0.1, cup=0.1,
                            twist=rnd.uniform(-0.4, 0.4), along=4, across=3)
     rig_ob = mb.finish("Face_Brows", m["brow"], parent=rig.head)
     return rig_ob
@@ -230,8 +365,56 @@ def scarf(rig, m, tree, rnd):
     mod = ob.modifiers.new("Dicke", "SOLIDIFY")
     mod.thickness = 0.006
     mod.offset = 1.0
-    hb = ch.geo.tube(hem + [hem[0]], [0.007] * (len(hem) + 1), seg=8, cap_start=False)
+    radii = [0.0055 + 0.0035 * (0.5 + 0.5 * math.sin(j * 0.9) * math.sin(j * 0.37)) for j in range(len(hem))]
+    hb = ch.geo.tube(hem + [hem[0]], radii + [radii[0]], seg=8, cap_start=False)
     rig.headpart("Scarf_Hem", hb, m["scarf"], smooth=True, sharp_angle=None)
+    scarf_tail(rig, m, rnd)
+
+
+def _lerp_path(pts, t):
+    t = max(0.0, min(1.0, t)) * (len(pts) - 1)
+    i = min(int(t), len(pts) - 2)
+    return pts[i].lerp(pts[i + 1], t - i)
+
+
+def scarf_tail(rig, m, rnd):
+    """Das lose Ende des Tuchs hängt seitlich vom Knoten über die Schulter nach vorn."""
+    mb = hd.MeshBuilder()
+    rows, uvs = [], []
+    n_len, n_w = 16, 7
+    # Mittellinie: vom Hals (rechts hinten) über die Schulter nach vorn-unten
+    path = [Vector((0.105, 0.03, -0.17)), Vector((0.13, -0.02, -0.21)), Vector((0.135, -0.07, -0.26)),
+            Vector((0.125, -0.1, -0.32)), Vector((0.115, -0.115, -0.37))]
+    for i in range(n_len + 1):
+        t = i / n_len
+        p = _lerp_path(path, t)
+        tang = (_lerp_path(path, min(1, t + 0.02)) - _lerp_path(path, max(0, t - 0.02))).normalized()
+        side = tang.cross(Vector((0.4, 0.4, 0))).normalized()  # Breite grob quer zur Schulter
+        width = 0.06 + 0.025 * t
+        row, uvr = [], []
+        for j in range(n_w):
+            a = j / (n_w - 1) - 0.5
+            fold = 0.008 * math.sin(a * 9 + t * 4) * (0.5 + t)
+            nrm = tang.cross(side).normalized()
+            row.append(C + p + side * a * width + nrm * fold)
+            uvr.append((a + 0.5, t * 1.8))
+        rows.append(row)
+        uvs.append(uvr)
+    mb.grid(rows, uvs)
+    ob = mb.finish("Scarf_Tail", m["scarf"], parent=rig.head)
+    mod = ob.modifiers.new("Dicke", "SOLIDIFY")
+    mod.thickness = 0.005
+    # Fransen am Ende
+    parts = []
+    end = rows[-1]
+    for j in range(len(end) - 1):
+        for k in range(3):
+            q = end[j].lerp(end[j + 1], (k + 0.5) / 3)
+            L = rnd.uniform(0.018, 0.03)
+            pts = [q, q + Vector((rnd.uniform(-0.004, 0.004), -0.002, -L * 0.5)),
+                   q + Vector((rnd.uniform(-0.008, 0.008), -0.003, -L))]
+            parts.append(ch.geo.tube(pts, [0.0016, 0.0013, 0.0007], seg=5))
+    rig.headpart("Scarf_Fringe", ch.geo.merge(*parts), m["scarf"], smooth=True, sharp_angle=None)
 
 
 def _ellipse_ring(cx, cy, cz, rx, ry, n):
@@ -243,7 +426,7 @@ def hat(rig, m, rnd):
     base_parts = []
     hc = C + Vector((0, 0.012, 0.0))
     # Kappe (Krone)
-    crown = ch.geo.ellipsoid(Vector((RX + 0.03, RY + 0.03, 0.15)), hc + Vector((0, 0, 0.105)), 48, 28)
+    crown = ch.geo.ellipsoid(Vector((RX + 0.035, RY + 0.035, 0.128)), hc + Vector((0, 0, 0.1)), 48, 28)
     kill = [f for f in crown.faces if (f.calc_center_median() - hc).z < 0.1]
     bmesh.ops.delete(crown, geom=kill, context="FACES")
     for v in crown.verts:
@@ -302,18 +485,44 @@ def hat(rig, m, rnd):
 
     # Fellbüschel
     mb = hd.MeshBuilder()
-    pts = hd.sample_surface(sample_bm, 11000, rnd)
+    pts = hd.sample_surface(sample_bm, 9500, rnd)
     sample_bm.free()
+    top_faces, all_tufts = [], []
     for p, nrm in pts:
         k = p - hc
-        if k.z > 0.24 and abs(nrm.z) > 0.8:
-            L = rnd.uniform(0.016, 0.026)  # oben kürzer
+        first = len(mb.bm.faces)
+        if nrm.z > 0.45:
+            L = rnd.uniform(0.024, 0.036)  # oben kürzer
         else:
-            L = rnd.uniform(0.024, 0.042)
-        direction = nrm * 0.35 + Vector((rnd.uniform(-0.4, 0.4), rnd.uniform(-0.4, 0.4), -1.0))
-        hd.add_feather(mb, p - nrm * 0.004, nrm, direction, L, L * rnd.uniform(0.3, 0.45),
-                       lift=rnd.uniform(0.15, 0.4), curl=rnd.uniform(0.05, 0.2), cup=0.2,
-                       twist=rnd.uniform(-0.6, 0.6), along=4, across=3, shape=1.4)
+            L = rnd.uniform(0.03, 0.05)
+        # Fell fällt nach unten und etwas nach außen, in Strähnen gruppiert (Rauschen statt Zufall)
+        flow = Vector((noise.noise(k * 25), noise.noise(k * 25 + Vector((7, 0, 0))), 0)) * 0.9
+        if nrm.z > 0.45:
+            # oben: Fell liegt flach und läuft vom Scheitel nach außen
+            out = Vector((k.x, k.y, 0)).normalized() if k.xy.length > 0.01 else Vector((0, -1, 0))
+            direction = out * 1.0 + flow + Vector((0, 0, 0.1))
+        else:
+            direction = nrm * 0.45 + flow + Vector((rnd.uniform(-0.2, 0.2), rnd.uniform(-0.2, 0.2), -1.0))
+        hd.add_feather(mb, p - nrm * 0.005, nrm, direction, L, L * rnd.uniform(0.55, 0.8),
+                       lift=rnd.uniform(0.2, 0.45), curl=rnd.uniform(0.05, 0.2), cup=0.15,
+                       twist=rnd.uniform(-0.5, 0.5), along=4, across=3, shape=0.6)
+        all_tufts.append((first, len(mb.bm.faces), nrm.copy()))
+        if nrm.z > 0.45:
+            top_faces.append((first, len(mb.bm.faces)))
+    # oben nur den dunkleren, dichten Teil der Büschel-Textur nehmen (sonst glänzt die Kappe im Lampenlicht)
+    mb.bm.faces.ensure_lookup_table()
+    # Vorderseite jedes Büschels nach außen drehen (Godot spiegelt die Normale auf Rückseiten → schwarz)
+    flip = []
+    for a, b, nrm in all_tufts:
+        mb.bm.faces[a].normal_update()
+        if mb.bm.faces[a].normal.dot(nrm) < 0:
+            flip.extend(mb.bm.faces[i] for i in range(a, b))
+    bmesh.ops.reverse_faces(mb.bm, faces=flip)
+    for a, b in top_faces:
+        for i in range(a, b):
+            for loop in mb.bm.faces[i].loops:
+                uu, vv = loop[mb.uv].uv
+                loop[mb.uv].uv = (uu, vv * 0.35)
     fur = mb.finish("Hat_Fur", m["fur"], parent=rig.head)
     hd.shade_like(fur, base_ob, 0.65)
 
@@ -392,8 +601,8 @@ def build_body(rig, m, rnd):
     sh.finish("Body_Shirt", m["shirt"], parent=tb)
 
     # Revers (rechts, gespiegelt links) – liegt auf der Brust, Außenkante leicht aufgestellt
-    inner = [(0.03, 1.06), (0.04, 0.95), (0.034, 0.8), (0.018, 0.63)]
-    outer = [(0.17, 1.03), (0.215, 0.93), (0.16, 0.8), (0.03, 0.62)]
+    inner = [(0.03, 1.06), (0.036, 1.0), (0.04, 0.95), (0.038, 0.88), (0.034, 0.8), (0.026, 0.71), (0.018, 0.63)]
+    outer = [(0.17, 1.03), (0.198, 0.985), (0.206, 0.93), (0.186, 0.865), (0.145, 0.78), (0.085, 0.69), (0.03, 0.62)]
     for s in (-1, 1):
         lp = hd.MeshBuilder()
         rows, uvs = [], []
@@ -407,7 +616,7 @@ def build_body(rig, m, rnd):
                 u = j / (n_u - 1)
                 x = a[0] + (b[0] - a[0]) * u
                 z = a[1] + (b[1] - a[1]) * u
-                lift = 0.014 + 0.03 * u ** 2 + 0.01 * math.sin(t * math.pi)
+                lift = 0.012 + 0.016 * u ** 2 + 0.008 * math.sin(t * math.pi) + 0.004 * math.sin(u * math.pi)
                 row.append(front_point(s * x, z, lift))
                 uvr.append((u * 0.4, t * 1.2))
             if s < 0:
@@ -422,7 +631,7 @@ def build_body(rig, m, rnd):
         mod.offset = -1.0
         # Steppnaht entlang der Außenkante
         seam = [front_point(s * (_lerp_poly(outer, k / 20)[0] - 0.012), _lerp_poly(outer, k / 20)[1],
-                            0.014 + 0.03 * 0.85 + 0.003) for k in range(21)]
+                            0.012 + 0.016 * 0.85 + 0.006) for k in range(21)]
         rig.body("Body_Seam" + ("L" if s < 0 else "R"), ch.geo.tube(seam, [0.0016] * 21, seg=6), m["thread"])
 
     # Aufgestellter Kragen hinten und seitlich um den Hals (verdeckt, wo das Tuch hineingeht)

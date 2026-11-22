@@ -140,7 +140,7 @@ Allgemein (Bedenkzeit der Gegner, Kartenanimationen, Meldungen, Kamera-Schwenk, 
 
 ## 8. Offene Punkte / nächste Schritte
 1. Juice ausbauen: rollende Zahlen beim Punkten, Sounds zu den Kartenbewegungen.
-2. Restliche 7 Gegner in HD modellieren (wie die Krähe).
+2. Restliche 6 Gegner in HD modellieren (fertig: Krähe, Bandit – Vorlage `art/blender/hd_bandit.py`: gemaltes Gesicht, Alpha-Fell, Zwei-Segment-Arme, Kartenfächer in den Händen).
 3. Lila Lampen-Scheiben im Raum sind Platzhalter → echte Lampen.
 4. Sound & Musik (Busse „Music“ und „SFX“ existieren schon).
 5. Die 3D-Menükarten im Hauptmenü an den Okkult-Gold-Stil der Karten anpassen.

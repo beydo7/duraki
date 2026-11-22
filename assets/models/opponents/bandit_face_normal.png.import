@@ -2,20 +2,20 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bm1cpvxibx51a"
-path.s3tc="res://.godot/imported/bandit_skin_color.png-81e718ef141d71b5154976e1ba74f179.s3tc.ctex"
+uid="uid://o8yggrid050e"
+path.s3tc="res://.godot/imported/bandit_face_normal.png-41e4207b8e072054e9ca7137d633eaf2.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
 }
 generator_parameters={
-"md5": "8cd2b263e1957b75bb6e187d3209750c"
+"md5": "059eab8c8882e1dd06a8e9de6b68a882"
 }
 
 [deps]
 
-source_file="res://assets/models/opponents/bandit_skin_color.png"
-dest_files=["res://.godot/imported/bandit_skin_color.png-81e718ef141d71b5154976e1ba74f179.s3tc.ctex"]
+source_file="res://assets/models/opponents/bandit_face_normal.png"
+dest_files=["res://.godot/imported/bandit_face_normal.png-41e4207b8e072054e9ca7137d633eaf2.s3tc.ctex"]
 
 [params]
 

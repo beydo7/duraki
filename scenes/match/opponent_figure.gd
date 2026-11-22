@@ -307,6 +307,19 @@ func _apply_void(root: Node) -> void:
 			_void_mat.albedo_color = Color(0.008, 0.004, 0.008)
 		(mi as MeshInstance3D).material_override = _void_mat
 		(mi as MeshInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	# Fell und Haare (viele Alpha-Büschel) werfen keine Schatten aufeinander –
+	# sonst wird z. B. die Mützenkappe fleckig schwarz
+	# und glänzen nicht (Godot nimmt sonst Glanz 0.5 an → Lampenlicht spiegelt lila auf dem Fell)
+	for pattern in ["*_Fur", "*_Brows", "*_Fringe"]:
+		for mi in root.find_children(pattern, "MeshInstance3D", true, false):
+			var m := mi as MeshInstance3D
+			m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			for i in m.mesh.get_surface_count():
+				var mat := m.mesh.surface_get_material(i) as StandardMaterial3D
+				if mat != null:
+					mat = mat.duplicate()
+					mat.metallic_specular = 0.08
+					m.set_surface_override_material(i, mat)
 
 
 # --- Denk-Stile -----------------------------------------------------------------
