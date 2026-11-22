@@ -6,6 +6,7 @@ var out_dir := "user://ui_shots"
 
 
 func _ready() -> void:
+	Profile.reset_for_tests()
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("out="):
 			out_dir = arg.substr(4)
@@ -28,6 +29,13 @@ func _run() -> void:
 	options._tab_buttons[2].pressed.emit()
 	await _wait_shot("1d_options_allgemein")
 	options.close()
+	Profile.souls = 45
+	Profile.unlocked.append(&"crow")
+	Profile.unlocked.append(&"witch")
+	var decks := DeckMenu.new()
+	get_tree().current_scene.add_child(decks)
+	await _wait_shot("1e_decks")
+	decks.close()
 	Run.start_new_run(4242)
 	await get_tree().create_timer(0.2).timeout
 	Run.floor_index = 1

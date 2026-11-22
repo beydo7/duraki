@@ -1,12 +1,12 @@
 class_name MatchHUD
 extends Control
-## HUD des Duells. Aufbau (siehe match.tscn):
-##   oben links   Gegner-Plakette (Porträt, Name, Tisch x/y, Kartenzahl, „überlegt …“) + Sprechblase
-##   oben Mitte   Zug-Anzeige: wer ist dran, was kann man tun
-##   oben rechts  Punkte (Chips × Mult, Fortschritt zum Ziel)
-##   rechts       Trumpf, Stapel, Angriffskarten dieser Runde, „Schieben möglich“
+## HUD des Duells im Stil „Papier & Tinte“ (siehe match.tscn):
+##   links oben   Zettel mit Foto des Gegners, darunter der Zug als Stempel + Hinweis,
+##                darunter seine Sprüche und das Spielprotokoll
+##   rechts oben  Notizblock mit Punkten, Pokerchips für Chips × Mult
+##   rechts       Trumpfzettel (Trumpf, Stapel, Angriff), „Schieben möglich“
 ##   unten links  Leben, Gold, Relikte (im Raum zusätzlich als Kerzen und Münzen)
-##   unten rechts Aktionen mit Tastenkürzeln
+##   unten rechts Aktionen als Etiketten mit Tastenkürzeln
 ## Die Spiellogik ruft nur die öffentlichen Funktionen auf (siehe match.gd).
 
 enum Turn { ATTACK, DEFEND, WAIT, THROW_IN, OVER }
@@ -16,13 +16,15 @@ const TOAST_MAX := 4
 const COLOR_GOLD := UIKit.GOLD
 const COLOR_TEXT := UIKit.CREAM
 const COLOR_MUTED := UIKit.MUTED
-const TURN_STYLE := {
-	Turn.ATTACK: ["⚔", UIKit.GOLD],
-	Turn.DEFEND: ["⛨", UIKit.RED],
-	Turn.WAIT: ["⌛", UIKit.LILAC],
-	Turn.THROW_IN: ["✚", UIKit.GOLD],
-	Turn.OVER: ["✦", UIKit.CREAM],
+## Stempelfarbe je Zug
+const TURN_INK := {
+	Turn.ATTACK: UIKit.INK_BLUE,
+	Turn.DEFEND: UIKit.INK_RED,
+	Turn.WAIT: Color(0.35, 0.32, 0.36),
+	Turn.THROW_IN: UIKit.INK_BLUE,
+	Turn.OVER: UIKit.INK_RED,
 }
+const TYPE_FONT := preload("res://assets/fonts/SpecialElite-Regular.ttf")
 const RELIC_SYMBOLS := {&"ace_up_sleeve": "A", &"lucky_coin": "●", &"samovar": "♨", &"vodka": "✶"}
 
 var _shown_score := 0.0
@@ -35,7 +37,7 @@ var _thinking := false
 var _turn := -1
 var _turn_title := ""
 var _t := 0.0
-var _turn_style: StyleBoxFlat
+var _stamp_style: StyleBoxTexture
 var _glow_target := 0.0
 var _glow := 0.0
 var _choice: Control
@@ -45,10 +47,20 @@ var _gold := -1
 
 
 func _ready() -> void:
-	_turn_style = (%TurnPill.get_theme_stylebox("panel") as StyleBoxFlat).duplicate() as StyleBoxFlat
-	%TurnPill.add_theme_stylebox_override("panel", _turn_style)
+	_stamp_style = (%StampBox.get_theme_stylebox("panel") as StyleBoxTexture).duplicate() as StyleBoxTexture
+	%StampBox.add_theme_stylebox_override("panel", _stamp_style)
+	%TurnTitle.material = UIKit.stamp_material(0.4)
+	%ResultTitle.material = UIKit.stamp_material(0.35)
 	for b: Button in [%TakeButton, %PassButton, %ContinueButton]:
 		UIKit.hover(b, 1.04)
+	# Zettel liegen leicht schief
+	UIKit.tilt.call_deferred(%OpponentNote, -1.2)
+	UIKit.tilt.call_deferred(%TurnNote, 0.9)
+	UIKit.tilt.call_deferred(%ScorePanel, 1.0)
+	UIKit.tilt.call_deferred(%TablePanel, -1.6)
+	UIKit.tilt.call_deferred(%RunBar, 0.8)
+	UIKit.tilt.call_deferred(%Photo, 3.0)
+	UIKit.tilt.call_deferred(%StampBox, -2.0)
 	%TakeButton.visible = false
 	%PassButton.visible = false
 	%KeyHint.visible = false
@@ -59,13 +71,10 @@ func _process(delta: float) -> void:
 	if _thinking:
 		var dots := int(_t * 3.0) % 4
 		%ThinkLabel.text = %ThinkLabel.get_meta("base", "überlegt") + ".".repeat(dots)
-	# Zug-Anzeige atmet, wenn du dran bist
+	# Der Zettel „atmet“ leicht, wenn du dran bist
 	var mine := _turn in [Turn.ATTACK, Turn.DEFEND, Turn.THROW_IN]
-	var pulse := (sin(_t * 3.6) * 0.5 + 0.5) if mine else 0.0
-	var col: Color = TURN_STYLE.get(_turn, TURN_STYLE[Turn.WAIT])[1]
-	_turn_style.border_color = Color(col, 0.35 + 0.5 * pulse)
-	_turn_style.shadow_color = Color(col, 0.08 + 0.22 * pulse)
-	%Portrait.intensity = move_toward(%Portrait.intensity, 1.0 if _thinking else 0.0, delta * 2.0)
+	var pulse := (sin(_t * 3.2) * 0.5 + 0.5) if mine else 0.0
+	%TurnNote.self_modulate = Color(1, 1, 1).lerp(Color(1.08, 1.02, 0.92), pulse)
 	_glow = move_toward(_glow, _glow_target, delta * 0.8)
 	(%EdgeGlow.material as ShaderMaterial).set_shader_parameter("strength", _glow)
 
@@ -74,31 +83,25 @@ func _process(delta: float) -> void:
 
 func setup(opponent: OpponentData, target: int, floor_i := 0, floor_count := 1) -> void:
 	%OpponentLabel.text = opponent.display_name
-	%Portrait.mask_color = opponent.mask_color
-	%Portrait.eye_color = opponent.eye_color
-	%Portrait.portrait = opponent.portrait
+	%Portrait.texture = opponent.portrait
 	%FloorLabel.text = ("BOSS · TISCH %d VON %d" if opponent.is_boss else "TISCH %d VON %d") % [floor_i + 1, floor_count]
-	if opponent.is_boss:
-		%FloorLabel.add_theme_color_override("font_color", UIKit.RED)
 	_target = maxi(1, target)
-	%TargetLabel.text = "ZIEL %d" % target
-	UIKit.appear(%OpponentPlate, 0.05, Vector2(-30, 0))
-	UIKit.appear(%ScorePanel, 0.12, Vector2(30, 0))
-	UIKit.appear(%TurnPill, 0.2, Vector2(0, -20))
-	UIKit.appear(%TablePanel, 0.28, Vector2(30, 0))
-	UIKit.appear(%RunBar, 0.34, Vector2(0, 20))
+	%TargetLabel.text = "Ziel %d" % target
+	UIKit.appear(%OpponentNote, 0.05, Vector2(-40, 0))
+	UIKit.appear(%TurnNote, 0.15, Vector2(-40, 0))
+	UIKit.appear(%ScorePanel, 0.1, Vector2(40, 0))
+	UIKit.appear(%TablePanel, 0.22, Vector2(40, 0))
+	UIKit.appear(%RunBar, 0.3, Vector2(0, 30))
 
 
 ## Wer ist dran und was kann man tun?
 func set_turn(mode: int, title: String, hint: String) -> void:
 	if title != _turn_title or mode != _turn:
-		var style: Array = TURN_STYLE[mode]
-		%TurnIcon.text = style[0]
-		%TurnIcon.add_theme_color_override("font_color", style[1])
-		%TurnTitle.add_theme_color_override("font_color", style[1])
+		var ink: Color = TURN_INK[mode]
+		%TurnTitle.add_theme_color_override("font_color", ink)
+		_stamp_style.modulate_color = ink
 		%TurnTitle.text = title
-		if mode != _turn:
-			UIKit.pop(%TurnPill, 1.08, 0.45)
+		_stamp_slam()
 		_turn = mode
 		_turn_title = title
 	%TurnHint.text = hint
@@ -122,16 +125,18 @@ func set_opponent_cards(count: int) -> void:
 		c.queue_free()
 	for i in mini(count, 12):
 		var card := Panel.new()
-		card.custom_minimum_size = Vector2(10, 15)
+		card.custom_minimum_size = Vector2(9, 14)
 		card.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		var st := StyleBoxFlat.new()
-		st.bg_color = Color(0.36, 0.26, 0.7)
-		st.border_color = Color(0.96, 0.91, 0.8, 0.9)
+		st.bg_color = Color(0.3, 0.12, 0.14)
+		st.border_color = UIKit.INK
 		st.set_border_width_all(1)
-		st.set_corner_radius_all(2)
 		card.add_theme_stylebox_override("panel", st)
 		%OpponentCards.add_child(card)
-	var label := UIKit.label("  %d %s" % [count, "Karte" if count == 1 else "Karten"], 13, COLOR_MUTED)
+	var label := Label.new()
+	label.theme_type_variation = &"InkType"
+	label.add_theme_font_size_override("font_size", 13)
+	label.text = "  %d %s" % [count, "Karte" if count == 1 else "Karten"]
 	%OpponentCards.add_child(label)
 	if grew:
 		UIKit.pop(%OpponentCards, 1.12)
@@ -149,11 +154,11 @@ func set_thinking(thinking: bool, text: String = "") -> void:
 func say(text: String, time := 4.0) -> void:
 	%SpeechLabel.text = "„%s“" % text
 	%Speech.reset_size()
-	var tw := %Speech.create_tween()
+	var tw := _tween_key(%Speech, "say")
 	%Speech.modulate.a = 0.0
-	%Speech.position.y = 104
+	%Speech.position.y = 208
 	tw.tween_property(%Speech, "modulate:a", 1.0, 0.25)
-	tw.parallel().tween_property(%Speech, "position:y", 114.0, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.parallel().tween_property(%Speech, "position:y", 218.0, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	tw.tween_interval(time)
 	tw.tween_property(%Speech, "modulate:a", 0.0, 0.5)
 
@@ -166,17 +171,17 @@ func set_run_info(lives: int, gold: int, deck: int, trump_suit: int) -> void:
 		_lives = lives
 	if gold != _gold:
 		if _gold >= 0 and gold > _gold:
-			UIKit.count(%GoldLabel, _gold, gold, 0.6, "● %d")
+			UIKit.count(%GoldLabel, _gold, gold, 0.6, "%d Gold")
 			UIKit.pop(%GoldLabel, 1.25)
 		else:
-			%GoldLabel.text = "● %d" % gold
+			%GoldLabel.text = "%d Gold" % gold
 		_gold = gold
 	if deck != _deck:
 		%DeckLabel.text = "Stapel %d" % deck if deck > 0 else "Stapel leer"
-		%DeckLabel.add_theme_color_override("font_color", UIKit.RED if deck == 0 else COLOR_TEXT)
+		%DeckLabel.add_theme_color_override("font_color", UIKit.INK_RED if deck == 0 else UIKit.INK_SOFT)
 		_deck = deck
 	%TrumpSymbol.text = Card.SUIT_SYMBOLS[trump_suit]
-	%TrumpSymbol.add_theme_color_override("font_color", UIKit.SUIT_COLORS[trump_suit])
+	%TrumpSymbol.add_theme_color_override("font_color", UIKit.INK_RED if trump_suit <= 1 else UIKit.INK)
 	%TrumpName.text = Card.SUIT_NAMES[trump_suit]
 
 
@@ -193,23 +198,18 @@ func set_relics(relics: Array) -> void:
 	for c in %Relics.get_children():
 		c.queue_free()
 	for r: RelicData in relics:
-		var chip := PanelContainer.new()
-		var st := UIKit.tile(UIKit.LILAC, 7)
-		st.content_margin_left = 6
-		st.content_margin_right = 6
-		chip.add_theme_stylebox_override("panel", st)
-		chip.tooltip_text = "%s – %s" % [r.display_name, r.description]
-		chip.mouse_filter = Control.MOUSE_FILTER_PASS
-		var l := UIKit.label(RELIC_SYMBOLS.get(r.id, r.display_name.left(1)), 15, UIKit.CREAM)
-		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		l.custom_minimum_size = Vector2(16, 0)
-		chip.add_child(l)
-		%Relics.add_child(chip)
+		var l := Label.new()
+		l.theme_type_variation = &"InkLabel"
+		l.add_theme_font_size_override("font_size", 18)
+		l.text = RELIC_SYMBOLS.get(r.id, r.display_name.left(1))
+		l.tooltip_text = "%s – %s" % [r.display_name, r.description]
+		l.mouse_filter = Control.MOUSE_FILTER_PASS
+		%Relics.add_child(l)
 
 
 func set_score(total: int, target: int, chips: int, mult: int, sub_text: String) -> void:
 	_target = maxi(1, target)
-	%TargetLabel.text = "ZIEL %d" % target
+	%TargetLabel.text = "Ziel %d" % target
 	if total != _score:
 		var from := _shown_score
 		_score = total
@@ -230,7 +230,7 @@ func set_score(total: int, target: int, chips: int, mult: int, sub_text: String)
 	%MultLabel.text = str(mult)
 	%BoutLabel.text = sub_text
 	if total >= target:
-		%ScoreLabel.add_theme_color_override("font_color", COLOR_GOLD)
+		%ScoreLabel.add_theme_color_override("font_color", UIKit.INK_RED)
 
 
 ## Eine Runde wurde gewertet: Punkte fliegen von Chips × Mult zur Punktzahl.
@@ -241,9 +241,9 @@ func bout_scored(points: int, text: String) -> void:
 	var big := text.begins_with("Volltreffer") or text.begins_with("Durak")
 	var start: Vector2 = %ChipsBox.get_global_rect().get_center().lerp(%MultBox.get_global_rect().get_center(), 0.5)
 	var end_pos: Vector2 = %ScoreLabel.get_global_rect().get_center()
-	var label := UIKit.label("+%d" % points, 56 if big else 40, COLOR_GOLD, &"BrushLabel")
-	label.add_theme_color_override("font_outline_color", Color(0.12, 0.06, 0.25))
-	label.add_theme_constant_override("outline_size", 12)
+	var label := UIKit.label("+%d" % points, 56 if big else 42, Color(1, 0.86, 0.55), &"BrushLabel")
+	label.add_theme_color_override("font_outline_color", Color(0.08, 0.05, 0.08))
+	label.add_theme_constant_override("outline_size", 10)
 	%FloatLayer.add_child(label)
 	label.reset_size()
 	label.pivot_offset = label.size * 0.5
@@ -267,17 +267,8 @@ func bout_scored(points: int, text: String) -> void:
 func toast(text: String, color: Color = COLOR_TEXT) -> void:
 	var pill := PanelContainer.new()
 	pill.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var st := StyleBoxFlat.new()
-	st.bg_color = Color(0.04, 0.03, 0.08, 0.7)
-	st.set_corner_radius_all(8)
-	st.content_margin_left = 12
-	st.content_margin_right = 12
-	st.content_margin_top = 4
-	st.content_margin_bottom = 5
-	st.border_width_left = 3
-	st.border_color = Color(color, 0.8)
-	pill.add_theme_stylebox_override("panel", st)
-	var label := UIKit.label(text, 14, color)
+	pill.add_theme_stylebox_override("panel", UIKit.dark(Vector4(12, 5, 12, 6)))
+	var label := UIKit.label(text, 14, color, &"TypeLabel")
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	label.custom_minimum_size.x = _text_width(label, text, 320)
 	pill.add_child(label)
@@ -333,13 +324,16 @@ func ask_choice(title: String, options: Array[String], callback: Callable) -> vo
 	close_choice()
 	var panel := PanelContainer.new()
 	_choice = panel
-	panel.add_theme_stylebox_override("panel", UIKit.glass(12, Vector4(14, 12, 14, 12), 0.94))
+	panel.add_theme_stylebox_override("panel", UIKit.paper(Vector4(18, 16, 18, 16), true))
 	%Actions.add_child(panel)
 	%Actions.move_child(panel, 0)
 	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 10)
+	box.add_theme_constant_override("separation", 8)
 	panel.add_child(box)
-	var label := UIKit.label(title, 15, COLOR_GOLD)
+	var label := Label.new()
+	label.theme_type_variation = &"InkLabel"
+	label.add_theme_font_size_override("font_size", 16)
+	label.text = title
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(label)
@@ -347,7 +341,7 @@ func ask_choice(title: String, options: Array[String], callback: Callable) -> vo
 		var b := Button.new()
 		b.text = options[i]
 		b.focus_mode = Control.FOCUS_NONE
-		b.custom_minimum_size = Vector2(0, 46)
+		b.custom_minimum_size = Vector2(0, 50)
 		if i == options.size() - 1:
 			b.theme_type_variation = &"PrimaryButton"
 		UIKit.hover(b, 1.04)
@@ -359,7 +353,7 @@ func ask_choice(title: String, options: Array[String], callback: Callable) -> vo
 	var cancel := Button.new()
 	cancel.text = "ABBRECHEN"
 	cancel.focus_mode = Control.FOCUS_NONE
-	cancel.custom_minimum_size = Vector2(0, 36)
+	cancel.custom_minimum_size = Vector2(0, 42)
 	cancel.add_theme_font_size_override("font_size", 13)
 	cancel.pressed.connect(close_choice)
 	box.add_child(cancel)
@@ -378,7 +372,11 @@ func show_result(won: bool, title: String, text: String, score_text: String) -> 
 	_glow_target = 0.0
 	%ResultHeader.text = "DUELL GEWONNEN" if won else "DUELL VERLOREN"
 	%ResultTitle.text = title
-	%ResultTitle.add_theme_color_override("font_color", COLOR_GOLD if won else Color(1, 0.5, 0.5))
+	var ink := UIKit.INK_BLUE if won else UIKit.INK_RED
+	%ResultTitle.add_theme_color_override("font_color", ink)
+	var st := (%StampBox2.get_theme_stylebox("panel") as StyleBoxTexture).duplicate() as StyleBoxTexture
+	st.modulate_color = ink
+	%StampBox2.add_theme_stylebox_override("panel", st)
 	%ResultText.text = text
 	%ResultScore.text = score_text
 	%Result.visible = true
@@ -390,7 +388,14 @@ func show_result(won: bool, title: String, text: String, score_text: String) -> 
 	tw.tween_property(%Dim, "modulate:a", 1.0, 0.4)
 	tw.parallel().tween_property(%ResultPanel, "modulate:a", 1.0, 0.3).set_delay(0.15)
 	tw.parallel().tween_property(%ResultPanel, "scale", Vector2.ONE, 0.5).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT).set_delay(0.15)
-	tw.tween_callback(func() -> void: %ContinueButton.grab_focus())
+	tw.tween_callback(func() -> void:
+		%ContinueButton.grab_focus()
+		%StampBox2.pivot_offset = %StampBox2.size * 0.5
+		%StampBox2.rotation_degrees = -4.0
+		%StampBox2.scale = Vector2(1.6, 1.6)
+		var t2 := %StampBox2.create_tween()
+		t2.tween_property(%StampBox2, "scale", Vector2.ONE, 0.18).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+		t2.tween_callback(func() -> void: UIKit.shake(%ResultPanel, 5.0)))
 
 
 func is_result_open() -> bool:
@@ -401,9 +406,10 @@ func is_result_open() -> bool:
 
 ## Breite für ein umbrechendes Label: so breit wie der Text, höchstens max_width.
 func _text_width(label: Label, text: String, max_width: float) -> float:
-	var font := label.get_theme_font("font")
 	var fs := label.get_theme_font_size("font_size")
-	return minf(max_width, font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x + 6)
+	if label.has_theme_font_size_override("font_size"):
+		fs = label.get_theme_font_size("font_size")
+	return minf(max_width, TYPE_FONT.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x + 8)
 
 
 func _show_score(value: float) -> void:
@@ -420,6 +426,19 @@ func _tween_key(node: Node, key: String) -> Tween:
 	var tw := node.create_tween()
 	node.set_meta("_tw_" + key, tw)
 	return tw
+
+
+## Stempel „knallt“ auf den Zettel.
+func _stamp_slam() -> void:
+	var box: Control = %StampBox
+	box.pivot_offset = box.size * 0.5
+	var tw := _tween_key(box, "slam")
+	box.scale = Vector2(1.45, 1.45)
+	box.modulate.a = 0.0
+	box.rotation_degrees = randf_range(-3.5, 1.0)
+	tw.tween_property(box, "modulate:a", 1.0, 0.08)
+	tw.parallel().tween_property(box, "scale", Vector2.ONE, 0.16).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tw.tween_callback(func() -> void: UIKit.shake(%TurnNote, 3.0))
 
 
 func _set_button(b: Button, show: bool) -> void:

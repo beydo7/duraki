@@ -29,8 +29,14 @@ Duraki verbindet das klassische Durak mit Roguelike-Elementen: Du kämpfst dich 
 - **Echtes Kartenblatt:** Symbole nach Rang, Bildkarten mit Figuren, Glaskarten.
 - **Shop nach jedem Sieg:** Relikte, verbesserte Karten (Gold/Glas/Glück),
   Verbesserungen (Farb-Schliff, Trumpf-Kenner, Pflaster, Sparschwein), Neu mischen, Zinsen.
-- **Einheitliches UI-Design** (Nacht-Lila + Gold, Glas-Panels, Pinsel- + Schreibmaschinenschrift),
-  gemeinsame Bausteine und Animationen in `ui/ui_kit.gd`, weiche Szenenwechsel (`Fade`).
+- **Stil „Papier & Tinte“:** HUD und Menüs bestehen aus Zetteln mit gerissenen Kanten, Stempeln,
+  Notizblock und Pokerchips. Schriften: Ruslan Display (Titel), Old Standard (Text), Special Elite
+  (Schreibmaschine) – alle unter freien Lizenzen in `assets/fonts/`. UI-Texturen erzeugt
+  `tools/generate_ui.py`, Bausteine/Animationen liegen in `ui/ui_kit.gd`, weiche Szenenwechsel (`Fade`).
+- **Kartenblatt** im Holzschnitt-Stil auf gealtertem Papier (`tools/generate_cards.py`).
+- **Decks (Skins mit kleinem Effekt):** 12 Decks mit eigener Rückseite (`data/decks/`). Freischalten,
+  indem man den passenden Gegner besiegt oder mit **Seelen** kauft (gibt es am Run-Ende).
+  Auswahl im Hauptmenü unter „Decks“. Fortschritt in `user://profile.cfg` (Autoload `Profile`).
 - **Hauptmenü in 3D:** Kamera fährt an den Tisch, Menüpunkte liegen als Karten auf dem Filz.
 - **Duell-HUD (Hybrid):** Gegner-Plakette mit Sprechblase, Zug-Anzeige oben, Punkte (Chips × Mult),
   Trumpf/Stapel/Angriff, „Schieben möglich“, Relikte, Tastenkürzel (Leertaste = Bito/Fertig, E = Nehmen).
@@ -78,6 +84,7 @@ scripts/
   autoload/    run_state.gd → globales "Run" (Run-Zustand, Szenenwechsel)
                settings.gd → globales "Settings" (Optionen laden/speichern/anwenden)
                pause_menu.gd → globales "Pause" (Esc-Menü im Spiel)
+               profile.gd → globales "Profile" (Seelen, Decks, Statistik – bleibt über Runs erhalten)
   core/score_tracker.gd   Punktewertung (Chips × Mult, Kartenverbesserungen)
 scenes/
   menu/        Hauptmenü

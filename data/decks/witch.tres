@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="DeckData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/deck_data.gd" id="1_deck"]
+[ext_resource type="Texture2D" path="res://assets/cards/backs/witch.png" id="2_back"]
+
+[resource]
+script = ExtResource("1_deck")
+id = &"witch"
+display_name = "Hexen-Deck"
+effect_text = "2 zufällige Glaskarten im Stapel."
+back = ExtResource("2_back")
+sort_order = 7
+unlock_opponent = &"witch"
+start_glass_cards = 2

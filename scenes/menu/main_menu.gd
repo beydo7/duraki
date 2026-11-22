@@ -27,14 +27,16 @@ func _ready() -> void:
 	# Menükarten fächerförmig auf dem Tisch
 	var specs := [
 		["SPIELEN", "Neuer Run", "♠", Color("1b1426"), _start_run],
-		["OPTIONEN", "Bild · Ton · Spiel", "♦", Color("a3221c"), _open_options],
+		["DECKS", "Karten wählen", "♥", Color("92201b"), _open_decks],
+		["OPTIONEN", "Bild · Ton · Spiel", "♦", Color("92201b"), _open_options],
 		["BEENDEN", "Aufstehen und gehen", "♣", Color("1b1426"), _quit],
 	]
 	for i in specs.size():
 		var s: Array = specs[i]
 		var card := MenuCard3D.new().setup(s[0], s[1], s[2], s[3])
-		var x := (i - 1) * 0.215
-		card.transform = Transform3D(Basis.from_euler(Vector3(0, -(i - 1) * 0.1, 0)), Vector3(x, TableWorld.TABLE_Y + 0.002, CARD_Z + absf(i - 1) * 0.025))
+		var f := i - 1.5
+		var x := f * 0.19
+		card.transform = Transform3D(Basis.from_euler(Vector3(0, -f * 0.09, 0)), Vector3(x, TableWorld.TABLE_Y + 0.002, CARD_Z + absf(f) * 0.03))
 		world.add_child(card)
 		card.chosen.connect(s[4])
 		card.hovered_changed.connect(func(c: MenuCard3D, on: bool) -> void:
@@ -42,7 +44,9 @@ func _ready() -> void:
 				_focus(_cards.find(c)))
 		_cards.append(card)
 
-	_buttons = [%PlayButton, %OptionsButton, %QuitButton]
+	_buttons = [%PlayButton, %DecksButton, %OptionsButton, %QuitButton]
+	_update_info()
+	Profile.changed.connect(_update_info)
 	for i in _buttons.size():
 		var b: Button = _buttons[i]
 		UIKit.hover(b, 1.04)
@@ -89,6 +93,17 @@ func _start_run() -> void:
 	tw.tween_method(func(v: float) -> void: world.set_camera_pose(from.interpolate_with(to, v)),
 		0.0, 1.0, 0.7).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
 	tw.tween_callback(func() -> void: Run.start_new_run())
+
+
+func _update_info() -> void:
+	var d := Profile.selected_deck()
+	%Hint.text = "Deck: %s   ·   %d Seelen" % [d.display_name if d else "–", Profile.souls]
+
+
+func _open_decks() -> void:
+	var menu := DeckMenu.new()
+	add_child(menu)
+	menu.closed.connect(func() -> void: %DecksButton.grab_focus())
 
 
 func _open_options() -> void:

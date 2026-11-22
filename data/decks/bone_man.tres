@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="DeckData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/deck_data.gd" id="1_deck"]
+[ext_resource type="Texture2D" path="res://assets/cards/backs/bone_man.png" id="2_back"]
+
+[resource]
+script = ExtResource("1_deck")
+id = &"bone_man"
+display_name = "Knochen-Deck"
+effect_text = "+1 Leben (eine Kerze mehr)."
+back = ExtResource("2_back")
+sort_order = 6
+unlock_opponent = &"bone_man"
+extra_lives = 1

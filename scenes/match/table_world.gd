@@ -415,7 +415,7 @@ func _build_lights() -> void:
 	add_child(field)
 	field.look_at(Vector3(0, TABLE_Y, TABLE_ROW_Z + 0.02))
 	field.light_color = Color("fff1d8")
-	field.light_energy = 1.6
+	field.light_energy = 1.15
 	field.spot_range = 2.0
 	field.spot_angle = 24.0
 	field.spot_angle_attenuation = 0.6

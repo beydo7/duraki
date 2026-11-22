@@ -12,7 +12,7 @@ const THICKNESS := 0.0025
 
 const COLOR_FACE := Color("e9e1cc")
 const COLOR_EDGE := Color("b9ad92")
-const COLOR_TRUMP := Color("9b7ff0")
+const COLOR_TRUMP := Color("c9953f")
 const COLOR_BACK := Color("3b2a6e")
 const COLOR_BACK_BORDER := Color("e9dcc0")
 const COLOR_RED := Color("a3221c")
@@ -44,7 +44,8 @@ static func face_texture(c: Card, glass := false) -> Texture2D:
 
 
 static func back_texture() -> Texture2D:
-	return _texture("back")
+	var deck_back: Texture2D = Run.deck_back() if Run != null else null
+	return deck_back if deck_back != null else _texture("back")
 
 
 static func _texture(name: String) -> Texture2D:

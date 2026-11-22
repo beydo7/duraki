@@ -1,6 +1,7 @@
 [gd_scene format=3]
 
 [ext_resource type="Script" path="res://scenes/run/shop.gd" id="1_shop"]
+[ext_resource type="Texture2D" path="res://assets/ui/chip_gold.png" id="2_chip"]
 
 [node name="Shop" type="Control"]
 layout_mode = 3
@@ -57,23 +58,24 @@ layout_mode = 2
 theme_override_constants/separation = 10
 alignment = 1
 
-[node name="Coin" type="Label" parent="GoldBox/Row"]
+[node name="Coin" type="TextureRect" parent="GoldBox/Row"]
+custom_minimum_size = Vector2(40, 40)
 layout_mode = 2
-theme_override_colors/font_color = Color(1, 0.82, 0.4, 1)
-theme_override_font_sizes/font_size = 30
-text = "●"
+size_flags_vertical = 4
+texture = ExtResource("2_chip")
+expand_mode = 1
 
 [node name="GoldLabel" type="Label" parent="GoldBox/Row"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_type_variation = &"BrushLabel"
+theme_type_variation = &"InkTitle"
 theme_override_font_sizes/font_size = 38
 text = "14"
 
 [node name="GoldCaption" type="Label" parent="GoldBox/Row"]
 layout_mode = 2
 size_flags_vertical = 8
-theme_type_variation = &"HeaderLabel"
+theme_type_variation = &"InkHeader"
 theme_override_font_sizes/font_size = 12
 text = "GOLD"
 

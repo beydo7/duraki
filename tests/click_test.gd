@@ -3,6 +3,7 @@ extends Node
 ##   xvfb-run godot --path . --rendering-driver opengl3 res://tests/click_test.tscn
 
 func _ready() -> void:
+	Profile.reset_for_tests()
 	_run.call_deferred()
 
 

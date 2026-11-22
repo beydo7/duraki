@@ -7,8 +7,8 @@ extends Control
 signal closed
 
 const SECTIONS := [["GRAFIK", "graphics"], ["AUDIO", "audio"], ["ALLGEMEIN", "general"]]
-const COLOR_GOLD := Color(1, 0.82, 0.4)
-const COLOR_MUTED := Color(0.7, 0.64, 0.9)
+const COLOR_GOLD := UIKit.INK_RED
+const COLOR_MUTED := UIKit.INK_SOFT
 const LABEL_WIDTH := 300.0
 
 var _page: VBoxContainer
@@ -43,8 +43,8 @@ func _ready() -> void:
 
 	var title := Label.new()
 	title.text = "OPTIONEN"
-	title.theme_type_variation = &"BrushLabel"
-	title.add_theme_font_size_override("font_size", 44)
+	title.theme_type_variation = &"InkTitle"
+	title.add_theme_font_size_override("font_size", 40)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(title)
 
@@ -197,8 +197,7 @@ func _build_general() -> void:
 func _heading(text: String) -> void:
 	var l := Label.new()
 	l.text = text.to_upper()
-	l.theme_type_variation = &"HeaderLabel"
-	l.add_theme_color_override("font_color", COLOR_MUTED)
+	l.theme_type_variation = &"InkHeader"
 	if _page.get_child_count() > 0:
 		var gap := Control.new()
 		gap.custom_minimum_size = Vector2(0, 6)
@@ -210,8 +209,8 @@ func _note(text: String) -> void:
 	var l := Label.new()
 	l.text = text
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	l.theme_type_variation = &"InkType"
 	l.add_theme_font_size_override("font_size", 14)
-	l.add_theme_color_override("font_color", COLOR_MUTED)
 	_page.add_child(l)
 
 
@@ -221,6 +220,7 @@ func _row(text: String, control: Control) -> void:
 	var l := Label.new()
 	l.text = text
 	l.custom_minimum_size = Vector2(LABEL_WIDTH, 0)
+	l.theme_type_variation = &"InkLabel"
 	l.add_theme_font_size_override("font_size", 17)
 	row.add_child(l)
 	control.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -233,7 +233,6 @@ func _option(text: String, key: String, names: Array) -> OptionButton:
 	opt.custom_minimum_size = Vector2(0, 40)
 	for n in names:
 		opt.add_item(str(n))
-	opt.get_popup().add_theme_stylebox_override("panel", _panel_style(8))
 	opt.get_popup().add_theme_font_size_override("font_size", 16)
 	if not key.is_empty():
 		opt.select(clampi(int(Settings.get_value(key)), 0, names.size() - 1))
@@ -272,6 +271,7 @@ func _slider(text: String, key: String, lo: float, hi: float, step: float, fmt: 
 	var val := Label.new()
 	val.custom_minimum_size = Vector2(64, 0)
 	val.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	val.theme_type_variation = &"InkLabel"
 	val.add_theme_color_override("font_color", COLOR_GOLD)
 	val.text = fmt.call(s.value)
 	s.value_changed.connect(func(v: float) -> void:
@@ -295,20 +295,18 @@ func _update_resolution_enabled() -> void:
 
 # --- Stil -----------------------------------------------------------------------
 
-func _panel_style(margin := 30) -> StyleBoxFlat:
-	var st := UIKit.glass(16, Vector4(margin, margin, margin, margin), 0.96)
-	st.border_color = Color(0.6, 0.5, 1.0, 0.4)
-	return st
+func _panel_style(margin := 30) -> StyleBox:
+	return UIKit.paper(Vector4(margin + 6, margin, margin + 6, margin), true)
 
 
 func _style_slider(s: HSlider) -> void:
 	var track := StyleBoxFlat.new()
-	track.bg_color = Color(0.16, 0.12, 0.28)
+	track.bg_color = Color(0.12, 0.094, 0.12, 0.18)
 	track.set_corner_radius_all(4)
 	track.content_margin_top = 4
 	track.content_margin_bottom = 4
 	var fill := track.duplicate() as StyleBoxFlat
-	fill.bg_color = UIKit.GOLD
+	fill.bg_color = UIKit.INK_RED
 	s.add_theme_stylebox_override("slider", track)
 	s.add_theme_stylebox_override("grabber_area", fill)
 	s.add_theme_stylebox_override("grabber_area_highlight", fill)

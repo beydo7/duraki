@@ -8,6 +8,7 @@ var _bot := SimpleAI.new(RandomNumberGenerator.new(), 0.0)
 
 
 func _ready() -> void:
+	Profile.reset_for_tests()
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("out="):
 			out_dir = arg.substr(4)
@@ -71,6 +72,12 @@ func _detach() -> void:
 		scene._ai_pending = true # Gegner wartet
 		duel.changed.emit()
 		await get_tree().create_timer(1.5).timeout
+		if "nohud" in args:
+			scene.hud.visible = false
+			await get_tree().create_timer(0.3).timeout
+			await _shot("nohud")
+			get_tree().quit()
+			return
 		await _shot("transfer_1")
 		scene._on_player_card(mine[0])
 		await get_tree().create_timer(0.8).timeout

@@ -53,9 +53,7 @@ func open() -> void:
 	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_root.add_child(center)
 	var panel := PanelContainer.new()
-	var st := UIKit.glass(16, Vector4(36, 28, 36, 32), 0.96)
-	st.border_color = Color(0.6, 0.5, 1.0, 0.4)
-	panel.add_theme_stylebox_override("panel", st)
+	panel.add_theme_stylebox_override("panel", UIKit.paper(Vector4(40, 30, 40, 34), true))
 	center.add_child(panel)
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 14)
@@ -63,12 +61,14 @@ func open() -> void:
 
 	var title := Label.new()
 	title.text = "PAUSE"
-	title.theme_type_variation = &"BrushLabel"
-	title.add_theme_font_size_override("font_size", 48)
+	title.theme_type_variation = &"InkTitle"
+	title.add_theme_font_size_override("font_size", 46)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(title)
 
-	var sub := UIKit.label("Das Spiel wartet.", 14, UIKit.MUTED)
+	var sub := Label.new()
+	sub.theme_type_variation = &"InkType"
+	sub.text = "Die Karten bleiben liegen."
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(sub)
 	var resume := _button(box, "WEITER")
@@ -76,6 +76,7 @@ func open() -> void:
 	resume.pressed.connect(close)
 	_button(box, "OPTIONEN").pressed.connect(_open_options)
 	var quit := _button(box, "ZUM HAUPTMENÜ")
+	quit.theme_type_variation = &"DangerButton"
 	quit.pressed.connect(func() -> void:
 		if not _confirm:
 			_confirm = true

@@ -30,6 +30,7 @@ func _ready() -> void:
 	UIKit.appear(%Head, 0.05, Vector2(-30, 0), 0.6)
 	UIKit.appear(%GoldBox, 0.15, Vector2(30, 0), 0.6)
 	%ContinueButton.grab_focus()
+	UIKit.show_unlocks.call_deferred(self)
 
 
 func _render(deal := false) -> void:
@@ -53,13 +54,13 @@ func _render(deal := false) -> void:
 
 	for c in %Owned.get_children():
 		c.queue_free()
-	var cap := UIKit.label("DEIN BESITZ", 11, UIKit.MUTED, &"HeaderLabel")
+	var cap := UIKit.label("DEIN BESITZ", 12, UIKit.MUTED, &"HeaderLabel")
 	cap.custom_minimum_size = Vector2(0, 30)
 	cap.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	%Owned.add_child(cap)
 	var owned := _owned_items()
 	if owned.is_empty():
-		%Owned.add_child(UIKit.label("noch nichts", 14, Color(UIKit.MUTED, 0.6)))
+		%Owned.add_child(UIKit.label("noch nichts", 15, Color(UIKit.MUTED, 0.7), &"TypeLabel"))
 	for item: Array in owned:
 		%Owned.add_child(_chip(item[0], item[1]))
 
@@ -113,7 +114,7 @@ func _offer_card(offer: Dictionary) -> Control:
 	btn.add_child(box)
 
 	var kind_l := _label(offer.kind, &"HeaderLabel", 11)
-	kind_l.add_theme_color_override("font_color", Color(0.42, 0.3, 0.78))
+	kind_l.theme_type_variation = &"InkHeader"
 	box.add_child(kind_l)
 	var sym := _label(offer.symbol, &"", 40 if offer.symbol.length() <= 1 else 32)
 	sym.add_theme_color_override("font_color", offer.color)
@@ -131,9 +132,9 @@ func _offer_card(offer: Dictionary) -> Control:
 	price.add_theme_color_override("font_color", Color(0.62, 0.42, 0.05) if affordable else Color(0.65, 0.2, 0.22))
 	box.add_child(price)
 	if sold:
-		var stamp := _label("VERKAUFT", &"BrushLabel", 30)
-		stamp.add_theme_color_override("font_color", Color(0.75, 0.15, 0.2))
-		stamp.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0))
+		var stamp := _label("VERKAUFT", &"InkTitle", 30)
+		stamp.add_theme_color_override("font_color", UIKit.INK_RED)
+		stamp.material = UIKit.stamp_material(0.4)
 		stamp.rotation = -0.35
 		stamp.position = Vector2(14, 110)
 		btn.add_child(stamp)
@@ -142,9 +143,13 @@ func _offer_card(offer: Dictionary) -> Control:
 
 func _chip(text: String, tip: String) -> Control:
 	var p := PanelContainer.new()
-	p.add_theme_stylebox_override("panel", UIKit.glass(14, Vector4(12, 5, 12, 5), 0.82))
+	p.add_theme_stylebox_override("panel", UIKit.paper(Vector4(14, 8, 16, 8)))
 	p.tooltip_text = tip
-	p.add_child(UIKit.label(text, 14, UIKit.CREAM))
+	var l := Label.new()
+	l.theme_type_variation = &"InkLabel"
+	l.add_theme_font_size_override("font_size", 15)
+	l.text = text
+	p.add_child(l)
 	return p
 
 

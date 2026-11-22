@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="DeckData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/deck_data.gd" id="1_deck"]
+[ext_resource type="Texture2D" path="res://assets/cards/backs/kaufmann.png" id="2_back"]
+
+[resource]
+script = ExtResource("1_deck")
+id = &"kaufmann"
+display_name = "Kaufmanns-Deck"
+effect_text = "Zinsen bis +2 höher."
+back = ExtResource("2_back")
+sort_order = 10
+price_souls = 25
+interest_max_bonus = 2

@@ -44,6 +44,11 @@ var trump_mult_bonus := 0
 var extra_hand := 0
 var interest_max_bonus := 0
 
+## Deck dieses Runs (Skin + Effekt, siehe DeckData / Profile)
+var deck: DeckData
+## Seelen, die am Ende dieses Runs gutgeschrieben wurden
+var last_souls := 0
+
 ## Aktuelle Shop-Auslage (siehe make_shop_offers) und Preis fürs Neu-Mischen.
 var shop_offers: Array[Dictionary] = []
 var reroll_price := REROLL_BASE_PRICE
@@ -63,9 +68,48 @@ func start_new_run(p_seed := 0) -> void:
 	extra_hand = 0
 	interest_max_bonus = 0
 	shop_offers.clear()
+	last_souls = 0
 	encounters = _build_encounters()
+	_apply_deck(Profile.selected_deck())
 	changed.emit()
 	goto(SCENE_MAP)
+
+
+## Effekte des gewählten Decks auf den neuen Run anwenden.
+func _apply_deck(d: DeckData) -> void:
+	deck = d
+	if d == null:
+		return
+	gold += d.start_gold
+	lives += d.extra_lives
+	extra_hand += d.extra_hand
+	trump_mult_bonus += d.trump_mult_bonus
+	interest_max_bonus += d.interest_max_bonus
+	if d.suit_bonus_suit >= 0 and d.suit_bonus_chips > 0:
+		suit_chip_bonus[d.suit_bonus_suit] = int(suit_chip_bonus.get(d.suit_bonus_suit, 0)) + d.suit_bonus_chips
+	for pair in [[d.start_gold_cards, Card.Enhancement.GOLD], [d.start_glass_cards, Card.Enhancement.GLASS],
+			[d.start_lucky_cards, Card.Enhancement.LUCKY]]:
+		for i in int(pair[0]):
+			for attempt in 30:
+				var key := "%d:%d" % [rng.randi_range(0, 3), rng.randi_range(Card.MIN_RANK, Card.MAX_RANK)]
+				if not card_enhancements.has(key):
+					card_enhancements[key] = pair[1]
+					break
+
+
+func deck_name() -> String:
+	return deck.display_name if deck != null else "Hinterzimmer"
+
+
+func deck_description() -> String:
+	if deck == null or deck.effect_text.is_empty():
+		return "Keine Besonderheiten."
+	return deck.effect_text
+
+
+## Rückseite der Karten in diesem Run.
+func deck_back() -> Texture2D:
+	return deck.back if deck != null and deck.back != null else null
 
 
 func current_opponent() -> OpponentData:
@@ -93,9 +137,9 @@ func score_target(floor_i := floor_index) -> int:
 	return int(SCORE_TARGETS[-1] * pow(SCORE_TARGET_GROWTH, extra))
 
 
-## Start-Mult pro Runde (1 + Boni aus Relikten).
+## Start-Mult pro Runde (1 + Boni aus Relikten und Deck).
 func base_mult() -> int:
-	var m := 1
+	var m := 1 + (deck.bonus_mult if deck != null else 0)
 	for r in relics:
 		m += r.bonus_mult
 	return m
@@ -107,6 +151,7 @@ func on_match_finished(loser: int) -> void:
 	match loser:
 		DurakMatch.OPPONENT:
 			var opponent := current_opponent()
+			Profile.on_opponent_defeated(opponent)
 			last_gold_reward = opponent.gold_reward
 			for r in relics:
 				last_gold_reward += r.bonus_gold_per_win
@@ -244,8 +289,14 @@ func goto(scene_path: String) -> void:
 	Fade.change_scene(scene_path)
 
 
+## Run vorzeitig beenden (zählt als verloren, Seelen für besiegte Tische gibt es trotzdem).
+func abandon() -> void:
+	_end_run(false)
+
+
 func _end_run(won: bool) -> void:
 	won_run = won
+	last_souls = Profile.on_run_finished(won, mini(floor_index, encounters.size()))
 	changed.emit()
 	goto(SCENE_RUN_END)
 

@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="DeckData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/deck_data.gd" id="1_deck"]
+[ext_resource type="Texture2D" path="res://assets/cards/backs/bandit.png" id="2_back"]
+
+[resource]
+script = ExtResource("1_deck")
+id = &"bandit"
+display_name = "Banditen-Deck"
+effect_text = "Start mit +6 Gold."
+back = ExtResource("2_back")
+sort_order = 1
+unlock_opponent = &"bandit"
+start_gold = 6

@@ -38,7 +38,7 @@ func _ready() -> void:
 			confirm[0] = true
 			%AbandonButton.text = "WIRKLICH AUFGEBEN?"
 			return
-		Run.goto(Run.SCENE_MENU))
+		Run.abandon())
 	UIKit.hover(%FightButton, 1.04)
 	UIKit.hover(%AbandonButton, 1.03)
 	_render(next)
@@ -46,6 +46,7 @@ func _ready() -> void:
 	UIKit.appear(%NextPanel, 0.35, Vector2(30, 0), 0.6)
 	UIKit.appear(%RunInfo, 0.5, Vector2(0, -10), 0.5)
 	%FightButton.grab_focus()
+	UIKit.show_unlocks.call_deferred(self)
 
 
 func _render(next: OpponentData) -> void:
@@ -55,23 +56,24 @@ func _render(next: OpponentData) -> void:
 		%Stops.add_child(_stop(i))
 
 	%NextCaption.text = "DER BOSS WARTET" if next.is_boss else "ALS NÄCHSTES AM TISCH"
-	%NextCaption.add_theme_color_override("font_color", UIKit.RED if next.is_boss else UIKit.MUTED)
+
 	%NextName.text = next.display_name
 	%NextTaunt.text = "„%s“" % next.taunt if not next.taunt.is_empty() else ""
 	for c in %NextFacts.get_children():
 		c.queue_free()
-	%NextFacts.add_child(_chip("ZIEL %d" % Run.score_target(), UIKit.GOLD, "So viele Punkte brauchst du an diesem Tisch."))
-	%NextFacts.add_child(_chip("%d KARTEN" % next.hand_size, UIKit.CREAM, "Handkarten des Gegners."))
-	%NextFacts.add_child(_chip("+%d GOLD" % next.gold_reward, UIKit.GOLD, "Belohnung bei Sieg (plus Zinsen)."))
+	%NextFacts.add_child(_fact("Ziel %d" % Run.score_target(), UIKit.INK_RED, "So viele Punkte brauchst du an diesem Tisch."))
+	%NextFacts.add_child(_fact("· %d Karten" % next.hand_size, UIKit.INK_SOFT, "Handkarten des Gegners."))
+	%NextFacts.add_child(_fact("· +%d Gold" % next.gold_reward, UIKit.INK_SOFT, "Belohnung bei Sieg (plus Zinsen)."))
 	%FightButton.text = "AN DEN TISCH SETZEN"
 
 	for c in %RunInfo.get_children():
 		c.queue_free()
-	%RunInfo.add_child(_chip("♥".repeat(Run.lives) if Run.lives <= 6 else "♥ %d" % Run.lives, UIKit.RED, "Leben"))
-	%RunInfo.add_child(_chip("● %d" % Run.gold, UIKit.GOLD, "Gold"))
-	%RunInfo.add_child(_chip("HAND %d" % Run.player_hand_size(), UIKit.CREAM, "Deine Handkarten"))
+	%RunInfo.add_child(_chip("♥".repeat(Run.lives) if Run.lives <= 6 else "♥ %d" % Run.lives, UIKit.INK_RED, "Leben"))
+	%RunInfo.add_child(_chip("%d Gold" % Run.gold, UIKit.INK, "Gold"))
+	%RunInfo.add_child(_chip("Hand %d" % Run.player_hand_size(), UIKit.INK, "Deine Handkarten"))
+	%RunInfo.add_child(_chip("Deck: %s" % Run.deck_name(), UIKit.INK, Run.deck_description()))
 	for r in Run.relics:
-		%RunInfo.add_child(_chip(MatchHUD.RELIC_SYMBOLS.get(r.id, r.display_name.left(1)), UIKit.LILAC,
+		%RunInfo.add_child(_chip(MatchHUD.RELIC_SYMBOLS.get(r.id, r.display_name.left(1)), UIKit.INK,
 			"%s – %s" % [r.display_name, r.description]))
 
 
@@ -98,14 +100,14 @@ func _stop(i: int) -> Control:
 	info.alignment = BoxContainer.ALIGNMENT_CENTER
 	info.add_theme_constant_override("separation", 0)
 	row.add_child(info)
-	var step := UIKit.label("BOSS" if o.is_boss else "TISCH %d" % (i + 1), 11,
-		UIKit.RED if o.is_boss else UIKit.MUTED, &"HeaderLabel")
+	var step := UIKit.label("BOSS" if o.is_boss else "TISCH %d" % (i + 1), 12,
+		Color(1, 0.5, 0.45) if o.is_boss else UIKit.MUTED, &"HeaderLabel")
 	info.add_child(step)
 	var name_l := UIKit.label(o.display_name, 26 if current else 21,
 		UIKit.CREAM if not done else Color(UIKit.MUTED, 0.6), &"BrushLabel")
 	info.add_child(name_l)
 	var status := UIKit.label("✓ besiegt" if done else ("%d Punkte" % Run.score_target(i)), 14,
-		Color(UIKit.MUTED, 0.6) if done else (UIKit.GOLD if current else UIKit.MUTED))
+		Color(UIKit.MUTED, 0.6) if done else (Color(1, 0.84, 0.55) if current else UIKit.MUTED), &"TypeLabel")
 	info.add_child(status)
 	if current:
 		UIKit.pulse(track, 0.75, 1.8)
@@ -114,13 +116,26 @@ func _stop(i: int) -> Control:
 
 func _chip(text: String, color: Color, tip: String) -> Control:
 	var p := PanelContainer.new()
-	var st := UIKit.glass(18, Vector4(14, 6, 14, 6), 0.82)
-	st.border_color = Color(color, 0.45)
-	p.add_theme_stylebox_override("panel", st)
+	p.add_theme_stylebox_override("panel", UIKit.paper(Vector4(14, 8, 16, 8)))
 	p.tooltip_text = tip
-	var l := UIKit.label(text, 15, color, &"HeaderLabel")
+	var l := Label.new()
+	l.theme_type_variation = &"InkLabel"
+	l.add_theme_font_size_override("font_size", 16)
+	l.add_theme_color_override("font_color", color)
+	l.text = text
 	p.add_child(l)
 	return p
+
+
+func _fact(text: String, color: Color, tip: String) -> Control:
+	var l := Label.new()
+	l.theme_type_variation = &"InkType"
+	l.add_theme_font_size_override("font_size", 16)
+	l.add_theme_color_override("font_color", color)
+	l.text = text
+	l.tooltip_text = tip
+	l.mouse_filter = Control.MOUSE_FILTER_PASS
+	return l
 
 
 func _side_shade() -> GradientTexture2D:
@@ -135,6 +150,7 @@ func _side_shade() -> GradientTexture2D:
 
 ## Pfadstück mit Porträt-Kreis.
 class _Track extends Control:
+	const SYM := preload("res://assets/fonts/DejaVuSans-Bold.ttf")
 	var first := false
 	var last := false
 	var done := false
@@ -145,21 +161,21 @@ class _Track extends Control:
 	func _draw() -> void:
 		var c := Vector2(size.x * 0.5, size.y * 0.5)
 		var r := 28.0 if current else 24.0
-		var line := Color(1, 0.82, 0.4, 0.7) if done else Color(0.6, 0.5, 1.0, 0.35)
+		var line := Color(1, 0.84, 0.55, 0.7) if done else Color(0.75, 0.7, 0.66, 0.35)
 		if not first:
 			_dashed(Vector2(c.x, 0), Vector2(c.x, c.y - r - 4), line)
 		if not last:
-			_dashed(Vector2(c.x, c.y + r + 4), Vector2(c.x, size.y), Color(0.6, 0.5, 1.0, 0.35))
-		var ring := UIKit.GOLD if current else (UIKit.RED if boss else Color(0.6, 0.5, 1.0, 0.6))
+			_dashed(Vector2(c.x, c.y + r + 4), Vector2(c.x, size.y), Color(0.75, 0.7, 0.66, 0.35))
+		var ring := Color(1, 0.84, 0.55) if current else (Color(1, 0.45, 0.4) if boss else Color(0.75, 0.7, 0.66, 0.6))
 		if done:
-			ring = Color(1, 0.82, 0.4, 0.5)
+			ring = Color(1, 0.84, 0.55, 0.5)
 		draw_circle(c, r + 3, Color(0.04, 0.03, 0.08, 0.95))
 		if portrait != null:
 			draw_texture_rect(portrait, Rect2(c - Vector2(r, r), Vector2(r, r) * 2), false,
 				Color(0.5, 0.5, 0.55) if done else Color.WHITE)
 		draw_arc(c, r + 2, 0, TAU, 48, ring, 2.5 if current else 1.5, true)
 		if done:
-			draw_string(UIKit.BRUSH, c + Vector2(-9, 9), "✓", HORIZONTAL_ALIGNMENT_LEFT, -1, 26, UIKit.GOLD)
+			draw_string(SYM, c + Vector2(-9, 9), "✓", HORIZONTAL_ALIGNMENT_LEFT, -1, 26, Color(1, 0.84, 0.55))
 
 	func _dashed(a: Vector2, b: Vector2, col: Color) -> void:
 		var len := a.distance_to(b)

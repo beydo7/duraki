@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="DeckData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/deck_data.gd" id="1_deck"]
+[ext_resource type="Texture2D" path="res://assets/cards/backs/crow.png" id="2_back"]
+
+[resource]
+script = ExtResource("1_deck")
+id = &"crow"
+display_name = "Krähen-Deck"
+effect_text = "Pik-Karten bringen +3 Chips."
+back = ExtResource("2_back")
+sort_order = 3
+unlock_opponent = &"crow"
+suit_bonus_suit = 3
+suit_bonus_chips = 3

@@ -11,6 +11,7 @@ var _cooldown := 0
 
 
 func _ready() -> void:
+	Profile.reset_for_tests()
 	Engine.time_scale = 20.0
 	# Damit der Szenenwechsel diesen Node nicht mit entlädt:
 	_detach.call_deferred()

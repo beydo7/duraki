@@ -9,9 +9,9 @@ signal hovered_changed(card: MenuCard3D, hovered: bool)
 const W := 0.17
 const H := 0.238
 const T := 0.003
-const BRUSH := preload("res://assets/fonts/PermanentMarker-Regular.ttf")
+const BRUSH := preload("res://assets/fonts/RuslanDisplay-Regular.ttf")
 const SYM := preload("res://assets/fonts/DejaVuSans-Bold.ttf")
-const MONO := preload("res://assets/fonts/CourierPrime-Bold.ttf")
+const MONO := preload("res://assets/fonts/SpecialElite-Regular.ttf")
 const INK := Color("1b1426")
 
 var title := "SPIELEN"
@@ -89,7 +89,7 @@ func _ready() -> void:
 	_body.add_child(inner2)
 
 	_text(symbol, SYM, 260, symbol_color, Vector3(0, 0, -0.03), 0.00028)
-	_text(title, BRUSH, 120, INK, Vector3(0, 0, 0.055), 0.00026)
+	_text(title, BRUSH, 100, INK, Vector3(0, 0, 0.055), 0.00026)
 	if not subtitle.is_empty():
 		_text(subtitle, MONO, 52, Color(INK, 0.7), Vector3(0, 0, 0.088), 0.00022)
 	_text(symbol, SYM, 70, symbol_color, Vector3(-W * 0.5 + 0.016, 0, -H * 0.5 + 0.02), 0.00024)
