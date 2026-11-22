@@ -1027,7 +1027,7 @@ CHARACTERS = {
     "bandit": _hd("hd_bandit"),
     "swamp_man": _hd("hd_swamp_man"),
     "crow": _hd("hd_crow"),
-    "wolf": wolf,
+    "wolf": _hd("hd_wolf"),
     "jester": jester,
     "bone_man": bone_man,
     "witch": witch,

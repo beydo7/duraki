@@ -2,19 +2,20 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://c6uje76t351oc"
-path="res://.godot/imported/wolf_skin_pale_color.png-6cce3994cb0e1d567947fa2a2a1c7e01.ctex"
+uid="uid://c7ov7dsggn418"
+path.s3tc="res://.godot/imported/wolf_furskin_normal.png-c25fb999abcb64ff53c0da7089066972.s3tc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
-"md5": "328b3423e9ad7360d9197d3865efe943"
+"md5": "ec372e861f702ceca365b05ea369cf0a"
 }
 
 [deps]
 
-source_file="res://assets/models/opponents/wolf_skin_pale_color.png"
-dest_files=["res://.godot/imported/wolf_skin_pale_color.png-6cce3994cb0e1d567947fa2a2a1c7e01.ctex"]
+source_file="res://assets/models/opponents/wolf_furskin_normal.png"
+dest_files=["res://.godot/imported/wolf_furskin_normal.png-c25fb999abcb64ff53c0da7089066972.s3tc.ctex"]
 
 [params]
 

@@ -14,6 +14,6 @@ gold_reward = 9
 is_boss = false
 model = ExtResource("2_model")
 portrait = ExtResource("3_portrait")
-eye_color = Color(0.75, 1, 0.25, 1)
+eye_color = Color(1, 0.62, 0.15, 1)
 figure_scale = 1.05
 mask_color = Color(0.35, 0.45, 0.2, 1)

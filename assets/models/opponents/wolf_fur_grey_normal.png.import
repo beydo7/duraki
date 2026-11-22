@@ -2,14 +2,14 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dle4bvqthx8dx"
+uid="uid://bas63ccj3oks8"
 path.s3tc="res://.godot/imported/wolf_fur_grey_normal.png-285aa33c271c610108107e1c0005809f.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
 }
 generator_parameters={
-"md5": "1b3c651f86c2760cf245fb5048bfa68f"
+"md5": "3f1fe914e0eb1f56ee78be6132d8907b"
 }
 
 [deps]

@@ -2,20 +2,20 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dxkxak11vkagh"
-path.s3tc="res://.godot/imported/wolf_skin_pale_normal.png-f31ea5840a76acccda08d6aedee526d4.s3tc.ctex"
+uid="uid://d47egtstd08i"
+path.s3tc="res://.godot/imported/wolf_face_normal.png-99bc9cd0b7d9e16b66ff5876ccaabff5.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
 }
 generator_parameters={
-"md5": "26a8177612517c218911654e8fb4adc7"
+"md5": "850440fe3c8d0686d7cc18598ee350c5"
 }
 
 [deps]
 
-source_file="res://assets/models/opponents/wolf_skin_pale_normal.png"
-dest_files=["res://.godot/imported/wolf_skin_pale_normal.png-f31ea5840a76acccda08d6aedee526d4.s3tc.ctex"]
+source_file="res://assets/models/opponents/wolf_face_normal.png"
+dest_files=["res://.godot/imported/wolf_face_normal.png-99bc9cd0b7d9e16b66ff5876ccaabff5.s3tc.ctex"]
 
 [params]
 

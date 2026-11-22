@@ -2,20 +2,20 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dawp1iwnn25e0"
-path.s3tc="res://.godot/imported/wolf_cloth_red_color.png-5dd80f4780e13d2ec0482afaac1bef06.s3tc.ctex"
+uid="uid://do6up8ewdnv3h"
+path.s3tc="res://.godot/imported/wolf_fur_blood_normal.png-800f67440d89975626d7649857d8e0fa.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
 }
 generator_parameters={
-"md5": "4f5e577fecec7d2512a262c41b20a8e8"
+"md5": "435df420bfd6f6838d3644a03ef8a59a"
 }
 
 [deps]
 
-source_file="res://assets/models/opponents/wolf_cloth_red_color.png"
-dest_files=["res://.godot/imported/wolf_cloth_red_color.png-5dd80f4780e13d2ec0482afaac1bef06.s3tc.ctex"]
+source_file="res://assets/models/opponents/wolf_fur_blood_normal.png"
+dest_files=["res://.godot/imported/wolf_fur_blood_normal.png-800f67440d89975626d7649857d8e0fa.s3tc.ctex"]
 
 [params]
 

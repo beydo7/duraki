@@ -17,11 +17,16 @@ OUT = os.path.join(REPO, "assets", "portraits")
 
 # Kamera-Abstand/Brennweite je Charakter (Hüte und Hörner brauchen mehr Platz)
 # Augenfarben wie in data/opponents/*.tres
-EYE_COLORS = {"bandit": (0.95, 0.92, 0.8), "swamp_man": (0.75, 1.0, 0.25), "crow": (1.0, 0.62, 0.15),
+EYE_COLORS = {"bandit": (0.95, 0.92, 0.8), "swamp_man": (1.0, 0.62, 0.15), "crow": (1.0, 0.62, 0.15),
               "wolf": (1.0, 0.7, 0.15), "jester": (0.85, 0.35, 1.0), "bone_man": (0.55, 0.85, 1.0),
               "witch": (0.7, 0.35, 1.0), "giant": (1.0, 0.35, 0.1)}
 
-FRAMING = {"witch": (1.0, 50, 0.04), "jester": (1.0, 50, 0.08), "giant": (0.95, 60, 0.0)}
+# Figuren mit echten Augäpfeln (eye_glow = false in data/opponents/*.tres): keine Glutkugeln
+NO_GLOW = {"bandit", "wolf"}
+
+FRAMING = {"witch": (1.0, 50, 0.04), "jester": (1.0, 50, 0.08), "giant": (0.95, 60, 0.0),
+           # HD-Figuren (größere Köpfe)
+           "bandit": (1.45, 55, 0.05), "swamp_man": (1.6, 55, 0.0), "wolf": (1.5, 55, 0.06)}
 
 
 def render(name: str) -> None:
@@ -55,7 +60,7 @@ def render(name: str) -> None:
     bsdf.inputs["Emission Color"].default_value = (*col, 1)
     bsdf.inputs["Emission Strength"].default_value = 9.0
     for ob in list(bpy.data.objects):
-        if ob.name.startswith("Eye") and ob.type == "EMPTY":
+        if name not in NO_GLOW and ob.name.startswith("Eye") and ob.type == "EMPTY":
             r = 0.006 if ob.name.startswith("EyeX") else 0.011
             bpy.ops.mesh.primitive_uv_sphere_add(radius=r, location=ob.matrix_world.translation)
             bpy.context.active_object.data.materials.append(eye_mat)

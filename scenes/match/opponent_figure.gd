@@ -278,6 +278,8 @@ func _build() -> void:
 			lamp.position = marker.position
 			props.add_child(lamp)
 	model.free()
+	# Hände, Arme und Requisiten liegen nicht unter dem Torso → hier noch einmal für alles
+	_apply_void(self)
 	_update_arms()
 
 
@@ -309,17 +311,29 @@ func _apply_void(root: Node) -> void:
 		(mi as MeshInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	# Fell und Haare (viele Alpha-Büschel) werfen keine Schatten aufeinander –
 	# sonst wird z. B. die Mützenkappe fleckig schwarz
-	# und glänzen nicht (Godot nimmt sonst Glanz 0.5 an → Lampenlicht spiegelt lila auf dem Fell)
 	for pattern in ["*_Fur", "*_Brows", "*_Fringe"]:
 		for mi in root.find_children(pattern, "MeshInstance3D", true, false):
-			var m := mi as MeshInstance3D
-			m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-			for i in m.mesh.get_surface_count():
-				var mat := m.mesh.surface_get_material(i) as StandardMaterial3D
-				if mat != null:
-					mat = mat.duplicate()
-					mat.metallic_specular = 0.08
-					m.set_surface_override_material(i, mat)
+			(mi as MeshInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	# und Alpha-Flächen (Fell, Moos – auch wenn sie in einem anderen Mesh stecken, z. B. im
+	# Unterarm) glänzen nicht: Godot nimmt sonst Glanz 0.5 an → Lampenlicht spiegelt lila
+	for node in root.find_children("*", "MeshInstance3D", true, false):
+		var m := node as MeshInstance3D
+		if m.mesh == null:
+			continue
+		for i in m.mesh.get_surface_count():
+			var mat := m.mesh.surface_get_material(i) as StandardMaterial3D
+			if mat == null or m.get_surface_override_material(i) != null:
+				continue  # kein Standardmaterial oder schon erledigt
+			var spec := -1.0
+			if mat.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR:
+				spec = 0.08
+			elif mat.roughness >= 0.6:
+				spec = 0.25  # matte Stoffe/Fell/Haut: glTF bringt keinen Glanzwert mit
+			if spec < 0.0:
+				continue
+			mat = mat.duplicate()
+			mat.metallic_specular = spec
+			m.set_surface_override_material(i, mat)
 
 
 # --- Denk-Stile -----------------------------------------------------------------
