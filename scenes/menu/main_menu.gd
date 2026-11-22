@@ -44,6 +44,7 @@ func _ready() -> void:
 				_focus(_cards.find(c)))
 		_cards.append(card)
 
+	UIKit.poster_wedge(self, Vector2(640, 335), %TitleBlock, "ДУРАКИ · НОЧЬ В ЗАДНЕЙ КОМНАТЕ")
 	_buttons = [%PlayButton, %DecksButton, %OptionsButton, %QuitButton]
 	_update_info()
 	Profile.changed.connect(_update_info)
@@ -114,3 +115,4 @@ func _open_options() -> void:
 
 func _quit() -> void:
 	get_tree().quit()
+

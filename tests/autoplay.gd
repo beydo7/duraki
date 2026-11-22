@@ -38,7 +38,7 @@ func _process(_delta: float) -> void:
 		"Match":
 			var duel: DurakMatch = scene.duel
 			if duel.is_over:
-				scene.get_node("%ContinueButton").pressed.emit()
+				scene.hud.continue_button.pressed.emit()
 			elif duel.current_actor() == DurakMatch.PLAYER:
 				_bot.take_turn(duel, DurakMatch.PLAYER)
 		"Shop":

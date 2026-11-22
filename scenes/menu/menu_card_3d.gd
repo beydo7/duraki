@@ -9,9 +9,9 @@ signal hovered_changed(card: MenuCard3D, hovered: bool)
 const W := 0.17
 const H := 0.238
 const T := 0.003
-const BRUSH := preload("res://assets/fonts/RuslanDisplay-Regular.ttf")
+const BRUSH := preload("res://assets/fonts/RussoOne-Regular.ttf")
 const SYM := preload("res://assets/fonts/DejaVuSans-Bold.ttf")
-const MONO := preload("res://assets/fonts/SpecialElite-Regular.ttf")
+var MONO: Font = UIKit.body_font(500, 2)
 const INK := Color("1b1426")
 
 var title := "SPIELEN"

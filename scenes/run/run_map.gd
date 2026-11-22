@@ -9,6 +9,7 @@ var _backdrop: RoomBackdrop
 
 
 func _ready() -> void:
+	UIKit.poster_wedge(self, Vector2(500, 150), %Path)
 	if Run.encounters.is_empty():
 		# Szene direkt mit F6 gestartet → einfach einen neuen Run beginnen.
 		Run.start_new_run()
@@ -161,21 +162,21 @@ class _Track extends Control:
 	func _draw() -> void:
 		var c := Vector2(size.x * 0.5, size.y * 0.5)
 		var r := 28.0 if current else 24.0
-		var line := Color(1, 0.84, 0.55, 0.7) if done else Color(0.75, 0.7, 0.66, 0.35)
+		var line := Color(0.94, 0.89, 0.8, 0.7) if done else Color(0.75, 0.7, 0.66, 0.35)
 		if not first:
 			_dashed(Vector2(c.x, 0), Vector2(c.x, c.y - r - 4), line)
 		if not last:
 			_dashed(Vector2(c.x, c.y + r + 4), Vector2(c.x, size.y), Color(0.75, 0.7, 0.66, 0.35))
-		var ring := Color(1, 0.84, 0.55) if current else (Color(1, 0.45, 0.4) if boss else Color(0.75, 0.7, 0.66, 0.6))
+		var ring := Color(0.81, 0.15, 0.16) if current else (Color(0.96, 0.34, 0.3) if boss else Color(0.75, 0.7, 0.66, 0.6))
 		if done:
-			ring = Color(1, 0.84, 0.55, 0.5)
+			ring = Color(0.94, 0.89, 0.8, 0.5)
 		draw_circle(c, r + 3, Color(0.04, 0.03, 0.08, 0.95))
 		if portrait != null:
 			draw_texture_rect(portrait, Rect2(c - Vector2(r, r), Vector2(r, r) * 2), false,
 				Color(0.5, 0.5, 0.55) if done else Color.WHITE)
-		draw_arc(c, r + 2, 0, TAU, 48, ring, 2.5 if current else 1.5, true)
+		draw_arc(c, r + 2, 0, TAU, 48, ring, 4.0 if current else 1.5, true)
 		if done:
-			draw_string(SYM, c + Vector2(-9, 9), "✓", HORIZONTAL_ALIGNMENT_LEFT, -1, 26, Color(1, 0.84, 0.55))
+			draw_string(SYM, c + Vector2(-9, 9), "✓", HORIZONTAL_ALIGNMENT_LEFT, -1, 26, Color(0.94, 0.89, 0.8))
 
 	func _dashed(a: Vector2, b: Vector2, col: Color) -> void:
 		var len := a.distance_to(b)

@@ -98,15 +98,15 @@ func _ready() -> void:
 		if who == DurakMatch.OPPONENT and duel.taking:
 			hud.toast("%s nimmt – du darfst passende Karten nachwerfen." % opponent.display_name, MatchHUD.COLOR_GOLD))
 
-	%TakeButton.pressed.connect(func() -> void:
+	hud.take_button.pressed.connect(func() -> void:
 		hud.close_choice()
 		duel.take())
-	%PassButton.pressed.connect(func() -> void:
+	hud.pass_button.pressed.connect(func() -> void:
 		if duel.taking:
 			duel.finish_take()
 		else:
 			duel.pass_bout())
-	%ContinueButton.pressed.connect(func() -> void: Run.on_match_finished(_result()))
+	hud.continue_button.pressed.connect(func() -> void: Run.on_match_finished(_result()))
 
 	hud.setup(opponent, score.target, Run.floor_index, maxi(Run.encounters.size(), 1))
 	hud.set_relics(Run.relics)
@@ -250,11 +250,11 @@ func _unhandled_input(event: InputEvent) -> void:
 	if not (event is InputEventKey and event.pressed and not event.echo) or duel == null or duel.is_over:
 		return
 	var key := (event as InputEventKey).keycode
-	if key == KEY_SPACE and %PassButton.visible and not %PassButton.disabled:
-		%PassButton.pressed.emit()
+	if key == KEY_SPACE and hud.pass_button.visible and not hud.pass_button.disabled:
+		hud.pass_button.pressed.emit()
 		get_viewport().set_input_as_handled()
-	elif key == KEY_E and %TakeButton.visible:
-		%TakeButton.pressed.emit()
+	elif key == KEY_E and hud.take_button.visible:
+		hud.take_button.pressed.emit()
 		get_viewport().set_input_as_handled()
 
 

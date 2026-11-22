@@ -6,6 +6,7 @@ var _gold_shown := -1
 
 
 func _ready() -> void:
+	UIKit.poster_wedge(self, Vector2(590, 178), %Head)
 	if Run.encounters.is_empty():
 		# Szene direkt mit F6 gestartet → Testdaten
 		Run.start_new_run()
@@ -115,6 +116,7 @@ func _offer_card(offer: Dictionary) -> Control:
 
 	var kind_l := _label(offer.kind, &"HeaderLabel", 11)
 	kind_l.theme_type_variation = &"InkHeader"
+	kind_l.add_theme_color_override("font_color", UIKit.P_RED)
 	box.add_child(kind_l)
 	var sym := _label(offer.symbol, &"", 40 if offer.symbol.length() <= 1 else 32)
 	sym.add_theme_color_override("font_color", offer.color)
@@ -129,12 +131,11 @@ func _offer_card(offer: Dictionary) -> Control:
 	box.add_child(text_l)
 	var price := _label("%d G" % offer.price, &"CardTitle", 24)
 	price.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	price.add_theme_color_override("font_color", Color(0.62, 0.42, 0.05) if affordable else Color(0.65, 0.2, 0.22))
+	price.add_theme_color_override("font_color", UIKit.P_BLACK if affordable else UIKit.P_RED)
 	box.add_child(price)
 	if sold:
 		var stamp := _label("VERKAUFT", &"InkTitle", 30)
-		stamp.add_theme_color_override("font_color", UIKit.INK_RED)
-		stamp.material = UIKit.stamp_material(0.4)
+		stamp.add_theme_color_override("font_color", UIKit.P_RED)
 		stamp.rotation = -0.35
 		stamp.position = Vector2(14, 110)
 		btn.add_child(stamp)

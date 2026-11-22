@@ -23,12 +23,15 @@ func _ready() -> void:
 			bd.world.figure.laugh()
 
 	if Run.won_run:
-		%Header.text = "DIE NACHT GEHÖRT DIR"
 		%TitleLabel.text = "RUN GEWONNEN!"
-		%TitleLabel.add_theme_color_override("font_color", UIKit.INK_BLUE)
+		%Header.text = "ПОБЕДА · DIE NACHT GEHÖRT DIR"
+		%AgainButton.theme_type_variation = &""
 	else:
-		%Header.text = "DIE LETZTE KERZE IST AUS"
+		%Header.text = "ДУРАК · DIE LETZTE KERZE IST AUS"
 		%TitleLabel.text = "DU BIST DER DURAK."
+		%Panel.theme_type_variation = &""
+		%Panel.add_theme_stylebox_override("panel", UIKit.paper(Vector4(30, 26, 30, 26), true))
+		%TitleLabel.add_theme_color_override("font_color", UIKit.INK_RED)
 	_stat("Gegner besiegt", "%d / %d" % [mini(Run.floor_index, Run.encounters.size()), Run.encounters.size()])
 	_stat("Gold", "%d" % Run.gold)
 	_stat("Relikte", "%d" % Run.relics.size() if Run.relics.size() > 0 else "keine")
