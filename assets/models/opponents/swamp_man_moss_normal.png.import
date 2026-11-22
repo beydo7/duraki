@@ -2,14 +2,14 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bhgmoybdo31jx"
+uid="uid://gxr35y3lqh76"
 path.s3tc="res://.godot/imported/swamp_man_moss_normal.png-c70d67e048e455e48fd1aa245898254e.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
 }
 generator_parameters={
-"md5": "7930489a2c17d4ebe953b15871f0df53"
+"md5": "c1ca91dab76238216e4b1d858e9a71d2"
 }
 
 [deps]

@@ -2,20 +2,20 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://b3xqyv8bub88t"
-path.s3tc="res://.godot/imported/swamp_man_skin_pale_normal.png-56563940462d19e2040464dc2f304154.s3tc.ctex"
+uid="uid://duq1efwws7qq2"
+path.s3tc="res://.godot/imported/swamp_man_cap_color.png-15a70557847e7f1eb5b0af0178dc0013.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
 }
 generator_parameters={
-"md5": "26a8177612517c218911654e8fb4adc7"
+"md5": "7aeb1e5337539cd521a88d7f614e4805"
 }
 
 [deps]
 
-source_file="res://assets/models/opponents/swamp_man_skin_pale_normal.png"
-dest_files=["res://.godot/imported/swamp_man_skin_pale_normal.png-56563940462d19e2040464dc2f304154.s3tc.ctex"]
+source_file="res://assets/models/opponents/swamp_man_cap_color.png"
+dest_files=["res://.godot/imported/swamp_man_cap_color.png-15a70557847e7f1eb5b0af0178dc0013.s3tc.ctex"]
 
 [params]
 

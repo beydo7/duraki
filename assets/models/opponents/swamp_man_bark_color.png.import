@@ -2,14 +2,14 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bjvrvcxr5fkt4"
+uid="uid://d3f436wuh7mmh"
 path.s3tc="res://.godot/imported/swamp_man_bark_color.png-084de3a8ed6aba1e0f64b949be9eb33a.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
 }
 generator_parameters={
-"md5": "6de7db877de389701cd9e85d1d5bee57"
+"md5": "e0f39ea7dfa79aea4421dd37029a7728"
 }
 
 [deps]
