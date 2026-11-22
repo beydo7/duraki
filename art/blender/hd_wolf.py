@@ -128,7 +128,7 @@ def face_masks(x, z):
             dx, dz = x1 - x0, z1 - z0
             t = np.clip(((x - x0) * dx + (z - z0) * dz) / max(dx * dx + dz * dz, 1e-9), 0, 1)
             d = np.hypot(x - (x0 + t * dx), z - (z0 + t * dz))
-            sg = 0.0024 + 0.0018 * max(0.0, 1 - (ax0 + ax1) * 0.5 / 0.035)
+            sg = 0.0016 + 0.0008 * max(0.0, 1 - (ax0 + ax1) * 0.5 / 0.035)  # schmal: sonst wirkt der Mund offen
             black = np.maximum(black, g(d, sg))
     # Nasenspalt (Philtrum) von der Nase zur Lippe
     black = np.maximum(black, g(x, 0.0016) * ss(-0.024, -0.028, z) * ss(-0.042, -0.036, z))
@@ -202,7 +202,7 @@ def tex_muzzle(lip, size=512, seed=93):
         below = np.where(closer, (z < z0 + tt * dz).astype(np.float64), below)
         d = np.minimum(d, dist)
     g = lambda a, sg: np.exp(-(a * a) / (2 * sg * sg))
-    sg = 0.0024 + 0.0016 * np.clip((-0.19 - y) / 0.03, 0, 1)   # vorne dicker: leicht offener Mund
+    sg = 0.0018 + 0.0004 * np.clip((-0.19 - y) / 0.03, 0, 1)   # schmale, geschlossene Lefze
     black = g(d, sg)
     shadow = g(d, 0.006) * below
     col *= (1 - 0.35 * shadow)[..., None]
@@ -309,7 +309,7 @@ def tex_lace(w=512, h=64):
 def materials():
     m = {}
     c, n = tex_face()
-    m["face"] = hd.material("Wolf_Gesicht", c, n, rough=0.85, normal_strength=0.8, spec=0.2)
+    m["face"] = hd.material("Wolf_Gesicht", c, n, rough=0.95, normal_strength=1.4, spec=0.08)
     for key, title, root, tip, seed in (("fur_blood", "Blut", (0.08, 0.01, 0.008), (0.3, 0.035, 0.028), 84),
                                         ("fur_light", "Hell", (0.36, 0.345, 0.335), (0.74, 0.72, 0.685), 81),
                                         ("fur_grey", "Grau", (0.14, 0.13, 0.13), (0.47, 0.45, 0.435), 82),
@@ -323,8 +323,8 @@ def materials():
     m["chest"] = hd.material("Wolf_Brustfell", c, n, rough=0.9, normal_strength=0.9, spec=0.15)
     c, n = hd.tex_skin("hands", (0.27, 0.26, 0.26), seed=98, pores=0.6, blotch=0.3)
     m["hands"] = hd.material("Wolf_Haende", c, n, rough=0.85, normal_strength=0.8, spec=0.15)
-    c, n = hd.tex_skin("nose", (0.035, 0.03, 0.03), size=512, seed=99, pores=1.0, blotch=0.0)
-    m["nose"] = hd.material("Wolf_Nase", c, n, rough=0.4, normal_strength=0.7, spec=0.45)
+    c, n = hd.tex_scales("nose", (0.03, 0.028, 0.028), size=512, seed=99, cells=46)
+    m["nose"] = hd.material("Wolf_Nase", c, n, rough=0.55, normal_strength=0.22, spec=0.35)
     m["lip"] = hd.material("Wolf_Lefze", color=(0.012, 0.01, 0.01, 1), rough=0.45, spec=0.4)
     m["ear_inner"] = hd.material("Wolf_Ohr_Innen", color=(0.36, 0.24, 0.23, 1), rough=0.8, spec=0.2,
                                  double_sided=True)
@@ -444,7 +444,7 @@ def snout():
         y = -0.06 - 0.168 * t
         zt = 0.03 - 0.03 * t - 0.005 * _g(t - 0.22, 0.1) + 0.004 * _g(t - 0.6, 0.2)  # Stop, Nasenrücken
         zb = -0.062 + 0.026 * t
-        w = 0.048 - 0.025 * t ** 0.8
+        w = 0.046 - 0.026 * t ** 0.75
         secs.append(_snout_section(y, zt, zb, w))
     hd.loft(mb, secs, close_tip=True)
     upper = mb.bm
@@ -480,7 +480,7 @@ def build_head(rig, m, rnd):
     mouth_groove(fb, lip)
     hd.planar_uv(fb, C, FACE_HW, FACE_HH)
     tree = BVHTree.FromBMesh(fb)
-    mouth_slit(rig, tree, lip)
+    # kein offener Spalt: wirkte von vorne wie zwei schwarze Zähne (Konzept: geschlossener Grinser)
     global _LIP_XZ
     _LIP_XZ = [(q.x, q.z) for q in lip]
     c, n = tex_face()   # Gesicht neu malen, jetzt mit der echten Lefzenlinie
@@ -629,27 +629,56 @@ def mouth_slit(rig, tree, lip):
 
 
 def nose(rig, m):
-    """Schwarze Nasenkuppe: oben breit, unten dreieckig, Mittelfurche, Nasenlöcher."""
-    nc = C + Vector((0, -0.231, -0.007))
-    NR = Vector((0.0205, 0.0175, 0.0155))
-    bm = ch.geo.ellipsoid(NR, nc, 32, 22)
+    """Schwarze Nasenkuppe wie beim echten Wolf: von vorne oben breit und kantig, unten schmaler
+    (Herzform), flache Vorderseite, Mittelfurche (Philtrum) bis zur Lippe, kommaförmige
+    Nasenlöcher, die seitlich nach außen-oben auslaufen, feine Pflasterstruktur, feucht glänzend."""
+    nc = C + Vector((0.0, -0.229, -0.0085))
+    NX, NY, NZ = 0.0192, 0.0165, 0.0142
+    bm = ch.geo.ellipsoid(Vector((NX, NY, NZ)), nc, 44, 30)
     for v in bm.verts:
         k = v.co - nc
-        if k.z < 0:  # unten schmaler → Dreieck
-            t = min(1.0, -k.z / NR.z)
-            v.co.x *= 1 - 0.35 * t
-        # Mittelfurche unten vorne
-        v.co.y += 0.004 * _g(k.x, 0.003) * max(0.0, -k.z / NR.z) * max(0.0, -k.y / NR.y)
-        # Oberseite leicht nach hinten geneigt
-        v.co.y += 0.25 * max(0.0, k.z) * max(0.0, -k.y) / NR.y * 0.03
+        w = k.z / NZ
+        f = max(0.0, -k.y / NY)
+        x = k.x
+        if w < 0:  # unten schmaler → Herzform
+            x *= 1 - 0.3 * min(1.0, -w) ** 1.4
+        else:      # oben etwas breiter und kantiger
+            x *= 1 + 0.07 * w
+        y = k.y * (0.8 if k.y < 0 else 1.0)          # Vorderseite flacher
+        z = k.z
+        if w > 0.35:                                   # Oberseite flach, läuft in den Nasenrücken
+            z -= (w - 0.35) * NZ * 0.3
+            y += (w - 0.35) * 0.004
+        # Philtrum: Furche vorne-unten in der Mitte
+        y += 0.0032 * _g(k.x, 0.0021) * max(0.0, -w + 0.1) * f
+        # leichte Delle oben in der Mitte (zwei Nasenhälften)
+        z -= 0.0012 * _g(k.x, 0.003) * max(0.0, w)
+        # Nasenflügel um die Löcher leicht aufgewölbt
+        for s in (-1, 1):
+            bulge = _g(k.x - s * 0.0125, 0.004) * _g(k.z + 0.0015, 0.0045) * f
+            x += s * 0.0012 * bulge
+            y -= 0.0018 * bulge
+        v.co = nc + Vector((x, y, z))
+    bm.normal_update()
     hd.planar_uv(bm, nc, 0.03, 0.03)
+    tree = BVHTree.FromBMesh(bm)
     rig.headpart("Nose", bm, m["nose"], smooth=True, sharp_angle=None)
+
+    def on_nose(px, pz, sink):
+        hit = tree.ray_cast(nc + Vector((px, -0.2, pz)), Vector((0, 1, 0)))
+        if hit[0] is None:
+            return nc + Vector((px, -NY * 0.8, pz))
+        return hit[0] - hit[1] * sink
+
     holes = []
     for s in (-1, 1):
-        hb = ch.geo.ellipsoid(Vector((0.0052, 0.0046, 0.0026)), Vector((0, 0, 0)), 14, 8)
-        ch.geo.transform(hb, Matrix.Translation(nc + Vector((s * 0.0082, -0.0142, -0.0047)))
-                         @ Matrix.Rotation(s * 0.5, 4, "Y") @ Matrix.Rotation(-0.3, 4, "X"))
-        holes.append(hb)
+        # Komma: innen vorne rund, dann seitlich nach außen-hinten und leicht hoch
+        # rundes Loch vorne, Schlitz läuft seitlich nach außen und leicht nach unten
+        path = [(0.0048, -0.0042), (0.0074, -0.0052), (0.0104, -0.0058), (0.013, -0.0066),
+                (0.015, -0.0078), (0.0162, -0.0092)]
+        radii = [0.0026, 0.0027, 0.002, 0.0013, 0.0009, 0.0005]
+        pts = [on_nose(s * px, pz, r * 0.35) for (px, pz), r in zip(path, radii)]
+        holes.append(ch.geo.tube(pts, radii, seg=10))
     rig.headpart("Void_Nostrils", ch.geo.merge(*holes), ch.void(), smooth=True, sharp_angle=None)
 
 
@@ -767,8 +796,8 @@ def face_fur(rig, m, sample_bm, face_ob, rnd):
         for ex, ez in EYES:
             if ((k.x - ex) / 0.03) ** 2 + ((k.z - ez) / 0.019) ** 2 < 1 and k.y < -0.06:
                 return False
-        if k.y < -0.19 and abs(k.x) < 0.04 and k.z > -0.045:
-            return False  # Nasenspitze
+        if k.y < -0.211 and abs(k.x) < 0.026 and k.z > -0.03:
+            return False  # Nase
         if k.y < -0.1 and abs(k.x) < 0.065 and -0.07 < k.z < -0.03 and nrm.z < 0.3:
             # Lefzenkante freihalten
             for q in MOUTH:
@@ -806,6 +835,29 @@ def face_fur(rig, m, sample_bm, face_ob, rnd):
         fur.add(p - nrm * 0.0015, nrm, d, L, L * rnd.uniform(0.32, 0.5), mat=tone, lift=lift,
                 curl=rnd.uniform(0.05, 0.15), cup=0.12, twist=rnd.uniform(-0.5, 0.5), along=4, across=3,
                 shape=0.6, sink=0.002)
+    # dichtes, kurzes, anliegendes Fell auf Nasenrücken und Schnauzenseiten (sonst wirkt die
+    # Schnauze wie Plastik)
+    def keep_snout(p, nrm):
+        k = p - C
+        y_min = -0.245 if k.z < -0.024 else -0.214  # unter der Nase bis ganz vorn (Oberlippe)
+        if not (y_min < k.y < -0.09 and abs(k.x) < 0.058 and -0.068 < k.z < 0.045):
+            return False
+        if k.y < -0.205 and abs(k.x) < 0.024 and k.z > -0.03:
+            return False  # Nase
+        for q in MOUTH:  # Lefze frei lassen
+            if abs(abs(k.x) - q.x) < 0.006 and abs(k.y - q.y) < 0.016 and abs(k.z - q.z) < 0.005:
+                return False
+        return True
+    for p, nrm in hd.sample_surface(sample_bm, 11000, rnd, keep=keep_snout):
+        k = p - C
+        s = 1 if k.x >= 0 else -1
+        L = rnd.uniform(0.008, 0.014)
+        if k.z < -0.024 and k.y < -0.2:   # Oberlippe vorne: Fell fällt nach unten-außen
+            d = Vector((s * 0.6, 0.3, -1.0))
+        else:
+            d = Vector((s * 0.35 * min(1.0, abs(k.x) / 0.02), 1.0, 0.25 if k.z > -0.03 else -0.3))  # nach hinten
+        fur.add(p - nrm * 0.001, nrm, d, L, L * rnd.uniform(0.45, 0.65), mat=_tone(k.x, k.z, rnd), lift=0.2,
+                curl=0.03, cup=0.08, twist=rnd.uniform(-0.3, 0.3), along=3, across=3, shape=0.6, sink=0.001)
     fur.finish("Face_Fur", parent=rig.head, shade=face_ob, mix=0.55)
 
 
@@ -1064,7 +1116,7 @@ def chest_fur(rig, m, body, rnd):
     """Brustfell zwischen Kehle und Mieder: hell in der Mitte, grau zu den Seiten, mit ein paar
     Blutspritzern (Pascal: „sie spielt, um zu überleben“)."""
     fur = Fur([m["fur_light"], m["fur_grey"], m["fur_blood"]])
-    spl = [Vector((rnd.uniform(-0.1, 0.1), 0, rnd.uniform(0.92, 1.05))) for _ in range(4)]
+    spl = [Vector((rnd.uniform(-0.09, 0.09), 0, rnd.uniform(0.93, 1.04))) for _ in range(3)]
     for _ in range(1500):
         x = rnd.uniform(-0.2, 0.2)
         z = rnd.uniform(neckline(x) + 0.004, 1.085)
@@ -1080,7 +1132,7 @@ def chest_fur(rig, m, body, rnd):
         L = rnd.uniform(0.025, 0.045)
         tone = 0 if abs(x) < rnd.uniform(0.03, 0.1) and rnd.random() < 0.75 else 1
         for k, sp in enumerate(spl):  # Spritzer: Fleck + Tropfenspur nach unten
-            r_sp = 0.008 + 0.004 * (k % 3)
+            r_sp = 0.006 + 0.003 * (k % 2)
             dz = z - sp.z
             if math.hypot(x - sp.x, dz * (0.6 if dz < 0 else 1.0)) < r_sp * rnd.uniform(0.6, 1.1):
                 tone = 2
