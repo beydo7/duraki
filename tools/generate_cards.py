@@ -33,7 +33,7 @@ FRAME_BG = (240, 228, 200)
 LINE = (60, 50, 45)
 
 SUITS = {"h": ("♥", RED), "d": ("♦", RED), "c": ("♣", BLACK), "s": ("♠", BLACK)}
-RANK_TEXT = {6: "6", 7: "7", 8: "8", 9: "9", 10: "10", 11: "B", 12: "D", 13: "K", 14: "A"}
+RANK_TEXT = {6: "6", 7: "7", 8: "8", 9: "9", 10: "10", 11: "J", 12: "D", 13: "K", 14: "A"}
 
 # Positionen der Symbole (x, y) relativ zur Karte, klassische Anordnung
 L, C, R = 0.31, 0.5, 0.69

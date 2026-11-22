@@ -44,6 +44,8 @@ func _ready() -> void:
 	world.build(opponent)
 	Settings.apply_viewport(%Viewport)
 	Settings.changed.connect(_on_settings_changed)
+	_fit_viewport()
+	get_viewport().size_changed.connect(_fit_viewport)
 	world.card_clicked.connect(_on_player_card)
 
 	ai = SimpleAI.new(Run.rng, opponent.mistake_chance)
@@ -107,6 +109,24 @@ func _ready() -> void:
 
 func _on_settings_changed() -> void:
 	Settings.apply_viewport(%Viewport)
+
+
+## Die 3D-Welt in voller Bildschirmauflösung rendern. Mit stretch = true würde der
+## SubViewport nur in der Basisauflösung (1280×720) rendern und hochskaliert werden –
+## auf 1440p/4K wird dann alles unscharf. Darum: Viewport in echten Pixeln, Container
+## entsprechend verkleinert (Eingaben rechnet der Container mit seiner Skalierung um).
+func _fit_viewport() -> void:
+	var view: SubViewportContainer = %View
+	var canvas := get_viewport_rect().size
+	var pixels := Vector2(get_tree().root.size)
+	var factor := maxf(pixels.x / maxf(canvas.x, 1.0), 1.0)
+	view.stretch = false
+	view.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	view.position = Vector2.ZERO
+	var px := Vector2i((canvas * factor).round())
+	%Viewport.size = px
+	view.size = Vector2(px)
+	view.scale = Vector2.ONE / factor
 
 
 ## Für den Run zählt nur das Punkteziel: erreicht → Gegner verliert.

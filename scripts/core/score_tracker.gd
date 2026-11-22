@@ -24,7 +24,7 @@ signal gold_found(amount: int)
 
 const CHIP_VALUES := {
 	6: 6, 7: 7, 8: 8, 9: 9, 10: 10,
-	11: 10, 12: 10, 13: 10, # Bube, Dame, König
+	11: 10, 12: 10, 13: 10, # Bube (J), Dame, König
 	14: 11, # Ass
 }
 const HIT_MULTIPLIER := 2

@@ -8,7 +8,7 @@ const MIN_RANK := 6
 const MAX_RANK := 14 # Ass
 const RANK_NAMES := {
 	6: "6", 7: "7", 8: "8", 9: "9", 10: "10",
-	11: "B", 12: "D", 13: "K", 14: "A",
+	11: "J", 12: "D", 13: "K", 14: "A",
 }
 const SUIT_SYMBOLS := ["♥", "♦", "♣", "♠"]
 const SUIT_NAMES := ["Herz", "Karo", "Kreuz", "Pik"]
