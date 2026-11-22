@@ -2,20 +2,20 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://ejyrsdqyrkp"
-path.s3tc="res://.godot/imported/bandit_cloth_black_color.png-14aa27c7308e0ed0a679aee6eade095f.s3tc.ctex"
+uid="uid://bawgfvvm6wl5e"
+path.s3tc="res://.godot/imported/bandit_furbase_normal.png-3945dd370769b7c108bd23f045b5ad0e.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
 }
 generator_parameters={
-"md5": "b8440c5de1860ead12a4c706b5c86d34"
+"md5": "87acb47b5078889940089fecf92b209c"
 }
 
 [deps]
 
-source_file="res://assets/models/opponents/bandit_cloth_black_color.png"
-dest_files=["res://.godot/imported/bandit_cloth_black_color.png-14aa27c7308e0ed0a679aee6eade095f.s3tc.ctex"]
+source_file="res://assets/models/opponents/bandit_furbase_normal.png"
+dest_files=["res://.godot/imported/bandit_furbase_normal.png-3945dd370769b7c108bd23f045b5ad0e.s3tc.ctex"]
 
 [params]
 

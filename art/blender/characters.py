@@ -1024,7 +1024,7 @@ def _hd(module):
 
 
 CHARACTERS = {
-    "bandit": bandit,
+    "bandit": _hd("hd_bandit"),
     "swamp_man": swamp_man,
     "crow": _hd("hd_crow"),
     "wolf": wolf,

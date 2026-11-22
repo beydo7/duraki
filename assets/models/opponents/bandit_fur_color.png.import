@@ -2,20 +2,20 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://c665m5i1y6yxn"
-path.s3tc="res://.godot/imported/bandit_leather_dark_normal.png-e3c737ca1ea5663e3ad5d775b554be3e.s3tc.ctex"
+uid="uid://d1vprt4v5x78h"
+path.s3tc="res://.godot/imported/bandit_fur_color.png-efae2d3f4bc2a97ea5836e0487f42933.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
 }
 generator_parameters={
-"md5": "57f75852249bfea41ed10a4864884d43"
+"md5": "58602504d3fd0cf33cfb325c63a39f13"
 }
 
 [deps]
 
-source_file="res://assets/models/opponents/bandit_leather_dark_normal.png"
-dest_files=["res://.godot/imported/bandit_leather_dark_normal.png-e3c737ca1ea5663e3ad5d775b554be3e.s3tc.ctex"]
+source_file="res://assets/models/opponents/bandit_fur_color.png"
+dest_files=["res://.godot/imported/bandit_fur_color.png-efae2d3f4bc2a97ea5836e0487f42933.s3tc.ctex"]
 
 [params]
 

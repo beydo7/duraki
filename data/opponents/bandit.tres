@@ -15,5 +15,6 @@ is_boss = false
 model = ExtResource("2_model")
 portrait = ExtResource("3_portrait")
 eye_color = Color(0.95, 0.92, 0.8, 1)
+eye_glow = false
 figure_scale = 1.0
 mask_color = Color(0.3, 0.22, 0.15, 1)

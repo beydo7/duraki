@@ -18,6 +18,8 @@ extends Resource
 ## Gerendertes Porträt fürs HUD und die Run-Übersicht (assets/portraits)
 @export var portrait: Texture2D
 @export var eye_color := Color("c4271b")
+## false: Modell hat eigene Augen, keine Glut-Pupillen
+@export var eye_glow := true
 @export_range(0.7, 1.5, 0.05) var figure_scale := 1.0
 ## Nur für die gezeichnete Ersatz-Maske, wenn kein Porträt da ist
 @export var mask_color := Color("d8cfb8")

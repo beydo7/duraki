@@ -13,6 +13,8 @@ extends Node3D
 const DEFAULT_MODEL := preload("res://assets/models/opponents/bandit.glb")
 
 var eye_color := Color("c4271b")
+## false: keine Glut-Pupillen (das Modell hat eigene Augen, z. B. der HD-Bandit)
+var eye_glow := true
 var size_scale := 1.0
 var model_scene: PackedScene = DEFAULT_MODEL
 
@@ -26,6 +28,14 @@ var _eye_mat: StandardMaterial3D
 var _hands: Array[Node3D] = []
 var _hand_rest: Array[Vector3] = []
 var _arms: Array[MeshInstance3D] = []
+## Zwei-Segment-Arme (Ober-/Unterarm), wenn das Modell SleeveUpper/SleeveFore hat
+var _uppers: Array[MeshInstance3D] = []
+var _fores: Array[MeshInstance3D] = []
+var _shoulders: Array[Vector3] = []
+## Länge Ober-/Unterarm (gleich wie art/blender/hd.py ARM_SEGMENT)
+const ARM_SEGMENT := 0.34
+## Drehpunkt des Kartenfächers: etwas über/vor der Mitte zwischen den Händen
+const CARD_GRIP := Vector3(0.0, 0.035, 0.03)
 var _gesture := 0.0
 var _recoil := 0.0
 var _slump := 0.0
@@ -52,6 +62,7 @@ enum ThinkStyle {
 func setup(data: OpponentData) -> OpponentFigure:
 	if data != null:
 		eye_color = data.eye_color
+		eye_glow = data.eye_glow
 		size_scale = data.figure_scale
 		if data.model != null:
 			model_scene = data.model
@@ -184,7 +195,7 @@ func _build() -> void:
 	_apply_void(_torso)
 
 	# glühende Pupillen an den Augen-Markierungen
-	for marker in _head.find_children("Eye*", "", true, false):
+	for marker in (_head.find_children("Eye*", "", true, false) if eye_glow else []):
 		var small: bool = String(marker.name).begins_with("EyeX")
 		var eye := MeshInstance3D.new()
 		eye.mesh = _sphere(0.007 if small else 0.012)
@@ -221,24 +232,39 @@ func _build() -> void:
 	_under_light.position = Vector3(0, 0.86, 0.1)
 	_under_light.look_at(_torso.position + Vector3(0, 1.4 * s, 0.1))
 
-	# Hände (liegen am Tisch / halten die Karten) und Ärmel
+	# Hände (halten die Karten) und Arme. Ruheposition = Lage der Hand im Modell.
 	var sleeve_src := model.find_child("Sleeve", true, false) as MeshInstance3D
+	var upper_src := model.find_child("SleeveUpper", true, false) as MeshInstance3D
+	var fore_src := model.find_child("SleeveFore", true, false) as MeshInstance3D
+	var two_part := upper_src != null and fore_src != null
 	for i in 2:
 		var side := -1.0 if i == 0 else 1.0
-		var hand := Node3D.new()
+		var src := model.find_child("Hand_L" if i == 0 else "Hand_R", true, false) as Node3D
 		var rest := Vector3(side * 0.15, 0.86, 0.2)
+		if src != null and src.position.length() > 0.01:
+			rest = src.position
+		var hand := Node3D.new()
 		hand.position = rest
 		add_child(hand)
 		_hands.append(hand)
 		_hand_rest.append(rest)
-		var h := _take(model.find_child("Hand_L" if i == 0 else "Hand_R", true, false), hand)
+		var h := _take(src, hand)
 		if h != null:
 			h.transform = Transform3D.IDENTITY
-		var arm := MeshInstance3D.new()
-		if sleeve_src != null:
-			arm.mesh = sleeve_src.mesh
-		add_child(arm)
-		_arms.append(arm)
+		var marker := _torso.find_child("Shoulder_L" if i == 0 else "Shoulder_R", true, false) as Node3D
+		_shoulders.append(marker.position if marker != null else Vector3(side * 0.40, 1.02, 0.0))
+		if two_part:
+			for pair in [[upper_src, _uppers], [fore_src, _fores]]:
+				var seg := MeshInstance3D.new()
+				seg.mesh = (pair[0] as MeshInstance3D).mesh
+				add_child(seg)
+				(pair[1] as Array).append(seg)
+		else:
+			var arm := MeshInstance3D.new()
+			if sleeve_src != null:
+				arm.mesh = sleeve_src.mesh
+			add_child(arm)
+			_arms.append(arm)
 
 	# Requisiten auf dem Tisch (z. B. die Laterne der Hexe)
 	var props := _take(model.find_child("Props", true, false), self)
@@ -334,20 +360,55 @@ func _hand_think_offset(i: int) -> Vector3:
 	return Vector3.ZERO
 
 
-## Arme als Kapsel zwischen Schulter (bewegt sich mit dem Oberkörper) und Hand.
+## Arme: entweder ein Schlauch zwischen Schulter und Hand (alte Modelle) oder
+## Ober- und Unterarm mit Ellbogen per Zwei-Knochen-IK (Ellbogen nach außen/unten).
 func _update_arms() -> void:
-	for i in _arms.size():
+	for i in _hands.size():
 		var side := -1.0 if i == 0 else 1.0
-		var shoulder := _torso.transform * Vector3(side * 0.40, 1.02, 0.0)
+		var shoulder := _torso.transform * _shoulders[i]
 		var hand := _hands[i].position + Vector3(0, 0.0, -0.05)
-		var dir := hand - shoulder
-		var length := dir.length()
-		var y := dir / length
-		var x := y.cross(Vector3.FORWARD).normalized()
-		if x.length_squared() < 0.01:
-			x = Vector3.RIGHT
-		var z := x.cross(y).normalized()
-		_arms[i].transform = Transform3D(Basis(x * size_scale, y * length, z * size_scale), (shoulder + hand) * 0.5)
+		if _uppers.is_empty():
+			_place_segment(_arms[i], shoulder, hand)
+			continue
+		var l := ARM_SEGMENT * size_scale
+		var to_hand := hand - shoulder
+		var d := clampf(to_hand.length(), 0.001, l * 2.0 - 0.001)
+		var dir := to_hand.normalized()
+		var pole := Vector3(side * 1.0, -0.35, -0.3)
+		var perp := (pole - dir * pole.dot(dir)).normalized()
+		var a := d * 0.5
+		var h := sqrt(maxf(l * l - a * a, 0.0))
+		var elbow := shoulder + dir * a + perp * h
+		_place_segment(_uppers[i], shoulder, elbow)
+		_place_segment(_fores[i], elbow, hand)
+
+
+func _place_segment(mi: MeshInstance3D, a: Vector3, b: Vector3) -> void:
+	var dir := b - a
+	var length := dir.length()
+	if length < 0.0001:
+		return
+	var y := dir / length
+	var x := y.cross(Vector3.FORWARD).normalized()
+	if x.length_squared() < 0.01:
+		x = Vector3.RIGHT
+	var z := x.cross(y).normalized()
+	mi.transform = Transform3D(Basis(x * size_scale, y * length, z * size_scale), (a + b) * 0.5)
+
+
+## Drehpunkt des Kartenfächers in Weltkoordinaten. Die Karten folgen der linken Hand
+## (die rechte darf zum Kinn, zum Ausspielen usw.).
+func card_pivot() -> Vector3:
+	if _hands.is_empty():
+		return card_pivot_rest()
+	return card_pivot_rest() + (_hands[0].position - _hand_rest[0])
+
+
+## Drehpunkt in Ruhe (Mitte zwischen den Händen, ohne Handbewegung).
+func card_pivot_rest() -> Vector3:
+	if _hand_rest.size() < 2:
+		return to_global(Vector3(0, 0.93, 0.25))
+	return to_global((_hand_rest[0] + _hand_rest[1]) * 0.5 + CARD_GRIP)
 
 
 func _sphere(r: float) -> SphereMesh:

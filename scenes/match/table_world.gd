@@ -129,6 +129,7 @@ func _process(delta: float) -> void:
 	var sway := sway_strength if Settings.camera_sway() else 0.0
 	var yaw := (_mouse.x - 0.5) * -0.06 * sway
 	var pitch := (_mouse.y - 0.5) * -0.04 * sway
+	_follow_hand()
 	var shake := Vector3.ZERO
 	if _shake > 0.0:
 		_shake = maxf(0.0, _shake - delta * 2.5)
@@ -235,6 +236,21 @@ func sync(duel: DurakMatch, playable: Array[Card]) -> void:
 			_discard_pile.visible = true
 			_set_pile_height(_discard_pile, DISCARD_POS, _discard_count)
 			node.queue_free())
+
+
+## Gegnerkarten bewegen sich mit der Hand der Gestalt (Atmen, Ausspielen, Trommeln …).
+func _follow_hand() -> void:
+	if figure == null:
+		return
+	var delta := figure.card_pivot() - figure.card_pivot_rest()
+	for card: Card in _cards:
+		if _zone.get(card, "") != "opp":
+			continue
+		var node: Card3D = _cards[card]
+		if node.has_meta("tween") and (node.get_meta("tween") as Tween).is_running():
+			continue
+		if _base.has(node):
+			node.position = (_base[node] as Transform3D).origin + delta
 
 
 ## Die nächste Karte, die aus einer Hand auf den Tisch geht, wurde geschoben.
@@ -413,12 +429,19 @@ func _hand_row_xf(i: int, n: int, offset_pos: Vector3, width_factor: float) -> T
 	return Transform3D(basis, pos)
 
 
+## Gegnerkarten als echter Fächer, gehalten zwischen den Händen der Gestalt:
+## alle Karten drehen sich um einen Punkt an der Unterkante (figure.card_pivot_rest()).
 func _opp_hand_xf(i: int, n: int) -> Transform3D:
-	var spacing := minf(0.05, 0.45 / maxf(1, n))
+	var pivot := OPP_HAND_POS + Vector3(0, -0.06, 0.03)
+	if figure != null:
+		pivot = figure.card_pivot_rest()
 	var offset := i - (n - 1) * 0.5
-	var fan := offset * 0.09
-	var pos := OPP_HAND_POS + Vector3(offset * spacing, -absf(offset) * 0.006, -i * 0.0015)
-	var basis := Basis(Vector3.RIGHT, deg_to_rad(OPP_HAND_TILT)) * Basis(Vector3.UP, fan)
+	var spread := minf(0.21, 1.25 / maxf(1, n))
+	var tilt := Basis(Vector3.RIGHT, deg_to_rad(OPP_HAND_TILT))
+	var fan := Basis(Vector3.UP, -offset * spread)
+	var basis := tilt * fan
+	# Kartenmitte liegt ein Stück über dem Drehpunkt (Karten-„oben“ = lokal -Z)
+	var pos := pivot + basis * Vector3(0, 0, -Card3D.HEIGHT * 0.38) + tilt * Vector3(0, i * 0.0012, 0)
 	return Transform3D(basis, pos)
 
 

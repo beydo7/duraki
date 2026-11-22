@@ -176,6 +176,70 @@ def tex_scales(name: str, base, size=512, seed=9, cells=28):
             to_image(name + "_normal", height_to_normal(height, 3.0), non_color=True))
 
 
+def tex_skin(name: str, base, size=1024, seed=61, pores=1.0, blotch=1.0, stubble=0.0):
+    """Wettergegerbte Haut: Poren, Rötungen, Flecken, feine Falten; optional Bartstoppeln."""
+    rng = np.random.default_rng(seed)
+    y, x = np.mgrid[0:size, 0:size] / size
+    big = fractal(size, 2.8, seed)
+    mid = fractal(size, 2.0, seed + 1)
+    fine = fractal(size, 0.6, seed + 2)
+    red = np.clip((fractal(size, 3.0, seed + 3) - 0.45) * 2.5, 0, 1) * blotch
+    spots = np.clip((fractal(size, 1.4, seed + 4) - 0.72) * 6, 0, 1) * blotch
+    pore = np.clip((fine - 0.62) * 5, 0, 1) * pores
+    wr = ridged(fractal(size, 2.4, seed + 5))
+    wrinkles = np.clip((wr - 0.86) * 8, 0, 1)
+    base_l = srgb_to_linear(base)
+    col = base_l[None, None, :] * (0.78 + 0.35 * big + 0.12 * mid)[..., None]
+    col = col * (1 - 0.35 * red[..., None]) + np.array([0.32, 0.05, 0.04])[None, None, :] * 0.35 * red[..., None]
+    col *= (1 - 0.35 * spots - 0.25 * pore - 0.3 * wrinkles)[..., None]
+    if stubble > 0:
+        dots = (rng.random((size, size)) > 0.9).astype(np.float32)
+        col *= (1 - stubble * 0.5 * dots)[..., None]
+    height = big * 0.6 + mid * 0.5 - pore * 0.8 - wrinkles * 1.2 + fine * 0.3
+    return (to_image(name + "_color", col ** (1 / 2.2)),
+            to_image(name + "_normal", height_to_normal(height, 4.0), non_color=True))
+
+
+def tex_leather(name: str, base, dark, size=1024, seed=71, crease=1.0, wear=1.0):
+    """Abgewetztes Leder: Narbung, Knitterfalten, helle Scheuerstellen."""
+    big = fractal(size, 2.6, seed)
+    grain = fractal(size, 1.1, seed + 1)
+    cr = ridged(fractal(size, 2.2, seed + 2))
+    creases = np.clip((cr - 0.82) * 6, 0, 1) * crease
+    scuff = np.clip((fractal(size, 2.9, seed + 3) - 0.62) * 3.5, 0, 1) * wear
+    base_l, dark_l = srgb_to_linear(base), srgb_to_linear(dark)
+    t = np.clip(0.6 * big + 0.4 * grain, 0, 1)
+    col = dark_l + (base_l - dark_l) * (0.3 + 0.7 * t)[..., None]
+    col *= (1 - 0.45 * creases)[..., None]
+    col += (base_l * 0.55 + 0.03) * scuff[..., None]
+    height = big * 0.8 + grain * 0.5 - creases * 1.5
+    return (to_image(name + "_color", col ** (1 / 2.2)),
+            to_image(name + "_normal", height_to_normal(height, 5.0), non_color=True))
+
+
+def tex_fur(name: str, root, tip, w=128, h=256, seed=81):
+    """Fellbüschel (nicht kachelnd): U quer, V entlang (0 = Wurzel, 1 = Spitze), feine Haarsträhnen."""
+    rng = np.random.default_rng(seed)
+    v, u = np.mgrid[0:h, 0:w]
+    u = u / (w - 1)
+    v = v / (h - 1)
+    strands = np.zeros((h, w), np.float32)
+    for _ in range(26):
+        c = rng.random()
+        width = rng.uniform(0.015, 0.04)
+        bend = rng.uniform(-0.08, 0.08)
+        uu = c + bend * v ** 2
+        strands = np.maximum(strands, np.exp(-((u - uu) / width) ** 2) * (v < rng.uniform(0.7, 1.0)))
+    du = np.abs(u - 0.5) * 2
+    root_l, tip_l = srgb_to_linear(root), srgb_to_linear(tip)
+    col = root_l[None, None, :] * (1 - v[..., None] ** 1.5) + tip_l[None, None, :] * (v[..., None] ** 1.5)
+    col *= (0.45 + 0.75 * strands)[..., None]
+    col *= (1 - 0.35 * du ** 2)[..., None]
+    height = strands * 1.0 - du * 0.4
+    return (to_image(name + "_color", col ** (1 / 2.2)),
+            to_image(name + "_normal", height_to_normal(height, 3.0), non_color=True))
+
+
 def material(name, color_img=None, normal_img=None, color=(1, 1, 1, 1), rough=0.8, metal=0.0,
              normal_strength=1.0, double_sided=False, spec=0.5, emission=None, emission_strength=0.0):
     mat = bpy.data.materials.get(name) or bpy.data.materials.new(name)
@@ -373,6 +437,267 @@ def loft(mb: MeshBuilder, sections, close_tip=True, uv_scale=(1.0, 1.0)):
 def noise3(p: Vector, scale: float = 1.0) -> float:
     from mathutils import noise
     return noise.noise(p * scale)
+
+
+# =====================================================================================
+#  Hände und Arme (organisch: Teile vereinigen, Voxel-Remesh, glätten)
+# =====================================================================================
+
+def organic(ob: bpy.types.Object, voxel: float = 0.0022, smooth: int = 6, faces: int = 5000, uv_tile: float = 0.12) -> None:
+    """Macht aus zusammengesteckten Grundkörpern eine durchgehende, „modellierte“ Form:
+    Voxel-Remesh (verschmilzt alles), glätten, auf `faces` reduzieren, Box-UVs."""
+    import geo
+    for name, kind, setup in (
+            ("Remesh", "REMESH", lambda md: (setattr(md, "mode", "VOXEL"), setattr(md, "voxel_size", voxel),
+                                              setattr(md, "adaptivity", 0.0))),
+            ("Glatt", "SMOOTH", lambda md: (setattr(md, "factor", 0.6), setattr(md, "iterations", smooth))),
+            ("Weniger", "DECIMATE", lambda md: setattr(md, "ratio", 1.0))):
+        md = ob.modifiers.new(name, kind)
+        setup(md)
+    dg = bpy.context.evaluated_depsgraph_get()
+    # Anteil fürs Reduzieren aus der Flächenzahl nach dem Remesh
+    ob.modifiers["Weniger"].show_viewport = False
+    n_after = len(ob.evaluated_get(dg).data.polygons)
+    ob.modifiers["Weniger"].show_viewport = True
+    ob.modifiers["Weniger"].ratio = min(1.0, faces / max(n_after, 1))
+    dg = bpy.context.evaluated_depsgraph_get()
+    me = bpy.data.meshes.new_from_object(ob.evaluated_get(dg))
+    old = ob.data
+    ob.modifiers.clear()
+    ob.data = me
+    me.materials.clear()
+    for mt in old.materials:
+        me.materials.append(mt)
+    bpy.data.meshes.remove(old)
+    bm = bmesh.new()
+    bm.from_mesh(me)
+    geo.box_uv(bm, uv_tile)
+    bm.to_mesh(me)
+    bm.free()
+    for p in me.polygons:
+        p.use_smooth = True
+
+
+def grip_hand(side: int, skin, nail=None, size: float = 1.0, thick: float = 1.0, knobby: float = 0.3,
+              curl=(0.55, 0.8, 0.55), roll: float = 72.0, pitch: float = -0.25, finger_len: float = 1.0,
+              claw: float = 0.0, claw_mat=None, bony: bool = False, wrist_back: float = 0.05,
+              wrist_up: float = 0.02):
+    """Hand, die die Karten seitlich greift: Handfläche nach innen gedreht, Finger um die
+    Kartenkante gekrümmt, Daumen oben. Ursprung = Handgelenk (Hand-Koordinaten wie ch.hand).
+    Ausrichtung ist in die Mesh-Daten eingebacken (Godot setzt die Transformation zurück)."""
+    import geo
+    from geo import G
+    parts = []
+    nails = []
+    claws = []
+    s = size
+    T = thick
+    # flache Grundhaltung: Handrücken +Z, Finger nach -Y, Daumen innen (x = -side)
+    palm = geo.ellipsoid(Vector((0.046 * s * T, 0.05 * s, 0.019 * s * T)), Vector((0, -0.045 * s, 0.002)), 32, 20)
+    for v in palm.verts:  # Handrücken etwas flacher, Ballen dicker
+        k = (v.co.x * -side) / (0.046 * s)
+        if v.co.z < 0:
+            v.co.z -= 0.006 * s * max(0.0, k) * T
+    parts.append(palm)
+    parts.append(geo.tube([Vector((0, 0.035 * s, 0.0)), Vector((0, -0.005 * s, 0.001))],
+                          [0.03 * s * T, 0.034 * s * T], seg=16))  # Handgelenk
+    lens = ((0.044, 0.028, 0.022), (0.048, 0.031, 0.024), (0.045, 0.029, 0.022), (0.035, 0.023, 0.019))
+    xs = (0.03, 0.01, -0.01, -0.029)  # Zeigefinger innen (Daumenseite) … kleiner Finger außen
+    for f in range(4):
+        x = -side * xs[f] * s * T
+        base = Vector((x, -0.088 * s, 0.004 * s))
+        r = (0.0062 if bony else 0.0088) * s * T * (0.86 if f == 3 else 1.0)
+        d = Vector((side * 0.06 * (f - 1.5), -1, 0)).normalized()  # leicht gespreizt
+        p = base
+        joints = [p.copy()]
+        ang = 0.0
+        for k in range(3):
+            ang += curl[k] * (1.0 + 0.08 * f)
+            seg_d = Matrix.Rotation(ang, 3, "X") @ d  # krümmt nach unten (zur Handfläche)
+            L = lens[f][k] * s * finger_len
+            p = p + seg_d * L
+            joints.append(p.copy())
+        radii = [r * 1.05, r * 0.95, r * 0.86, r * 0.74]
+        parts.append(geo.tube(joints, radii, seg=12))
+        for k, jp in enumerate(joints[:-1]):
+            rr = radii[k] * (1.15 + knobby * (0.6 if k == 0 else 0.35))
+            parts.append(geo.ellipsoid(Vector((rr, rr, rr * 0.95)), jp + Vector((0, 0, radii[k] * 0.15)), 12, 8))
+        tip_d = (joints[3] - joints[2]).normalized()
+        parts.append(geo.ellipsoid(Vector((radii[3],) * 3), joints[3], 10, 8))
+        if claw > 0:
+            c0 = joints[3] - tip_d * 0.004 * s
+            c1 = joints[3] + tip_d * claw * 0.6 + Vector((0, 0, -claw * 0.2))
+            claws.append(geo.tube([c0, c1, c1 + tip_d * claw * 0.5 + Vector((0, 0, -claw * 0.4))],
+                                  [radii[3] * 0.8, radii[3] * 0.5, 0.0006], seg=8))
+        elif nail is not None:
+            # Nagel auf der Oberseite des letzten Glieds
+            up = (Vector((0, 0, 1)) - tip_d * tip_d.z).normalized()
+            nb = geo.ellipsoid(Vector((radii[3] * 0.82, radii[3] * 1.1, radii[3] * 0.3)), Vector((0, 0, 0)), 12, 8)
+            rot = Vector((0, -1, 0)).rotation_difference(tip_d).to_matrix().to_4x4()
+            geo.transform(nb, Matrix.Translation(joints[3] - tip_d * radii[3] * 0.35 + up * radii[3] * 0.72) @ rot)
+            nails.append(nb)
+    # Daumen: aus dem Ballen schräg nach vorne-oben
+    t0 = Vector((-side * 0.036 * s * T, -0.022 * s, -0.008 * s))
+    td = Vector((-side * 0.35, -1, 0.35)).normalized()
+    t1 = t0 + td * 0.034 * s * finger_len
+    td2 = (Matrix.Rotation(0.35, 3, "X") @ Vector((-side * 0.15, -1, 0.25))).normalized()
+    t2 = t1 + td2 * 0.03 * s * finger_len
+    t3 = t2 + (Matrix.Rotation(0.6, 3, "X") @ td2) * 0.024 * s * finger_len
+    rt = (0.0075 if bony else 0.0105) * s * T
+    parts.append(geo.tube([t0, t1, t2, t3], [rt * 1.4, rt, rt * 0.9, rt * 0.78], seg=12))
+    parts.append(geo.ellipsoid(Vector((rt * 1.1,) * 3), t1, 10, 8))
+    parts.append(geo.ellipsoid(Vector((rt * 0.8,) * 3), t3, 10, 8))
+    if claw > 0:
+        dd = (t3 - t2).normalized()
+        claws.append(geo.tube([t3 - dd * 0.003, t3 + dd * claw * 0.7], [rt * 0.7, 0.0006], seg=8))
+    elif nail is not None:
+        dd = (t3 - t2).normalized()
+        nb = geo.ellipsoid(Vector((rt * 0.75, rt * 1.0, rt * 0.28)), Vector((0, 0, 0)), 12, 8)
+        rot = Vector((0, -1, 0)).rotation_difference(dd).to_matrix().to_4x4()
+        geo.transform(nb, Matrix.Translation(t3 + Vector((0, 0, rt * 0.7))) @ rot)
+        nails.append(nb)
+
+    orient = Matrix.Translation(Vector((0, wrist_back, wrist_up))) @ \
+        Matrix.Rotation(math.radians(side * roll), 4, "Y") @ Matrix.Rotation(pitch, 4, "X")
+    name = "Hand_L" if side < 0 else "Hand_R"
+    bm = geo.merge(*parts)
+    geo.transform(bm, orient)
+    ob = geo.to_object(name, bm, skin, smooth=True, sharp_angle=None)
+    organic(ob, voxel=0.0016 * s, smooth=5, faces=6000, uv_tile=0.1)
+    ob.location = G(side * 0.15, 0.86, 0.2)
+    for extra, mt, nm in ((nails, nail, "_Nails"), (claws, claw_mat, "_Claws")):
+        if extra:
+            eb = geo.merge(*extra)
+            geo.transform(eb, orient)
+            eo = geo.to_object(name + nm, eb, mt, smooth=True, sharp_angle=None)
+            eo.parent = ob
+    return ob
+
+
+ARM_SEGMENT = 0.34  # Länge Ober-/Unterarm (gleich wie in opponent_figure.gd)
+
+
+def arm_ik(shoulder: Vector, hand: Vector, side: int, l1: float = ARM_SEGMENT, l2: float = ARM_SEGMENT):
+    """Ellbogen per Zwei-Knochen-IK (Blender-Koordinaten); Ellbogen nach außen und unten.
+    Gleiche Rechnung wie opponent_figure.gd → _update_arms()."""
+    d_vec = hand - shoulder
+    d = max(1e-4, min(d_vec.length, l1 + l2 - 1e-4))
+    dirv = d_vec.normalized()
+    pole = Vector((side * 1.0, 0.3, -0.35))  # außen, etwas nach hinten, unten (Blender: Z oben, +Y hinten)
+    perp = (pole - dirv * pole.dot(dirv)).normalized()
+    a = (l1 * l1 - l2 * l2 + d * d) / (2 * d)
+    h = math.sqrt(max(l1 * l1 - a * a, 0.0))
+    return shoulder + dirv * a + perp * h
+
+
+def place_segment(ob: bpy.types.Object, a: Vector, b: Vector) -> None:
+    """Segment (Länge 1 entlang lokal Z, -0.5 … +0.5) zwischen a und b strecken."""
+    d = b - a
+    rot = Vector((0, 0, 1)).rotation_difference(d.normalized()).to_matrix().to_4x4()
+    ob.matrix_world = Matrix.Translation((a + b) * 0.5) @ rot @ Matrix.Diagonal((1, 1, d.length, 1))
+
+
+def sleeve_segment(name: str, material, r0: float, r1: float, cuff: float = 0.0, folds: float = 1.0,
+                   bunch_end: float = 0.0, seed: int = 0):
+    """Ärmelstück (Länge 1 entlang Z, -0.5 = körpernah, +0.5 = körperfern).
+    cuff: Aufschlag am Ende, bunch_end: Stauchfalten am Ende (Ellbogen)."""
+    mb = MeshBuilder()
+    rows, uvs = [], []
+    n_r, n_z = 40, 40
+    ph = seed * 1.7
+    for i in range(n_z + 1):
+        t = i / n_z
+        z = -0.5 + t
+        r = r0 + (r1 - r0) * t
+        if cuff > 0 and t > 0.86:
+            r += cuff * min(1.0, (t - 0.86) / 0.03)
+        row, uvr = [], []
+        for j in range(n_r):
+            a = j / n_r * math.tau
+            warp = 1.5 * noise3(Vector((math.cos(a), math.sin(a), z * 2 + ph)))
+            fold = 0.005 * folds * math.sin(a * 5 + warp) + 0.0025 * folds * math.sin(a * 11 + warp * 2)
+            # Stauchfalten (Ringe) zum Ende hin, innen stärker
+            inner = max(0.0, math.sin(a))  # +Y-Seite = Ellbogen-Innenseite nach dem Platzieren grob
+            fold += bunch_end * max(0.0, t - 0.6) / 0.4 * (0.006 + 0.008 * inner) * math.sin(z * 90 + warp)
+            if cuff > 0 and t > 0.86:
+                fold *= 0.3
+            row.append(Vector(((r + fold) * math.cos(a), (r + fold) * math.sin(a), z)))
+            uvr.append((j / n_r * 2, t * 2.5))
+        rows.append(row)
+        uvs.append(uvr)
+    vs = mb.grid(rows, uvs, close=True)
+    mb.bm.faces.new(list(reversed(vs[0])))
+    mb.bm.faces.new(vs[-1])
+    return mb.finish(name, material)
+
+
+def preview_cards(count: int = 6) -> None:
+    """Kartenfächer des Gegners wie im Spiel (table_world.gd → _opp_hand_xf): Drehpunkt an der
+    Unterkante, mittig zwischen den Händen (+ CARD_GRIP), 68° gekippt."""
+    from geo import G
+    for ob in list(bpy.data.objects):
+        if ob.name.startswith("Preview_Card"):
+            bpy.data.objects.remove(ob, do_unlink=True)
+    import os
+    tex = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "assets", "cards", "back.png")
+    img = bpy.data.images.load(tex, check_existing=True) if os.path.exists(tex) else None
+    back = material("Preview_Kartenruecken", img, color=(0.09, 0.07, 0.2, 1), rough=0.5)
+    hl, hr = bpy.data.objects.get("Hand_L"), bpy.data.objects.get("Hand_R")
+    if hl is not None and hr is not None:
+        mid_b = (hl.location + hr.location) * 0.5   # Blender
+        mid = Vector((mid_b.x, mid_b.z, -mid_b.y))   # → Godot
+    else:
+        mid = Vector((0, 0.86, 0.2))
+    pivot = mid + Vector((0.0, 0.035, 0.03))
+    conv = Matrix(((1, 0, 0), (0, 0, -1), (0, 1, 0)))  # Godot → Blender
+    tilt = Matrix.Rotation(math.radians(68), 3, "X")
+    spread = min(0.21, 1.25 / count)
+    for i in range(count):
+        offset = i - (count - 1) * 0.5
+        basis = tilt @ Matrix.Rotation(-offset * spread, 3, "Y")
+        pos = pivot + basis @ Vector((0, 0, -0.14 * 0.38)) + tilt @ Vector((0, i * 0.0012, 0))
+        bm = bmesh.new()
+        bmesh.ops.create_cube(bm, size=1.0)
+        # Godot-Karte: Breite x 0.1, Dicke y 0.0025, Höhe z 0.14 (lokal, Godot-Achsen)
+        bmesh.ops.scale(bm, vec=Vector((0.1, 0.0025, 0.14)), verts=bm.verts)
+        me = bpy.data.meshes.new("Preview_Card%d" % i)
+        bm.to_mesh(me)
+        bm.free()
+        me.materials.append(back)
+        uv = me.uv_layers.new()
+        for poly in me.polygons:
+            for li in poly.loop_indices:
+                co = me.vertices[me.loops[li].vertex_index].co
+                uv.data[li].uv = (co.x / 0.1 + 0.5, co.z / 0.14 + 0.5)
+        ob = bpy.data.objects.new("Preview_Card%d" % i, me)
+        bpy.context.scene.collection.objects.link(ob)
+        m3 = conv @ basis   # Godot-lokal → Blender-Welt (Mesh ist in Godot-Achsen angelegt)
+        ob.matrix_world = Matrix.Translation(conv @ pos) @ m3.to_4x4()
+
+
+def preview_arms(upper, fore, hand_l, hand_r, shoulder_y=1.02, size=1.0) -> None:
+    """Arme in der Vorschau wie im Spiel stellen: Original rechts, Kopien links (Preview_*)."""
+    from geo import G
+    for ob in list(bpy.data.objects):
+        if ob.name.startswith("Preview_Arm"):
+            bpy.data.objects.remove(ob, do_unlink=True)
+    for side in (-1, 1):
+        mk = bpy.data.objects.get("Shoulder_L" if side < 0 else "Shoulder_R")
+        sh = mk.matrix_world.translation.copy() if mk is not None else G(side * 0.40, shoulder_y + 0.02, -0.34)
+        hand_ob = hand_l if side < 0 else hand_r
+        hp = Vector(hand_ob.location) + G(0, 0, -0.05)
+        el = arm_ik(sh, hp, side)
+        if side > 0:
+            u, f = upper, fore
+        else:
+            u = upper.copy()
+            u.name = "Preview_ArmU"
+            f = fore.copy()
+            f.name = "Preview_ArmF"
+            bpy.context.scene.collection.objects.link(u)
+            bpy.context.scene.collection.objects.link(f)
+        place_segment(u, sh, el)
+        place_segment(f, el, hp)
 
 
 # =====================================================================================
