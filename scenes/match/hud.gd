@@ -321,20 +321,22 @@ func _roundel(center: Vector2, radius: float, color: Color, ring: Color, caption
 	r.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_anchor(r, Vector2.ZERO, center - Vector2(radius, radius), Vector2(radius, radius) * 2)
 	add_child(r)
-	var cap := UIKit.poster_label(caption, UIKit.body_font(600, 2), 10, text_color)
+	var cap := UIKit.poster_label(caption, UIKit.body_font(600, 1), 8, text_color)
 	cap.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_at(r, cap, Vector2(0, radius * 0.38), Vector2(radius * 2, 14))
-	var val := UIKit.poster_label("", UIKit.display_font(), 26, text_color)
+	_at(r, cap, Vector2(0, radius * 0.32), Vector2(radius * 2, 11))
+	var val := UIKit.poster_label("", UIKit.display_font(), 19, text_color)
 	val.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_at(r, val, Vector2(0, radius * 0.62), Vector2(radius * 2, 34))
+	_at(r, val, Vector2(0, radius * 0.66), Vector2(radius * 2, 24))
 	r.set_meta("value", val)
 	return val
 
 
 func _build_left() -> void:
-	_lives_label = _roundel(Vector2(56, 410), 36, RED, CREAM, "LEBEN", CREAM)
-	_gold_label = _roundel(Vector2(56, 496), 36, PGOLD, BLACK, "GOLD", BLACK)
-	_deck_label = _roundel(Vector2(56, 582), 36, BLACK, CREAM, "STAPEL", CREAM)
+	# Leben / Gold / Stapel klein am linken Rand über dem Trumpf-Stern: unter dem
+	# Spielprotokoll und links neben der Hand, damit nichts überlappt.
+	_lives_label = _roundel(Vector2(36, 458), 26, RED, CREAM, "LEBEN", CREAM)
+	_gold_label = _roundel(Vector2(36, 517), 26, PGOLD, BLACK, "GOLD", BLACK)
+	_deck_label = _roundel(Vector2(36, 576), 26, BLACK, CREAM, "STAPEL", CREAM)
 	_deck_roundel = _deck_label.get_parent() as Roundel
 	var star := Roundel.new()
 	star.star = true

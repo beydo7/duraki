@@ -76,7 +76,7 @@ Chips blau, Mult rot.
 **Duell-HUD** (`scenes/match/hud.gd`, komplett im Code gebaut, Basis 1280×720, an Rändern verankert):
 - links oben roter Keil: Punkte groß, „/Ziel“, Segmentbalken; darunter Chips × Mult + Hinweis
 - darunter Spielprotokoll (Toasts)
-- links runde Plaketten Leben / Gold / Stapel, roter Stern = Trumpf, „ANGRIFF x/y“
+- links am Rand drei kleine runde Plaketten untereinander (Leben / Gold / Stapel), darunter roter Stern = Trumpf, „ANGRIFF x/y“
 - rechts oben schwarzer Balken: Foto, „GEGNER“/„ENDGEGNER“ + Name, Tisch x/y, Handkarten
 - darunter Relikte als Briefmarken (Tooltip)
 - rechts unten Zug-Plakette (Farbe je Zustand: Angriff creme, Verteidigung rot, Warten schwarz,
@@ -94,6 +94,11 @@ headless (Tests) direkt ins Menü.
 
 Hauptmenü: nur die vier Karten auf dem Tisch (Maus, Pfeiltasten/Controller + Enter/A), keine
 Knopfleiste links; im roten Keil unten die Zeile „BEYD & FLÖRRY“.
+
+**Händler** (`scenes/run/shop.gd`): Hintergrund ist sein Tisch (RoomBackdrop mit `merchant = true`:
+Kerzenkränze + Goldstapel, weichgezeichnet). Davor drei Stände als Plakatflächen mit rotem Schild:
+KARTEN (echtes Kartenbild + Etikett GOLD/GLAS/GLÜCK), RELIKTE (Relikte und Boni als Medaillons),
+ITEMS (Platzhalter: drei Münzen mit „?“ und Stempel „COMING SOON“). Preise als goldene Schrägschilder.
 
 Menüs (Hauptmenü in 3D mit Karten auf dem Tisch, Weg, Händler, Pause, Optionen, Decks, Run-Ende)
 nutzen dasselbe Theme; Hauptmenü, Weg und Händler haben den roten Keil hinter dem Titel.

@@ -14,6 +14,8 @@ var darken := 0.5
 ## Kamera (Position, Blickziel) – Standard: von schräg hinten über den Tisch
 var cam_from := Vector3(-0.55, 1.45, 1.05)
 var cam_to := Vector3(0.05, 0.95, -0.35)
+## Händlertisch: Kerzen, Goldstapel und Kartenstapel auf dem Tisch (für den Shop)
+var merchant := false
 
 var world: TableWorld
 var _view: SubViewportContainer
@@ -39,13 +41,31 @@ func _ready() -> void:
 	_view.add_child(_vp)
 	world = TableWorld.new()
 	_vp.add_child(world)
-	world.build_room(opponent, true)
+	world.build_room(opponent, not merchant)
+	if merchant:
+		_build_merchant_table()
 	world.sway_strength = 0.0
 	world.camera.look_at_from_position(cam_from, cam_to)
 	_base = world.camera.transform
 	world.set_camera_pose(_base)
 	_fit()
 	get_viewport().size_changed.connect(_fit)
+
+
+## Händlertisch: Goldstapel vorne in der Mitte, daneben ein Kerzenkranz (Licht!).
+func _build_merchant_table() -> void:
+	var gold := TableProps.new()
+	gold.position = Vector3(-0.5, 0, -0.06) # Münzen landen bei ca. (0.1, 0.8, 0.18)
+	world.add_child(gold)
+	gold.set_gold(TableProps.MAX_COINS, false)
+	var candles := TableProps.new()
+	candles.position = Vector3(0.5, 0, -0.02) # Kerzen bei ca. (-0.22, 0.8, 0.06)
+	world.add_child(candles)
+	candles.set_lives(5)
+	var more := TableProps.new()
+	more.position = Vector3(1.12, 0, -0.32) # zweiter Kerzenkranz weiter hinten rechts
+	world.add_child(more)
+	more.set_lives(3)
 
 
 func _fit() -> void:
