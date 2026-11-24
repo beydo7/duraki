@@ -17,6 +17,8 @@ var _flame: StandardMaterial3D
 var _brass: StandardMaterial3D
 var _gold: StandardMaterial3D
 var _coin_mesh: CylinderMesh
+## Nur ein gemeinsames Licht pro Kerzenkranz (spart Leistung, z. B. im Shop-Hintergrund)
+var _single_light := false
 
 
 func _init() -> void:
@@ -56,7 +58,11 @@ func _process(delta: float) -> void:
 		var flicker := 0.82 + 0.1 * sin(_t * 11.0 + i * 2.3) + 0.08 * sin(_t * 23.0 + i)
 		flame.scale = Vector3(1.0, 0.9 + 0.2 * flicker, 1.0) * life
 		flame.position.x = sin(_t * 3.0 + i) * 0.0012
-		light.light_energy = 0.32 * flicker * life
+		if _single_light:
+			light.visible = i == 0
+			light.light_energy = 0.32 * flicker * life * minf(_candles.size(), 4)
+		else:
+			light.light_energy = 0.32 * flicker * life
 
 
 ## Kerzen für die Leben aufstellen (einmal beim Aufbau).
@@ -78,6 +84,11 @@ func set_lives(count: int) -> void:
 		var r := 0.0 if count == 1 else 0.042
 		var pos := CANDLE_ORIGIN + Vector3(cos(a) * r, 0.008, sin(a) * r)
 		_candles.append(_candle(pos, 0.07 + 0.02 * ((i * 7) % 3) / 2.0))
+
+
+## Ein Licht für den ganzen Kranz statt eines pro Kerze (vor oder nach set_lives aufrufen).
+func use_single_light() -> void:
+	_single_light = true
 
 
 ## Die letzte brennende Kerze erlischt (mit Rauchfaden).

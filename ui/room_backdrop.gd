@@ -61,10 +61,12 @@ func _build_merchant_table() -> void:
 	var candles := TableProps.new()
 	candles.position = Vector3(0.5, 0, -0.02) # Kerzen bei ca. (-0.22, 0.8, 0.06)
 	world.add_child(candles)
+	candles.use_single_light()
 	candles.set_lives(5)
 	var more := TableProps.new()
 	more.position = Vector3(1.12, 0, -0.32) # zweiter Kerzenkranz weiter hinten rechts
 	world.add_child(more)
+	more.use_single_light()
 	more.set_lives(3)
 
 

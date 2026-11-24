@@ -13,6 +13,8 @@ const CARD_W := 164.0
 const ENH_COLORS := [Color.WHITE, UIKit.P_GOLD, Color(0.55, 0.82, 1.0), Color(0.42, 0.85, 0.5)]
 
 var _gold_shown := -1
+## Alle Waren der Auslage: {offer, btn, price}; wird beim Kauf direkt aktualisiert
+var _wares: Array[Dictionary] = []
 
 
 func _ready() -> void:
@@ -46,17 +48,10 @@ func _ready() -> void:
 	UIKit.show_unlocks.call_deferred(self)
 
 
+## Komplette Auslage neu aufbauen (Start und Neu-Mischen).
 func _render(deal := false) -> void:
-	if _gold_shown >= 0 and Run.gold != _gold_shown:
-		UIKit.count(%GoldLabel, _gold_shown, Run.gold, 0.5)
-		UIKit.pop(%GoldBox, 1.08)
-	else:
-		%GoldLabel.text = str(Run.gold)
-	_gold_shown = Run.gold
-	%EarnedLabel.text = "Sieg: +%d Gold   ·   Zinsen: +%d Gold" % [Run.last_gold_reward, Run.last_interest]
-	%RerollButton.text = "NEU MISCHEN · %d G" % Run.reroll_price
-	%RerollButton.disabled = Run.gold < Run.reroll_price
-
+	_update_header()
+	_wares.clear()
 	for c in %Stalls.get_children():
 		c.queue_free()
 	var cards: Array[Dictionary] = []
@@ -75,7 +70,35 @@ func _render(deal := false) -> void:
 		relic_row.add_child(_relic_offer(relics[i], deal, 0.35 + i * 0.06))
 	var item_row := _stall("ITEMS", "bald im Angebot", 268, deal, 2)
 	_items_soon(item_row)
+	_render_owned()
 
+
+## Gold, Zinsen und Neu-Mischen-Knopf aktualisieren.
+func _update_header() -> void:
+	if _gold_shown >= 0 and Run.gold != _gold_shown:
+		UIKit.count(%GoldLabel, _gold_shown, Run.gold, 0.5)
+		UIKit.pop(%GoldBox, 1.08)
+	else:
+		%GoldLabel.text = str(Run.gold)
+	_gold_shown = Run.gold
+	%EarnedLabel.text = "Sieg: +%d Gold   ·   Zinsen: +%d Gold" % [Run.last_gold_reward, Run.last_interest]
+	%RerollButton.text = "NEU MISCHEN · %d G" % Run.reroll_price
+	%RerollButton.disabled = Run.gold < Run.reroll_price
+
+
+## Nach einem Kauf: nichts neu aufbauen, nur Zustände, Preise und Besitz anpassen.
+func _bought(btn: Button) -> void:
+	_update_header()
+	for w in _wares:
+		_apply_state(w)
+	btn.pivot_offset = btn.size * 0.5
+	btn.scale = Vector2.ONE * 1.15
+	btn.create_tween().tween_property(btn, "scale", Vector2.ONE, 0.35) \
+		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_render_owned()
+
+
+func _render_owned() -> void:
 	for c in %Owned.get_children():
 		c.queue_free()
 	var cap := UIKit.label("DEIN BESITZ", 12, UIKit.MUTED, &"HeaderLabel")
@@ -132,7 +155,7 @@ func _stall(title: String, sub: String, width: float, deal: bool, index: int) ->
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	col.add_child(row)
 	if deal:
-		UIKit.appear(panel, 0.1 + index * 0.08, Vector2(0, 30), 0.5)
+		_fade_in(panel, 0.1 + index * 0.08, 0.97)
 	return row
 
 
@@ -154,34 +177,26 @@ func _ware(offer: Dictionary, w: float, h: float, deal: bool, delay: float) -> A
 	btn.focus_mode = Control.FOCUS_ALL
 	btn.size = Vector2(w, h)
 	holder.add_child(btn)
-	var sold: bool = offer.sold
-	var affordable: bool = Run.gold >= offer.price
-	btn.disabled = sold or not affordable
-	if sold:
-		btn.modulate = Color(1, 1, 1, 0.38)
-	elif not affordable:
-		btn.modulate = Color(0.75, 0.72, 0.72, 0.85)
-	btn.tooltip_text = "Zu wenig Gold" if not affordable and not sold else ""
 	btn.pressed.connect(func() -> void:
 		if Run.buy(offer):
-			_render())
-	if not btn.disabled:
-		UIKit.hover(btn, 1.06)
+			_bought(btn))
+	UIKit.hover(btn, 1.06)
 	UIKit.float_idle(btn, 3.0, 3.0 + randf(), randf() * 1.5)
 	if deal:
-		UIKit.appear(holder, delay, Vector2(0, 26), 0.45)
+		_fade_in(holder, delay, 0.9)
 
 	var box := VBoxContainer.new()
 	box.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	box.add_theme_constant_override("separation", 4)
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	btn.add_child(box)
-	return [holder, btn, box]
+	var entry := {"offer": offer, "btn": btn, "price": null}
+	_wares.append(entry)
+	return [holder, btn, box, entry]
 
 
 func _card_offer(offer: Dictionary, deal: bool, delay: float) -> Control:
 	var parts := _ware(offer, CARD_W, 290, deal, delay)
-	var btn: Button = parts[1]
 	var box: VBoxContainer = parts[2]
 	var enh: int = offer.get("enhancement", 0)
 
@@ -226,13 +241,12 @@ func _card_offer(offer: Dictionary, deal: bool, delay: float) -> Control:
 	var text := _label(offer.text, 13, Color(UIKit.P_CREAM, 0.72), false)
 	text.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	box.add_child(text)
-	box.add_child(_price(offer, btn))
+	_finish_ware(parts)
 	return parts[0]
 
 
 func _relic_offer(offer: Dictionary, deal: bool, delay: float) -> Control:
 	var parts := _ware(offer, RELIC_W, 290, deal, delay)
-	var btn: Button = parts[1]
 	var box: VBoxContainer = parts[2]
 	var is_relic: bool = offer.kind == "RELIKT"
 
@@ -259,8 +273,45 @@ func _relic_offer(offer: Dictionary, deal: bool, delay: float) -> Control:
 	var text := _label(offer.text, 12, Color(UIKit.P_CREAM, 0.72), false)
 	text.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	box.add_child(text)
-	box.add_child(_price(offer, btn))
+	_finish_ware(parts)
 	return parts[0]
+
+
+## Preisschild anhängen und Zustand (kaufbar / zu teuer / verkauft) setzen.
+func _finish_ware(parts: Array) -> void:
+	var price := CenterContainer.new()
+	price.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	(parts[2] as VBoxContainer).add_child(price)
+	var entry: Dictionary = parts[3]
+	entry.price = price
+	_apply_state(entry)
+
+
+func _apply_state(entry: Dictionary) -> void:
+	var offer: Dictionary = entry.offer
+	var btn: Button = entry.btn
+	var sold: bool = offer.sold
+	var affordable: bool = Run.gold >= offer.price
+	btn.disabled = sold or not affordable
+	btn.modulate = Color(1, 1, 1, 0.38) if sold else (Color.WHITE if affordable else Color(0.75, 0.72, 0.72, 0.85))
+	btn.tooltip_text = "Zu wenig Gold" if not affordable and not sold else ""
+	btn.mouse_filter = Control.MOUSE_FILTER_IGNORE if sold else Control.MOUSE_FILTER_STOP
+	var center: CenterContainer = entry.price
+	for c in center.get_children():
+		c.queue_free()
+	center.add_child(_price(offer))
+
+
+## Weiches Einblenden ohne Positions-Tween (verträgt sich mit Containern).
+func _fade_in(node: Control, delay: float, from_scale: float) -> void:
+	node.modulate.a = 0.0
+	var tw := node.create_tween()
+	tw.tween_interval(delay)
+	tw.tween_callback(func() -> void:
+		node.pivot_offset = node.size * 0.5
+		node.scale = Vector2.ONE * from_scale)
+	tw.tween_property(node, "modulate:a", 1.0, 0.32).set_trans(Tween.TRANS_SINE)
+	tw.parallel().tween_property(node, "scale", Vector2.ONE, 0.42).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
 ## Platzhalter für Items: drei Münzen mit Fragezeichen und ein „COMING SOON“-Stempel.
@@ -301,9 +352,7 @@ func _items_soon(row: HBoxContainer) -> void:
 	stamp.position = Vector2(118, 150) - stamp.size * 0.5
 
 
-func _price(offer: Dictionary, _btn: Button) -> Control:
-	var center := CenterContainer.new()
-	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+func _price(offer: Dictionary) -> Control:
 	var sold: bool = offer.sold
 	var affordable: bool = Run.gold >= offer.price
 	var tag := Slab.new()
@@ -323,8 +372,7 @@ func _price(offer: Dictionary, _btn: Button) -> Control:
 		tag.color = UIKit.P_RED_DARK
 		col = UIKit.P_CREAM
 	tag.add_child(UIKit.poster_label(text, UIKit.display_font(1), 18, col))
-	center.add_child(tag)
-	return center
+	return tag
 
 
 # --- Besitz -----------------------------------------------------------------------------
