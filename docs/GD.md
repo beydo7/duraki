@@ -89,6 +89,14 @@ Ein Run = 3 normale Gegner + Boss, 3 Leben (Kerzen). Wer verliert, ist der Durak
 - Händler verkauft keine Boni mehr (die bringen die Decks mit), nur Karten, Relikte, Items.
 - Glaskarten wie bei Balatro: bläulicher, durchscheinender Glasgrund (Alpha ~0,65) mit Lichtbändern,
   dunkle deckende Linien (`glass_version` in `tools/generate_cards.py`, Shader mit ALPHA).
+- **Regel: Auf Karten steht nie ein Schriftzug der Verbesserung** (kein GOLD/GLAS/GLÜCK) – auch nicht bei
+  künftigen Kartenarten. Man erkennt sie am Bild.
+- **Look**: Nachschärfen (Aus/Normal/Stark, Standard Normal) und **Retro-Look** (Pixel, Röhrenwölbung,
+  Zeilen, Farbsaum – wie Balatro) als Bildpass über allem (`ui/post_screen.gdshader`, CanvasLayer 120 im
+  Autoload Settings). Kantenglättung Standard 4× (`GRAPHICS_VERSION` hebt ältere Einstellungen einmalig an).
+- Während ausgeteilt wird, kann man nicht ausspielen (`TableWorld.busy_until`).
+- **Balance (25.11.)**: Siegprämien der Gegner −20 %, Zinsen max. 4, Spiegel 4 G, Schwer-Ziel ×1,4.
+  Bot: Leicht 8/8, Normal 6/8, Schwer ~1–2/8.
 - Glückskarten: grün getönter Grund + Klee-Ecken (Variante A, von Leon gewählt, `LUCKY_STYLE`).
 - Index ohne Boni-Reiter (Boni gehören zu den Decks); Relikte/Items wachsen beim Drüberfahren.
 - Nachgeworfene Karte, die die Runde sofort beendet, landet erst sichtbar auf dem Tisch (`THROWN_PAUSE`).

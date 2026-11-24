@@ -243,14 +243,8 @@ func _build() -> void:
 	back_mat.albedo_texture = back_texture()
 	_add_quad(Vector2(WIDTH, HEIGHT), THICKNESS * 0.5 + 0.0002, back_mat, true)
 
-	if card != null and enh != Card.Enhancement.NONE and not glass: # Glas ohne Schriftzug
-		var tag := _label(Card.ENHANCEMENT_TAGS[enh], 80, ENH_TAG[enh], false, 0.0002)
-		tag.font = INDEX_FONT
-		tag.shaded = false
-		tag.outline_size = 16
-		tag.outline_modulate = Color("120f24")
-		tag.position = Vector3(0, THICKNESS * 0.5 + 0.0008, HEIGHT * 0.5 - 0.011)
-		_body.add_child(tag)
+	# Keine Schriftzüge (GOLD/GLAS/GLÜCK …) auf Karten – die Verbesserung erkennt man am Bild.
+	# Gilt auch für alle künftigen Kartenarten.
 
 	# Klickfläche (an der Wurzel, damit Kippen das Hovern nicht stört)
 	var area := Area3D.new()

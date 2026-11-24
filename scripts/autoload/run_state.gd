@@ -17,7 +17,7 @@ const BASE_HAND_SIZE := 6
 const NORMAL_FIGHTS := 3 # danach folgt der Boss
 ## Zinsen nach jedem Sieg: +1 Gold pro 5 Gold, höchstens so viel.
 const INTEREST_PER := 5
-const INTEREST_MAX := 5
+const INTEREST_MAX := 4 # Balance: weniger Gold-Überschuss (Boni gibt es nicht mehr zu kaufen)
 const REROLL_BASE_PRICE := 2
 ## Punkteziel pro Etage (wie die Blinds bei Balatro). Letzter Eintrag = Boss.
 ## Gibt es mehr Etagen als Einträge, wird der letzte Wert weiter gesteigert.
@@ -26,7 +26,7 @@ const SCORE_TARGET_GROWTH := 1.25
 
 ## Schwierigkeit (Index wie Settings.DIFFICULTY_NAMES): Punkteziel-Faktor, Fehlerquote der
 ## Gegner (Faktor), Leben, Seelen-Faktor
-const DIFF_TARGET: Array[float] = [0.8, 1.15, 1.45]
+const DIFF_TARGET: Array[float] = [0.8, 1.15, 1.4]
 const DIFF_MISTAKE: Array[float] = [1.3, 0.6, 0.25]
 const DIFF_LIVES: Array[int] = [1, 0, -1]
 const DIFF_SOULS: Array[float] = [0.75, 1.0, 1.25]
@@ -38,7 +38,7 @@ const ITEM_SLOTS := 2
 const ITEMS := {
 	&"lighter": {"name": "Feuerzeug", "emoji": "🔥", "price": 6,
 		"text": "Verbrennt eine Gegnerkarte auf dem Tisch: seinen Angriff oder seine Verteidigung. Er muss neu legen."},
-	&"mirror": {"name": "Spiegel", "emoji": "🪞", "price": 5,
+	&"mirror": {"name": "Spiegel", "emoji": "🪞", "price": 4,
 		"text": "Schwebt hinter dem Gegner vorbei und verrät dir eine zufällige Karte seiner Hand."},
 }
 

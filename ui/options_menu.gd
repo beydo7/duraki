@@ -167,6 +167,10 @@ func _build_graphics() -> void:
 	_option("Schatten", "graphics/shadows", Settings.QUALITY_NAMES)
 	_toggle("Leuchteffekte (Glow)", "graphics/glow")
 	_slider("Helligkeit", "graphics/brightness", 0.6, 1.4, 0.05, _percent)
+	_heading("Look")
+	_option("Bildschärfe", "graphics/sharpen", Settings.SHARPEN_NAMES)
+	_toggle("Retro-Look (Pixel & Röhre)", "graphics/retro")
+	_note("Retro-Look: grobere Pixel, leicht gewölbter Röhrenbildschirm, Zeilen – wie in Balatro.")
 
 
 func _build_audio() -> void:

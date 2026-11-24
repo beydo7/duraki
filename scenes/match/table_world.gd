@@ -74,6 +74,7 @@ var _deck_pile: MeshInstance3D
 var _discard_pile: MeshInstance3D
 var _discard_count := 0
 var _deal_queue_until := 0.0
+var _busy_until := 0.0
 var _cam_base: Transform3D
 var _mouse := Vector2(0.5, 0.5)
 var _env: Environment
@@ -303,6 +304,8 @@ func sync(duel: DurakMatch, playable: Array[Card]) -> void:
 			_transfer_card = null
 	if new_count > 0:
 		_deal_queue_until = deal_start + new_count * DEAL_STAGGER
+		var f := Settings.anim_time_factor()
+		_busy_until = now + (deal_start - now + new_count * DEAL_STAGGER + 0.42) * f
 	var last_attacks := _last_attacks
 	var last_defs := _last_defs
 	_last_attacks = duel.attack_cards.duplicate()
@@ -369,6 +372,13 @@ func _follow_hand() -> void:
 			continue
 		if _base.has(node):
 			node.position = (_base[node] as Transform3D).origin + delta
+
+
+## Solange noch ausgeteilt wird (Zeitpunkt in Sekunden, wie Time.get_ticks_msec()/1000):
+## so lange darf der Spieler nicht ausspielen – sonst könnte er mit Karten angreifen,
+## die er noch gar nicht sieht.
+func busy_until() -> float:
+	return _busy_until
 
 
 ## Die nächste Karte, die aus einer Hand auf den Tisch geht, wurde geschoben.
@@ -660,7 +670,9 @@ func _on_hover(node: Card3D, hovered: bool) -> void:
 		card_hovered.emit(node.card, hovered)
 	if hovered and node.in_hand:
 		_sfx(&"card_hand_hover", randf_range(0.94, 1.1)) # Handkarte ansehen: ganz leises Rascheln
-	if _base.has(node):
+	# nur Handkarten heben/senken – eine Karte, die gerade auf den Tisch fliegt, darf ihre
+	# Bewegung nicht verlieren (sonst fehlen Landegeräusch und Aufprall)
+	if _base.has(node) and node.in_hand:
 		_move(node, _with_hover(node, _base[node]), 0.0, 0.12)
 
 

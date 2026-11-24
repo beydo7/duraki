@@ -22,6 +22,10 @@ const MSAA_VALUES := [Viewport.MSAA_DISABLED, Viewport.MSAA_2X, Viewport.MSAA_4X
 const QUALITY_NAMES := ["Niedrig", "Mittel", "Hoch"]
 const SPEED_NAMES := ["Gemütlich", "Normal", "Schnell"]
 const DIFFICULTY_NAMES := ["Leicht", "Normal", "Schwer"]
+const SHARPEN_NAMES := ["Aus", "Normal", "Stark"]
+const SHARPEN_VALUES := [0.0, 0.35, 0.65]
+## Erhöhen, wenn sich Grafik-Standardwerte ändern (ältere Dateien bekommen sie einmalig)
+const GRAPHICS_VERSION := 2
 const SHADOW_ATLAS := [0, 2048, 4096]
 
 ## Erhöhen, wenn sich Audio-Standardwerte ändern: ältere Einstellungsdateien übernehmen
@@ -34,7 +38,10 @@ const DEFAULTS := {
 	"graphics/resolution": 0,
 	"graphics/vsync": true,
 	"graphics/fps_limit": 0,
-	"graphics/msaa": 1,
+	"graphics/msaa": 2, # 4× – schärfere Kanten
+	"graphics/sharpen": 1, # Nachschärfen: Aus/Normal/Stark
+	"graphics/retro": false, # Retro-Look (Pixel, Röhre, Zeilen) wie in Balatro
+	"graphics/version": GRAPHICS_VERSION,
 	"graphics/render_scale": 1.0,
 	"graphics/shadows": Quality.HIGH,
 	"graphics/glow": true,
@@ -109,6 +116,10 @@ func load_settings() -> void:
 			var v: Variant = cfg.get_value(parts[0], parts[1])
 			if typeof(v) == typeof(DEFAULTS[key]) or (DEFAULTS[key] is float and v is int):
 				_values[key] = v
+	if int(cfg.get_value("graphics", "version", 1)) < GRAPHICS_VERSION:
+		_values["graphics/msaa"] = maxi(int(_values["graphics/msaa"]), 2)
+		_values["graphics/version"] = GRAPHICS_VERSION
+		save_settings()
 	if int(cfg.get_value("audio", "version", 1)) < AUDIO_VERSION:
 		_values["audio/music"] = DEFAULTS["audio/music"]
 		_values["audio/version"] = AUDIO_VERSION
@@ -150,12 +161,40 @@ func shadows_enabled() -> bool:
 # --- Anwenden -------------------------------------------------------------------
 
 func apply_all() -> void:
+	_apply_post()
 	_apply_window()
 	_apply_audio()
 	Engine.max_fps = FPS_LIMITS[clampi(get_value("graphics/fps_limit"), 0, FPS_LIMITS.size() - 1)]
 	var root := get_tree().root if get_tree() != null else null
 	if root != null:
 		root.content_scale_factor = get_value("general/ui_scale")
+
+
+# --- Bild-Nachbearbeitung (Schärfe, Retro) über allem ------------------------------------
+
+var _post: ColorRect
+
+
+func _apply_post() -> void:
+	if _post == null:
+		if get_tree() == null:
+			return
+		var layer := CanvasLayer.new()
+		layer.layer = 120 # über Pause (50) und Überblendung (100)
+		_post = ColorRect.new()
+		_post.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		_post.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var mat := ShaderMaterial.new()
+		mat.shader = preload("res://ui/post_screen.gdshader")
+		_post.material = mat
+		layer.add_child(_post)
+		add_child.call_deferred(layer)
+	var sharpen: float = SHARPEN_VALUES[clampi(int(get_value("graphics/sharpen")), 0, 2)]
+	var retro: bool = get_value("graphics/retro")
+	var m := _post.material as ShaderMaterial
+	m.set_shader_parameter("sharpen", sharpen)
+	m.set_shader_parameter("retro", 1.0 if retro else 0.0)
+	_post.visible = retro or sharpen > 0.0 # aus = keine Extra-Kosten
 
 
 ## Für SubViewports mit 3D-Inhalt (Kantenglättung, Renderauflösung, Schatten).

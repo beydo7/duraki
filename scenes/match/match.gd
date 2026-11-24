@@ -238,6 +238,8 @@ func _on_player_card(card: Card, target := -1, slot := -1) -> void:
 			hud.set_relics(Run.relics, Run.items)
 			duel.burn(card)
 		return
+	if _now() < world.busy_until():
+		return # es wird noch ausgeteilt – erst die neuen Karten abwarten
 	if not _playable.has(card):
 		# nur möglich, wenn Hinweise aus sind: alle Handkarten sind anklickbar
 		hud.toast("%s passt gerade nicht." % card, MatchHUD.COLOR_GOLD)
