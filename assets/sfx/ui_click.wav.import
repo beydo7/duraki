@@ -2,13 +2,13 @@
 
 importer="wav"
 type="AudioStreamWAV"
-uid="uid://dkaiqhexw148y"
-path="res://.godot/imported/candle_dim.wav-29d0013159e58bec2caa27a19da28e79.sample"
+uid="uid://ddmw6ro8ca18a"
+path="res://.godot/imported/ui_click.wav-9a142c8bec8b6ef8f54b0d7148efc53b.sample"
 
 [deps]
 
-source_file="res://assets/sfx/candle_dim.wav"
-dest_files=["res://.godot/imported/candle_dim.wav-29d0013159e58bec2caa27a19da28e79.sample"]
+source_file="res://assets/sfx/ui_click.wav"
+dest_files=["res://.godot/imported/ui_click.wav-9a142c8bec8b6ef8f54b0d7148efc53b.sample"]
 
 [params]
 

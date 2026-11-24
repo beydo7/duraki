@@ -9,18 +9,20 @@ extends Node3D
 ##                    SMOULDER_TIME Sekunden aus
 ## Danach passiert nichts mehr (bis zum nächsten Duell).
 
-const CENTER := Vector3(-0.68, 0.8, -0.42)
+## Platz des Aschenbechers hinten links (Gegnerseite, nur Deko)
+const BACK_CENTER := Vector3(-0.68, 0.8, -0.42)
 const PUFFS := 5
 const SMOULDER_TIME := 12.0
 const PAPER_LEN := 0.062
 const FILTER_LEN := 0.022
 const R := 0.0045
-## Kerbe zeigt grob zur Kamera, damit man die Zigarette sieht
-const NOTCH_DIR := Vector3(0.55, 0, 0.83)
 
 enum State { UNLIT, LIT, BUTT, OUT }
 
 var interactive := false
+var center := BACK_CENTER
+## Richtung der Kerbe mit der Zigarette (Filter zeigt dorthin)
+var notch_dir := Vector3(0.55, 0, 0.83)
 var state := State.UNLIT
 var _puffs := 0
 var _busy := false
@@ -46,7 +48,7 @@ var _trail_timer := 0.0
 
 
 func _ready() -> void:
-	position = CENTER
+	position = center
 	_build_tray()
 	_build_cigarette()
 
@@ -110,7 +112,7 @@ func _build_tray() -> void:
 	rim_node.scale = Vector3(1, 0.45, 1)
 	# drei Kerben im Rand
 	for k in 3:
-		var dir := NOTCH_DIR.rotated(Vector3.UP, k * TAU / 3.0)
+		var dir := notch_dir.rotated(Vector3.UP, k * TAU / 3.0)
 		var notch := BoxMesh.new()
 		notch.size = Vector3(0.011, 0.006, 0.022)
 		var n := _mesh(notch, well, dir * 0.059 + Vector3(0, 0.0245, 0))
@@ -143,7 +145,7 @@ func _build_cigarette() -> void:
 	_cig = Node3D.new()
 	add_child(_cig)
 	# lokale X-Achse: von der Glut (x=0) zum Filter
-	var dir := NOTCH_DIR.normalized()
+	var dir := notch_dir.normalized()
 	var tip_pos := dir * 0.02 + Vector3(0, 0.026, 0)
 	# Filter zeigt nach außen und liegt leicht angehoben in der Kerbe
 	_cig_rest = Transform3D(_axis_basis(dir + Vector3(0, 0.12, 0), Vector3.UP), tip_pos)

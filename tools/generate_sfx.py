@@ -14,10 +14,16 @@ Ausgabe in assets/sfx/ (16 Bit, mono, 44,1 kHz):
   card_select.wav  Menükarte gewählt: kräftiger Schnipp
   lighter.wav      Feuerzeug (Rad + Flamme)
   inhale.wav       Zug an der Zigarette (Knistern + Atem)
-  exhale.wav       Ausatmen
+  exhale.wav       Rauch auspusten (gespitzte Lippen, weich)
   gulp.wav         Schnaps trinken (Schluck + Glas abstellen)
-  candle_dim.wav   leises Flackern, wenn die Kerzen dunkler werden
+  candle_flicker.wav  Kerzen flackern (weiches Flattern, feines Knistern)
   clink.wav        Fingernagel ans Schnapsglas
+  bottle_knock.wav Klopfen an die Whiskeyflasche
+  pour.wav         Whiskey einschenken (Gluckern)
+  index_hover.wav  ganz leiser, heller Tick (Karten im Index/Händler)
+  ui_click.wav     weicher Klick (Reiter, Kartenarten)
+
+Die Lautstärke im Spiel regelt Sfx.VOLUME (scripts/autoload/sfx.gd).
 """
 import os
 import wave
@@ -225,10 +231,15 @@ def inhale():
 
 
 def exhale():
-    dur = 1.3
+    """Auspusten durch gespitzte Lippen: zwei Resonanzen im Rauschen, weich an- und abschwellend."""
+    dur = 1.5
     n = int(dur * SR)
-    x = lowpass(noise(dur), np.geomspace(2200, 500, n)) * env(n, 0.06, 0.45)
-    save("exhale.wav", x)
+    base = noise(dur)
+    lips = bandpass(base, 700, 1900) * 0.8 + bandpass(base, 2200, 3600) * 0.25
+    lips = lowpass(lips, np.geomspace(3800, 1400, n))
+    shape = np.clip(np.arange(n) / (0.18 * SR), 0, 1) ** 1.5 * np.exp(-np.maximum(np.arange(n) / SR - 0.35, 0) / 0.42)
+    flutter = 1.0 + 0.08 * np.sin(2 * np.pi * 5.5 * np.arange(n) / SR)
+    save("exhale.wav", lips * shape * flutter, peak=0.5)
 
 
 def gulp():
@@ -245,11 +256,65 @@ def gulp():
     save("gulp.wav", reverb(buf, 0.3, 0.15))
 
 
-def candle_dim():
-    dur = 0.6
+def candle_flicker():
+    """Kerzen im Luftzug: weiches, unregelmäßiges Flattern + ganz feines Knistern des Dochts."""
+    dur = 1.2
     n = int(dur * SR)
-    x = lowpass(noise(dur), 500) * env(n, 0.05, 0.18)
-    save("candle_dim.wav", x)
+    r = np.random.RandomState(11)
+    # Flattern: tiefes Rauschen, Lautstärke zittert unregelmäßig (8–14 Hz)
+    wob = np.interp(np.arange(n), np.linspace(0, n, 16), r.uniform(0.2, 1.0, 16))
+    wob *= 0.75 + 0.25 * np.sin(2 * np.pi * 11 * np.arange(n) / SR + r.uniform(0, 6))
+    flap = lowpass(noise(dur), 380) * wob
+    crack = np.zeros(n)
+    for _ in range(9):
+        i = r.randint(0, n - 300)
+        crack[i:i + 260] += highpass(noise(260 / SR), 2500) * env(260, 0.0002, 0.002) * r.uniform(0.2, 0.6)
+    shape = np.sin(np.linspace(0, np.pi, n)) ** 0.7
+    save("candle_flicker.wav", (flap * 1.2 + crack * 0.35) * shape, peak=0.45)
+
+
+def bottle_knock():
+    dur = 0.4
+    buf = np.zeros(int(dur * SR))
+    place(buf, thud(260, 200, 0.18), 0.0, 0.5)
+    place(buf, chime(880, 0.3), 0.0, 0.25)
+    place(buf, chime(1460, 0.2), 0.0, 0.1)
+    save("bottle_knock.wav", buf, peak=0.6)
+
+
+def pour():
+    """Einschenken: Gluckern aus der Flasche + Plätschern ins Glas."""
+    dur = 1.6
+    n = int(dur * SR)
+    buf = np.zeros(n)
+    r = np.random.RandomState(5)
+    at = 0.05
+    while at < 1.25:
+        d = r.uniform(0.04, 0.07)
+        f0 = r.uniform(260, 380)
+        blob = sine(np.geomspace(f0, f0 * 1.9, int(d * SR)), d) * env(int(d * SR), 0.003, d * 0.35)
+        place(buf, blob, at, r.uniform(0.5, 0.9))
+        at += r.uniform(0.07, 0.12)
+    trickle = bandpass(noise(1.3), 1200, 5000) * env(int(1.3 * SR), 0.08, 0.5, 0.4)
+    place(buf, trickle, 0.05, 0.25)
+    save("pour.wav", reverb(buf, 0.2, 0.1), peak=0.6)
+
+
+def index_hover():
+    dur = 0.12
+    buf = np.zeros(int(dur * SR))
+    place(buf, bandpass(noise(0.03), 3000, 9000) * env(int(0.03 * SR), 0.001, 0.006), 0.0, 0.25)
+    place(buf, chime(1976, 0.1), 0.002, 0.35)
+    place(buf, chime(2637, 0.08), 0.004, 0.12)
+    save("index_hover.wav", buf, peak=0.5)
+
+
+def ui_click():
+    dur = 0.18
+    buf = np.zeros(int(dur * SR))
+    place(buf, clack(1500, 0.04), 0.0, 0.4)
+    place(buf, chime(1318, 0.15), 0.004, 0.25)
+    save("ui_click.wav", buf, peak=0.55)
 
 
 def clink():
@@ -270,8 +335,12 @@ def main():
     inhale()
     exhale()
     gulp()
-    candle_dim()
+    candle_flicker()
     clink()
+    bottle_knock()
+    pour()
+    index_hover()
+    ui_click()
     print("Sounds erzeugt in", OUT)
 
 

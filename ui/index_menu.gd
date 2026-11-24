@@ -72,7 +72,9 @@ func _ready() -> void:
 		b.toggle_mode = true
 		b.custom_minimum_size = Vector2(128, 44)
 		var index := i
-		b.pressed.connect(func() -> void: _show_tab(index))
+		b.pressed.connect(func() -> void:
+			Sfx.play(&"ui_click")
+			_show_tab(index))
 		UIKit.hover(b, 1.04)
 		row.add_child(b)
 		_tab_buttons.append(b)
@@ -80,7 +82,9 @@ func _ready() -> void:
 	back.text = "ZURÜCK"
 	back.theme_type_variation = &"PrimaryButton"
 	back.custom_minimum_size = Vector2(130, 44)
-	back.pressed.connect(close)
+	back.pressed.connect(func() -> void:
+		Sfx.play(&"ui_click", 0.85)
+		close())
 	UIKit.hover(back, 1.04)
 	row.add_child(back)
 
@@ -138,6 +142,7 @@ func _cards_tab() -> Control:
 		b.add_theme_color_override("font_pressed_color", UIKit.P_BLACK if e != 0 else UIKit.P_RED)
 		var en := e
 		b.pressed.connect(func() -> void:
+			Sfx.play(&"ui_click", 1.0 + en * 0.06)
 			_enh = en
 			_show_tab(0))
 		bar.add_child(b)
@@ -191,6 +196,8 @@ func _card_pic(c: Card) -> Control:
 
 
 func _lift(node: Control, up: bool) -> void:
+	if up:
+		Sfx.play(&"index_hover", randf_range(0.96, 1.08))
 	node.pivot_offset = node.size * 0.5
 	node.z_index = 1 if up else 0
 	var tw := node.create_tween()
@@ -245,6 +252,8 @@ func _medal_grid(entries: Array, note: String) -> Control:
 		var cell := HBoxContainer.new()
 		cell.custom_minimum_size = Vector2(260, 96)
 		cell.add_theme_constant_override("separation", 12)
+		cell.mouse_filter = Control.MOUSE_FILTER_PASS
+		cell.mouse_entered.connect(func() -> void: Sfx.play(&"index_hover", randf_range(0.9, 1.0)))
 		var medal := Roundel.new()
 		medal.color = e[1]
 		medal.ring_color = e[2]

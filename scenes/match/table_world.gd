@@ -35,6 +35,7 @@ const TABLE_FIELD_WIDTH := 0.96
 const TABLE_CARD_SCALE := 1.8
 const MOVE_TIME := 0.32
 const DISCARD_DELAY := 1.5
+const PLAYER_ASHTRAY_POS := Vector3(-0.6, TABLE_Y, 0.27)
 const DEAL_STAGGER := 0.07
 const HOVER_LIFT := Vector3(0, 0.035, -0.02)
 
@@ -45,8 +46,10 @@ static var hand_layout := "fan"
 var camera: Camera3D
 var figure: OpponentFigure
 var props: TableProps
-## Aschenbecher mit Zigarette (im Duell anklickbar)
+## Aschenbecher: hinten (Deko) und im Duell deiner vorne links (anklickbar)
 var ashtray: Ashtray
+## Whiskeyflasche (im Hauptmenü zum Nachschenken anklickbar)
+var whiskey: WhiskeyBottle
 ## Kamera schwenkt leicht mit der Maus (aus im Menü-Hintergrund möglich).
 var sway_strength := 1.0
 
@@ -81,6 +84,9 @@ func build_room(opponent: OpponentData, markings := true) -> void:
 	ashtray = Ashtray.new()
 	add_child(ashtray)
 	ashtray.hide_model_parts(self)
+	whiskey = WhiskeyBottle.new()
+	add_child(whiskey)
+	whiskey.hide_model_parts(self)
 	if markings:
 		_build_markings()
 	_build_lights()
@@ -109,7 +115,12 @@ func _on_settings_changed() -> void:
 
 func build(opponent: OpponentData) -> void:
 	build_room(opponent)
+	# eigener Aschenbecher mit Zigarette vorne links neben den Kerzen (anklickbar)
+	ashtray = Ashtray.new()
+	ashtray.center = PLAYER_ASHTRAY_POS
+	ashtray.notch_dir = Vector3(0.5, 0, 0.87)
 	ashtray.interactive = true
+	add_child(ashtray)
 	props = TableProps.new()
 	add_child(props)
 	_deck_pile = _pile_mesh()

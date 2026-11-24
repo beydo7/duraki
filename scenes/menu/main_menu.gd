@@ -77,11 +77,11 @@ func _process(delta: float) -> void:
 
 
 func _focus(index: int, silent := false) -> void:
-	if index < 0 or index >= _cards.size():
-		return
+	if index < 0 or index >= _cards.size() or _leaving:
+		return # nach „Spielen“ (Kamera fährt an den Tisch) keine Hover-Töne mehr
 	if not silent and (index != _sel or not _cards[index].focused):
 		# leicht andere Tonhöhe je Karte, wie Töne auf einer Tonleiter
-		Sfx.play(&"card_hover", [0.94, 1.0, 1.06, 1.12, 1.19][index % 5], -3.0)
+		Sfx.play(&"card_hover", [0.94, 1.0, 1.06, 1.12, 1.19][index % 5])
 	_sel = index
 	for i in _cards.size():
 		_cards[i].focused = i == index

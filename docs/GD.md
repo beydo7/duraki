@@ -156,18 +156,24 @@ Porträts per `art/blender/render_portraits.py`.
 Alle Effekte sind synthetisch erzeugt: `python tools/generate_sfx.py` → `assets/sfx/*.wav`.
 Abspielen über Autoload `Sfx` (`Sfx.play(&"card_hover", pitch, db)`, Bus „SFX“). Vorhanden: Intro (passt
 zum Zeitplan in `studio_intro.gd`: Fallen, Aufprall, Ecken, HIT!, Glanz), Menükarten-Hover (Tonhöhe je
-Karte) und -Auswahl, Feuerzeug, Zug, Ausatmen, Schnaps, Glas-Klirren, Kerzen dimmen. Musik fehlt noch.
+Karte) und -Auswahl, Index-Hover und -Klick, Feuerzeug, Zug, Auspusten, Schnaps, Glas-Klirren,
+Flaschen-Klopfen, Einschenken, Kerzen-Flackern. Lautstärken zentral in `Sfx.VOLUME` (bewusst leise,
+Hover-Töne nur angedeutet). Musik fehlt noch.
 
 ### Index & Kleinigkeiten
 - **Index** (Hauptmenü-Karte ★ INDEX, `ui/index_menu.gd`): alle 36 Karten (Normal/Gold/Glas/Glück
   umschaltbar), alle Relikte, alle Boni, Items als Platzhalter – alles sofort sichtbar (zum Testen).
-- **Easter Egg Schnapsglas** (`scenes/menu/shot_glass.gd`): im Hauptmenü 5× aufs Glas klicken →
-  austrinken, danach schwankt die Kamera, die Gestalt lacht. Glas bleibt leer.
-- **Aschenbecher** (`scenes/match/ashtray.gd`, ersetzt das alte Modell überall): Messing mit Asche,
-  altem Stummel und Zigarette in der Kerbe. Im Duell: Klick = anzünden, dann 5 Züge (Zigarette zum
-  Mund, brennt ab, Rauchwolke), danach qualmt der Stummel 12 s in der Mulde und geht aus.
+- **Easter Egg Schnapsglas** (`scenes/menu/shot_glass.gd`): im Hauptmenü 5× aufs Glas klicken
+  (Ton wird höher) → austrinken, danach schwankt die Kamera, die Gestalt lacht. Leeres Glas klirrt
+  immer gleich. 5× auf die Whiskeyflasche klicken → sie schenkt nach, dann geht es von vorn.
+- **Whiskeyflasche** (`scenes/match/whiskey_bottle.gd`, ersetzt die grüne Flasche überall): eckig,
+  Bernsteinglas mit Füllstand, erfundene Marke „Hinterzimmer Whiskey · seit 1926“.
+- **Aschenbecher** (`scenes/match/ashtray.gd`): hinten links einer als Deko (ersetzt das alte Modell),
+  im Duell zusätzlich dein eigener vorne links neben den Kerzen. Klick = anzünden, dann 5 Züge
+  (Zigarette zum Mund, brennt ab, Rauchwolke), danach qualmt der Stummel 12 s und geht aus.
   Rauch aus Sprites (CPU-Partikel sind im Compatibility-Renderer unzuverlässig).
-- **Kerzen**: Maus über dem Kranz → Flammen und Licht werden dunkler.
+- **Kerzen**: Maus über dem Kranz → Flammen und Licht werden dunkler, leises Flackern.
+- **Händler** ohne Einblend-/Schwebe-Animationen; Waren werden nur beim Drüberfahren etwas größer.
 - Nach erfolgreicher Verteidigung bleiben die Karten 1,5 s liegen, der Gegner wartet, bis abgeräumt ist.
 
 ## 6. Optionen

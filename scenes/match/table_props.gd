@@ -108,7 +108,7 @@ func _add_hover_area() -> void:
 	add_child(_hover_area)
 	_hover_area.mouse_entered.connect(func() -> void:
 		_dim_target = 0.35
-		Sfx.play(&"candle_dim", 1.0, -8.0))
+		Sfx.play(&"candle_flicker", randf_range(0.92, 1.08)))
 	_hover_area.mouse_exited.connect(func() -> void: _dim_target = 1.0)
 
 

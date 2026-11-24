@@ -42,8 +42,6 @@ func _ready() -> void:
 	UIKit.hover(%ContinueButton, 1.04)
 	UIKit.hover(%RerollButton, 1.04)
 	_render(true)
-	UIKit.appear(%Head, 0.05, Vector2(-30, 0), 0.6)
-	UIKit.appear(%GoldBox, 0.15, Vector2(30, 0), 0.6)
 	%ContinueButton.grab_focus()
 	UIKit.show_unlocks.call_deferred(self)
 
@@ -91,10 +89,7 @@ func _bought(btn: Button) -> void:
 	_update_header()
 	for w in _wares:
 		_apply_state(w)
-	btn.pivot_offset = btn.size * 0.5
-	btn.scale = Vector2.ONE * 1.15
-	btn.create_tween().tween_property(btn, "scale", Vector2.ONE, 0.35) \
-		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	Sfx.play(&"ui_click", 1.1)
 	_render_owned()
 
 
@@ -115,7 +110,7 @@ func _render_owned() -> void:
 # --- Stände -----------------------------------------------------------------------------
 
 ## Ein Stand: dunkle Plakatfläche mit rotem Schild oben. Liefert die Reihe für die Waren.
-func _stall(title: String, sub: String, width: float, deal: bool, index: int) -> HBoxContainer:
+func _stall(title: String, sub: String, width: float, _deal: bool, _index: int) -> HBoxContainer:
 	var panel := Slab.new()
 	panel.color = Color(0.07, 0.055, 0.055, 0.78)
 	panel.points = PackedVector2Array([Vector2(0, 0.015), Vector2(1, 0), Vector2(0.99, 1), Vector2(0.008, 0.99)])
@@ -154,13 +149,11 @@ func _stall(title: String, sub: String, width: float, deal: bool, index: int) ->
 	row.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	col.add_child(row)
-	if deal:
-		_fade_in(panel, 0.1 + index * 0.08, 0.97)
 	return row
 
 
 ## Gemeinsamer Rahmen einer Ware: schwebender, fokussierbarer Knopf ohne eigenen Hintergrund.
-func _ware(offer: Dictionary, w: float, h: float, deal: bool, delay: float) -> Array:
+func _ware(offer: Dictionary, w: float, h: float, _deal: bool, _delay: float) -> Array:
 	var holder := Control.new()
 	holder.custom_minimum_size = Vector2(w, h)
 	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -180,10 +173,11 @@ func _ware(offer: Dictionary, w: float, h: float, deal: bool, delay: float) -> A
 	btn.pressed.connect(func() -> void:
 		if Run.buy(offer):
 			_bought(btn))
-	UIKit.hover(btn, 1.06)
-	UIKit.float_idle(btn, 3.0, 3.0 + randf(), randf() * 1.5)
-	if deal:
-		_fade_in(holder, delay, 0.9)
+	# nur beim Drüberfahren etwas größer (wie im Index), sonst keine Animation
+	btn.mouse_entered.connect(func() -> void: _lift(btn, true))
+	btn.mouse_exited.connect(func() -> void: _lift(btn, false))
+	btn.focus_entered.connect(func() -> void: _lift(btn, true))
+	btn.focus_exited.connect(func() -> void: _lift(btn, false))
 
 	var box := VBoxContainer.new()
 	box.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -304,16 +298,15 @@ func _apply_state(entry: Dictionary) -> void:
 	center.add_child(_price(offer))
 
 
-## Weiches Einblenden ohne Positions-Tween (verträgt sich mit Containern).
-func _fade_in(node: Control, delay: float, from_scale: float) -> void:
-	node.modulate.a = 0.0
-	var tw := node.create_tween()
-	tw.tween_interval(delay)
-	tw.tween_callback(func() -> void:
-		node.pivot_offset = node.size * 0.5
-		node.scale = Vector2.ONE * from_scale)
-	tw.tween_property(node, "modulate:a", 1.0, 0.32).set_trans(Tween.TRANS_SINE)
-	tw.parallel().tween_property(node, "scale", Vector2.ONE, 0.42).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+func _lift(btn: Control, up: bool) -> void:
+	if up and btn is BaseButton and (btn as BaseButton).disabled:
+		return
+	if up:
+		Sfx.play(&"index_hover", randf_range(0.96, 1.08))
+	btn.pivot_offset = btn.size * 0.5
+	btn.z_index = 1 if up else 0
+	var tw := btn.create_tween()
+	tw.tween_property(btn, "scale", Vector2.ONE * (1.1 if up else 1.0), 0.12).set_trans(Tween.TRANS_QUAD)
 
 
 ## Platzhalter für Items: drei Münzen mit Fragezeichen und ein „COMING SOON“-Stempel.
@@ -330,13 +323,15 @@ func _items_soon(row: HBoxContainer) -> void:
 		coin.size = Vector2(66, 66)
 		coin.position = Vector2(x, 40 + (i % 2) * 26)
 		coin.tooltip_text = "Items kommen bald"
+		coin.mouse_filter = Control.MOUSE_FILTER_STOP
+		coin.mouse_entered.connect(func() -> void: _lift(coin, true))
+		coin.mouse_exited.connect(func() -> void: _lift(coin, false))
 		area.add_child(coin)
 		var q := UIKit.poster_label("?", UIKit.display_font(), 34, Color(0.3, 0.2, 0.05))
 		q.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		q.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		q.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		coin.add_child(q)
-		UIKit.float_idle(coin, 4.0, 2.6 + i * 0.4, i * 0.9)
 	# Stempel quer über den Stand
 	var stamp := Slab.new()
 	stamp.color = Color(0.07, 0.055, 0.055, 0.6)
