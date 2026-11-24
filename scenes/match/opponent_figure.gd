@@ -48,7 +48,14 @@ var _under_light: SpotLight3D
 var _jaw: Node3D
 var _jaw_open := 0.0
 var _twitch := Vector3.ZERO
+var _twitch_target := Vector3.ZERO
 var _next_twitch := 3.0
+## Geglättete Ist-Werte: alle Ziele werden weich angefahren, damit nichts ruckt
+## (Reaktionen setzen ihre Stärke schlagartig, Denk-Stile wechseln, Zucken …).
+const SMOOTH := 9.0
+var _lean_now := 0.0
+var _head_now := Vector3.ZERO
+var _hand_now: Array[Vector3] = []
 
 ## Verschiedene Arten zu überlegen.
 enum ThinkStyle {
@@ -87,7 +94,7 @@ func recoil() -> void:
 
 ## Überlegt in einem bestimmten Stil (siehe ThinkStyle).
 func think(style: int = ThinkStyle.CHIN) -> void:
-	_think_style = style
+	_think_style = style # Wechsel wird über die geglätteten Werte weich übergeblendet
 	_think_target = 1.0
 
 
@@ -107,35 +114,43 @@ func laugh() -> void:
 
 func _process(delta: float) -> void:
 	_t += delta
-	_gesture = move_toward(_gesture, 0.0, delta * 2.2)
-	_recoil = move_toward(_recoil, 0.0, delta * 1.5)
+	_gesture = move_toward(_gesture, 0.0, delta * 1.8)
+	_recoil = move_toward(_recoil, 0.0, delta * 1.3)
 	_laugh = move_toward(_laugh, 0.0, delta * 0.35)
 	_think = move_toward(_think, _think_target, delta * 2.0)
 	if _slump > 0.0:
 		_slump = minf(_slump + delta, 2.0)
 
+	var k := 1.0 - exp(-delta * SMOOTH)
+	var think := smoothstep(0.0, 1.0, _think)
+	var gest := sin(_gesture * PI)
+	var rec := smoothstep(0.0, 1.0, _recoil)
 	var breath := sin(_t * 1.6) * 0.012
-	var lean := sin(_gesture * PI) * 0.12 - _recoil * 0.10 + minf(_slump, 1.0) * 0.18 + _think * _style_lean()
-	_torso.rotation.x = lean
+	var lean := gest * 0.12 - rec * 0.10 + smoothstep(0.0, 1.0, minf(_slump, 1.0)) * 0.18 + think * _style_lean()
+	_lean_now = lerpf(_lean_now, lean, k)
+	_torso.rotation.x = _lean_now
 	_torso.scale = Vector3(size_scale, size_scale * (1.0 + breath), size_scale)
 
-	# unheimliches Zucken: ab und zu ruckt der Kopf kurz zur Seite
+	# unheimliches Zucken: ab und zu dreht sich der Kopf kurz zur Seite (weich, kein harter Ruck)
 	_next_twitch -= delta
 	if _next_twitch <= 0.0 and _slump <= 0.0:
-		_next_twitch = randf_range(2.5, 7.0)
-		_twitch = Vector3(randf_range(-0.12, 0.12), randf_range(-0.25, 0.25), randf_range(-0.3, 0.3))
-	_twitch = _twitch.lerp(Vector3.ZERO, minf(1.0, delta * 3.0))
+		_next_twitch = randf_range(3.0, 8.0)
+		_twitch_target = Vector3(randf_range(-0.08, 0.08), randf_range(-0.18, 0.18), randf_range(-0.2, 0.2))
+	_twitch = _twitch.lerp(_twitch_target, minf(1.0, delta * 10.0))
+	_twitch_target = _twitch_target.lerp(Vector3.ZERO, minf(1.0, delta * 2.5))
 
-	var shake := sin(_t * 38.0) * 0.03 * _laugh
-	_head.rotation = Vector3(
-		sin(_t * 0.7) * 0.05 + minf(_slump, 1.0) * 0.35 - _recoil * 0.2 + _think * _head_pitch(),
-		sin(_t * 0.45) * 0.12 * (1.0 - _think) + _think * _head_yaw() + shake,
-		sin(_t * 0.9) * 0.04 + _recoil * 0.15 + _think * _head_roll()) + _twitch
+	var shake := sin(_t * 24.0) * 0.025 * _laugh
+	var head := Vector3(
+		sin(_t * 0.7) * 0.05 + minf(_slump, 1.0) * 0.35 - rec * 0.2 + think * _head_pitch(),
+		sin(_t * 0.45) * 0.12 * (1.0 - think) + think * _head_yaw(),
+		sin(_t * 0.9) * 0.04 + rec * 0.15 + think * _head_roll()) + _twitch
+	_head_now = _head_now.lerp(head, k)
+	_head.rotation = _head_now + Vector3(0, shake, 0)
 
 	# Kiefer: klappert beim Lachen, öffnet sich beim Legen und Zucken
-	var jaw_target := maxf(sin(_gesture * PI) * 0.6, _twitch.length() * 2.0)
-	jaw_target = maxf(jaw_target, _laugh * (0.5 + 0.5 * sin(_t * 30.0)))
-	_jaw_open = lerpf(_jaw_open, jaw_target, minf(1.0, delta * 14.0))
+	var jaw_target := maxf(gest * 0.6, _twitch.length() * 2.0)
+	jaw_target = maxf(jaw_target, _laugh * (0.5 + 0.5 * sin(_t * 22.0)))
+	_jaw_open = lerpf(_jaw_open, jaw_target, minf(1.0, delta * 12.0))
 	if _jaw != null:
 		_jaw.position = _jaw.get_meta("rest") + Vector3(0, -0.014, 0.004) * _jaw_open
 		_jaw.rotation.x = _jaw.get_meta("rest_rot", 0.0) + _jaw_open * 0.14
@@ -144,10 +159,13 @@ func _process(delta: float) -> void:
 		var side := -1.0 if i == 0 else 1.0
 		var off := Vector3(0, sin(_t * 1.6 + i) * 0.006, 0)
 		if i == 1:
-			off += Vector3(-0.08, 0.05, 0.18) * sin(_gesture * PI)
-		off += Vector3(side * 0.04, 0.06, -0.08) * _recoil
-		off += _hand_think_offset(i) * _think
-		_hands[i].position = _hand_rest[i] + off
+			off += Vector3(-0.08, 0.05, 0.18) * gest
+		off += Vector3(side * 0.04, 0.06, -0.08) * rec
+		off += _hand_think_offset(i) * think
+		if _hand_now.size() <= i:
+			_hand_now.append(off)
+		_hand_now[i] = _hand_now[i].lerp(off, k)
+		_hands[i].position = _hand_rest[i] + _hand_now[i]
 
 	_update_arms()
 

@@ -68,8 +68,12 @@ Ein Run = 3 normale Gegner + Boss, 3 Leben (Kerzen). Wer verliert, ist der Durak
   eine Angriffskarte (oder beim Angriff auf den Tisch) ziehen. Beendet die letzte Verteidigung die Runde
   sofort, landet die Karte trotzdem erst sichtbar auf dem Tisch und wird dann abgeräumt.
 - **Infos**: Shift über einer offenen Karte zeigt Chips, Trumpf- und Verbesserungs-Effekt; Maus über dem
-  Nachziehstapel zeigt die Anzahl. Relikte haben Emojis (`RelicData.emoji`, im Duell oben rechts),
-  daneben zwei leere Item-Plätze als Platzhalter.
+  Nachziehstapel zeigt die Anzahl. Relikte wie in Slay the Spire: frei stehende Emojis ohne Rahmen
+  (`RelicData.emoji`, im Duell oben rechts), Maus drüber → Name und Wirkung darunter, wirkt ein
+  Relikt, blitzt es auf (`MatchHUD.flash_relic`). Daneben zwei leere Item-Plätze als Platzhalter.
+- **Reihenfolge**: erst wird abgeräumt bzw. aufgenommen, dann nachgezogen (Gegner wartet so lange).
+- Angriffskarten lassen sich beim Ziehen links oder rechts neben die anderen legen (`attack(card, at)`).
+- Gegner-Animationen laufen über geglättete Werte (`OpponentFigure.SMOOTH`), nichts springt mehr.
 - **Nachwerfen**: nimmt der Gegner, erscheint ein Banner „<NAME> GIBT AUF – DU DARFST NACHWERFEN“,
   die Zugtafel wird gold („<NAME> NIMMT – NACHWERFEN!“) und der Rand leuchtet gold.
 - Gegner (`data/opponents/`): Bandit, Sumpfmann, Krähe, Wölfin, Gaukler, Knochenmann, Hexe, Riese (Boss).

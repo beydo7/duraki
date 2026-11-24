@@ -12,7 +12,8 @@ signal card_clicked(card: Card)
 signal card_hovered(card: Card, on: bool)
 signal deck_hovered(on: bool)
 ## Karte aus der Hand auf den Tisch gezogen: `target` = Angriffskarte darunter (-1: freie Fläche)
-signal card_dropped(card: Card, target: int)
+## `slot`: Platz in der Angriffsreihe nach der Mausposition (links/rechts von den anderen)
+signal card_dropped(card: Card, target: int, slot: int)
 
 const MODELS: Array[PackedScene] = [
 	preload("res://assets/models/room.glb"),
@@ -206,6 +207,17 @@ func sync(duel: DurakMatch, playable: Array[Card]) -> void:
 
 	var now := Time.get_ticks_msec() / 1000.0
 	var deal_start := maxf(now, _deal_queue_until)
+	# Erst abräumen bzw. aufnehmen, dann nachziehen (besser zu verstehen):
+	# verschwinden Karten vom Tisch, warten neue Karten, bis das erledigt ist.
+	# (Verzögerungen werden in _move noch mit dem Animationstempo verrechnet)
+	for c: Card in _cards:
+		if not targets.has(c):
+			deal_start = maxf(deal_start, now + DISCARD_DELAY + MOVE_TIME + 0.55)
+			break
+	for c: Card in _cards:
+		if _zone.get(c, "") in ["table_a", "table_d"] and targets.has(c) and targets[c][2] in ["hand", "opp"]:
+			deal_start = maxf(deal_start, now + 0.75)
+			break
 	var new_count := 0
 	var take_i := 0
 
@@ -443,7 +455,7 @@ func _input(event: InputEvent) -> void:
 			_move(node, _base[node], 0.0, 0.18)
 		if p.z > PLAYER_HAND_POS.z - 0.18:
 			return # zurück in die Hand gezogen: nichts tun
-		card_dropped.emit(node.card, _drop_target(p))
+		card_dropped.emit(node.card, _drop_target(p), _drop_slot(p))
 
 
 ## Punkt auf der Tischebene (plus `lift`) unter der Maus.
@@ -455,6 +467,16 @@ func _mouse_on_table(pos: Vector2, lift: float) -> Vector3:
 		return o
 	var t := (y - o.y) / d.y
 	return o + d * maxf(t, 0.0)
+
+
+## Einfügeplatz in der Angriffsreihe: so viele Angriffskarten liegen links vom Punkt.
+func _drop_slot(p: Vector3) -> int:
+	var slot := 0
+	for c in _last_attacks:
+		var a: Card3D = _cards.get(c)
+		if a != null and a.global_position.x < p.x:
+			slot += 1
+	return slot
 
 
 ## Welche Angriffskarte liegt unter dem Ablagepunkt? (-1: keine)

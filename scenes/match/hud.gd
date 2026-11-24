@@ -131,12 +131,18 @@ func _process(delta: float) -> void:
 # --- Info-Tafel an der Maus (Shift über einer Karte, Nachziehstapel) -------------------
 
 var _info: Slab
+## Info gehört gerade einem HUD-Element (Relikt) – dann blendet match.gd sie nicht aus
+var _info_lock := false
+## Tafel hängt unter diesem Element (Relikte), sonst folgt sie der Maus
+var _info_anchor: Control
 var _info_title: Label
 var _info_body: Label
 
 
 ## Kleine Tafel neben dem Mauszeiger. Gleicher Inhalt → nichts neu aufbauen.
-func show_info(title: String, body: String) -> void:
+func show_info(title: String, body: String, anchor: Control = null) -> void:
+	if _info_lock and _info != null and _info.visible and _info_title.text != title:
+		return # ein Relikt-Tooltip hat Vorrang
 	if _info == null:
 		_info = _slab(BLACK, [], 0.0, Vector4(14, 8, 14, 10))
 		_info.outline_color = PGOLD
@@ -153,6 +159,7 @@ func show_info(title: String, body: String) -> void:
 		col.add_child(_info_body)
 		_info.top_level = false
 		add_child(_info)
+	_info_anchor = anchor
 	if _info.visible and _info_title.text == title and _info_body.text == body:
 		return
 	_info_title.text = title
@@ -164,14 +171,20 @@ func show_info(title: String, body: String) -> void:
 	_place_info()
 
 
-func hide_info() -> void:
+func hide_info(force := false) -> void:
+	if _info_lock and not force:
+		return
 	if _info != null:
 		_info.visible = false
 
 
 func _place_info() -> void:
-	var m := get_local_mouse_position()
-	var p := m + Vector2(22, -_info.size.y - 12)
+	var p: Vector2
+	if is_instance_valid(_info_anchor):
+		var r := _info_anchor.get_global_rect()
+		p = Vector2(r.end.x - _info.size.x, r.end.y + 8) - get_global_rect().position
+	else:
+		p = get_local_mouse_position() + Vector2(22, -_info.size.y - 12)
 	p.x = clampf(p.x, 8, size.x - _info.size.x - 8)
 	p.y = clampf(p.y, 8, size.y - _info.size.y - 8)
 	_info.position = p
@@ -689,44 +702,75 @@ func set_bout(attack_count: int, limit: int, can_transfer: bool) -> void:
 
 ## Plätze für Items (einsetzbar/verbrauchbar) – kommen später, bis dahin leere Fassungen.
 const ITEM_SLOTS := 2
+const RELIC_SIZE := 46.0
+var _relic_nodes := {} # id → Control
 
 
+## Relikte wie in Slay the Spire: frei stehende Symbole ohne Rahmen, mit Schatten.
+## Maus drüber → Name und Wirkung; wirkt ein Relikt, blitzt es kurz auf (flash_relic).
 func set_relics(relics: Array) -> void:
 	for c in _relics.get_children():
 		c.queue_free()
+	_relic_nodes.clear()
 	for i in ITEM_SLOTS:
-		var slot := _slab(Color(0, 0, 0, 0.55), [], 0.0)
-		slot.custom_minimum_size = Vector2(40, 50)
-		slot.outline_color = Color(CREAM, 0.35)
-		slot.outline_width = 1.5
-		slot.shadow_offset = Vector2.ZERO
-		slot.mouse_filter = Control.MOUSE_FILTER_PASS
-		slot.tooltip_text = "Item-Platz – bald: Gegenstände, die du im Duell einsetzen kannst."
-		var q := UIKit.poster_label("?", UIKit.display_font(), 18, Color(CREAM, 0.35))
-		q.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		q.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		slot.add_child(q)
+		var slot := Control.new()
+		slot.custom_minimum_size = Vector2(36, RELIC_SIZE)
+		slot.mouse_filter = Control.MOUSE_FILTER_STOP
+		slot.draw.connect(func() -> void:
+			var c := slot.size * 0.5
+			slot.draw_circle(c, 14.0, Color(0, 0, 0, 0.45), true, -1.0, true)
+			slot.draw_arc(c, 14.0, 0, TAU, 32, Color(CREAM, 0.3), 1.5, true))
+		_hover_info(slot, "ITEM-PLATZ", "Bald: Gegenstände, die du im Duell einsetzen oder verbrauchen kannst.")
 		_relics.add_child(slot)
 	if not relics.is_empty():
 		var gap := Control.new()
-		gap.custom_minimum_size = Vector2(6, 0)
+		gap.custom_minimum_size = Vector2(8, 0)
 		_relics.add_child(gap)
-	for i in relics.size():
-		var r: RelicData = relics[i]
-		var stamp := _slab(CREAM, [], 0.0, Vector4(5, 5, 5, 5))
-		stamp.custom_minimum_size = Vector2(46, 56)
-		stamp.shadow_offset = Vector2(3, 4)
-		stamp.mouse_filter = Control.MOUSE_FILTER_PASS
-		stamp.tooltip_text = "%s – %s" % [r.display_name, r.description]
-		var inner := _slab(RELIC_COLORS[i % RELIC_COLORS.size()], [], 0.0)
-		inner.shadow_offset = Vector2.ZERO
-		stamp.add_child(inner)
-		var sym := UIKit.poster_label(r.icon(), UIKit.emoji_font(), 24, CREAM)
-		sym.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		sym.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		stamp.add_child(sym)
-		stamp.rotation_degrees = [-3.0, 2.0, -1.0, 3.0][i % 4]
-		_relics.add_child(stamp)
+	for r: RelicData in relics:
+		var box := Control.new()
+		box.custom_minimum_size = Vector2(RELIC_SIZE, RELIC_SIZE)
+		box.pivot_offset = Vector2(RELIC_SIZE, RELIC_SIZE) * 0.5
+		box.mouse_filter = Control.MOUSE_FILTER_STOP
+		var shadow := UIKit.poster_label(r.icon(), UIKit.emoji_font(), 32, CREAM)
+		shadow.modulate = Color(0, 0, 0, 0.6) # Emoji als dunkle Silhouette = Schatten
+		var icon := UIKit.poster_label(r.icon(), UIKit.emoji_font(), 32, CREAM)
+		for l: Label in [shadow, icon]:
+			l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+			l.size = Vector2(RELIC_SIZE, RELIC_SIZE)
+			l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			box.add_child(l)
+		shadow.position = Vector2(3, 4)
+		_hover_info(box, r.display_name.to_upper(), r.description, true)
+		_relics.add_child(box)
+		_relic_nodes[r.id] = box
+
+
+## Maus über `c` → Info-Tafel; `grow`: dabei leicht vergrößern.
+func _hover_info(c: Control, title: String, body: String, grow := false) -> void:
+	c.mouse_entered.connect(func() -> void:
+		_info_lock = false
+		show_info(title, body, c)
+		_info_lock = true
+		if grow:
+			c.create_tween().tween_property(c, "scale", Vector2.ONE * 1.15, 0.1))
+	c.mouse_exited.connect(func() -> void:
+		_info_lock = false
+		hide_info(true)
+		if grow:
+			c.create_tween().tween_property(c, "scale", Vector2.ONE, 0.12))
+
+
+## Relikt hat gewirkt: kurz hüpfen und aufleuchten.
+func flash_relic(id: StringName) -> void:
+	var box: Control = _relic_nodes.get(id)
+	if box == null:
+		return
+	box.scale = Vector2.ONE * 1.35
+	box.modulate = Color(1.6, 1.4, 1.0)
+	var tw := box.create_tween().set_parallel()
+	tw.tween_property(box, "scale", Vector2.ONE, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_property(box, "modulate", Color.WHITE, 0.5)
 
 
 func set_score(total: int, target: int, chips: int, mult: int, sub_text: String) -> void:

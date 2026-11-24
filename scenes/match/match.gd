@@ -85,7 +85,11 @@ func _ready() -> void:
 		hud.toast("Glück! +%d Mult" % extra, MatchHUD.COLOR_GOLD))
 	score.attach(duel) # vor den UI-Signalen verbinden, damit zuerst gewertet wird
 	score.changed.connect(_render_score)
-	score.bout_scored.connect(func(points: int, text: String) -> void: hud.bout_scored(points, text))
+	score.bout_scored.connect(func(points: int, text: String) -> void:
+		hud.bout_scored(points, text)
+		for r in Run.relics:
+			if r.bonus_mult > 0:
+				hud.flash_relic(r.id)) # Mult-Relikte (Wodka) haben mitgezählt
 	score.target_reached.connect(_on_target_reached)
 	duel.changed.connect(_on_changed)
 	duel.message.connect(_on_message)
@@ -98,6 +102,7 @@ func _ready() -> void:
 			if attack:
 				_maybe_throw_more())
 	duel.cards_taken.connect(func(who: int, count: int) -> void:
+		_hold_until = maxf(_hold_until, _now() + 1.4) # aufnehmen, dann nachziehen
 		if who == DurakMatch.OPPONENT:
 			world.figure.recoil()
 			_maybe_say(LINES_TAKES, 0.45)
@@ -120,7 +125,8 @@ func _ready() -> void:
 	duel.cards_discarded.connect(func(_count: int) -> void:
 		hud.stamp("FERTIG")
 		# verteidigte Karten bleiben liegen und werden dann abgeräumt; so lange wartet der Gegner
-		_hold_until = _now() + TableWorld.DISCARD_DELAY + 0.9)
+		# … und erst danach wird nachgezogen
+		_hold_until = _now() + TableWorld.DISCARD_DELAY + 1.7)
 	duel.take_declared.connect(func(who: int) -> void:
 		if who == DurakMatch.OPPONENT and duel.taking:
 			# klar zeigen: der Gegner gibt auf – du darfst aber noch Karten dazulegen
@@ -220,7 +226,7 @@ func _run_ai_turn() -> void:
 
 
 ## Karte angeklickt (`target` = -1) oder auf eine Angriffskarte gezogen (`target` = deren Index).
-func _on_player_card(card: Card, target := -1) -> void:
+func _on_player_card(card: Card, target := -1, slot := -1) -> void:
 	hud.close_choice()
 	if not _playable.has(card):
 		# nur möglich, wenn Hinweise aus sind: alle Handkarten sind anklickbar
@@ -258,8 +264,9 @@ func _on_player_card(card: Card, target := -1) -> void:
 			else:
 				duel.transfer(card))
 	else:
-		# als Angreifer jederzeit (auch während der Gegner noch überlegt)
-		duel.attack(card)
+		# als Angreifer jederzeit (auch während der Gegner noch überlegt);
+		# gezogen: dort einreihen, wo die Karte losgelassen wurde (auch links)
+		duel.attack(card, slot)
 
 
 func _now() -> float:

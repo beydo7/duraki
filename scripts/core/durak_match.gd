@@ -198,14 +198,20 @@ func can_finish_take() -> bool:
 
 # --- Aktionen -----------------------------------------------------------------
 
-func attack(card: Card) -> bool:
+## Legt `card` als Angriff. `at`: Platz in der Reihe (-1 = rechts anhängen; beim Ziehen
+## kann man die Karte auch links neben die anderen legen).
+func attack(card: Card, at := -1) -> bool:
 	if not can_attack_with(card):
 		return false
 	if attack_cards.is_empty():
 		bout_limit = mini(MAX_ATTACK_CARDS, hand(defender()).size())
 	hand(attacker).erase(card)
-	attack_cards.append(card)
-	defense_cards.append(null)
+	if at < 0 or at >= attack_cards.size():
+		attack_cards.append(card)
+		defense_cards.append(null)
+	else:
+		attack_cards.insert(at, card)
+		defense_cards.insert(at, null)
 	card_played.emit(attacker, card, true)
 	message.emit("%s %s %s%s." % [name_of(attacker), "legst" if attacker == PLAYER else "legt", card,
 		" nach" if taking else ""])
