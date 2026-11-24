@@ -144,7 +144,9 @@ func _ready() -> void:
 	hud.continue_button.pressed.connect(func() -> void: Run.on_match_finished(_result()))
 
 	hud.setup(opponent, score.target, Run.floor_index, 0 if Run.tutorial else maxi(Run.encounters.size(), 1))
-	hud.set_relics(Run.relics)
+	hud.set_relics(Run.relics, Run.items)
+	hud.item_pressed.connect(_use_item)
+	duel.card_burned.connect(func(card: Card) -> void: world.burn(card))
 	world.props.set_lives(maxi(Run.lives, 1))
 	world.props.set_gold(Run.gold, false)
 	if not opponent.taunt.is_empty():
@@ -214,7 +216,7 @@ func _run_ai_turn() -> void:
 		wait = maxf(wait, 1.2) # du hast alles geschlagen: deine Karte erst mal liegen lassen
 	wait = maxf(wait, _hold_until - _now()) # Tisch wird noch abgeräumt
 	await get_tree().create_timer(wait, false).timeout
-	while coach_hold and is_inside_tree():
+	while (coach_hold or _burning >= 0) and is_inside_tree():
 		await get_tree().process_frame
 	if _thinking:
 		_thinking = false
@@ -228,6 +230,14 @@ func _run_ai_turn() -> void:
 ## Karte angeklickt (`target` = -1) oder auf eine Angriffskarte gezogen (`target` = deren Index).
 func _on_player_card(card: Card, target := -1, slot := -1) -> void:
 	hud.close_choice()
+	if _burning >= 0:
+		if duel.burnable_cards(DurakMatch.PLAYER).has(card):
+			var i := _burning
+			_burning = -1
+			Run.use_item(i)
+			hud.set_relics(Run.relics, Run.items)
+			duel.burn(card)
+		return
 	if not _playable.has(card):
 		# nur möglich, wenn Hinweise aus sind: alle Handkarten sind anklickbar
 		hud.toast("%s passt gerade nicht." % card, MatchHUD.COLOR_GOLD)
@@ -354,6 +364,55 @@ func _card_info(c: Card) -> String:
 	return "\n".join(lines)
 
 
+# --- Items -----------------------------------------------------------------------------
+
+## Item-Platz, dessen Feuerzeug gerade auf ein Ziel wartet (-1: keins)
+var _burning := -1
+
+
+func _use_item(i: int) -> void:
+	if duel.is_over or i >= Run.items.size():
+		return
+	if _burning >= 0:
+		_cancel_burn()
+		return
+	match Run.items[i]:
+		&"lighter":
+			if duel.burnable_cards(DurakMatch.PLAYER).is_empty():
+				hud.toast("Feuerzeug: gerade liegt keine Gegnerkarte zum Verbrennen.", MatchHUD.COLOR_GOLD)
+				return
+			_burning = i
+			Sfx.play(&"lighter")
+			hud.toast("Feuerzeug: klick eine leuchtende Gegnerkarte an (Rechtsklick/Esc = abbrechen).", MatchHUD.COLOR_GOLD)
+			_render()
+		&"mirror":
+			var hidden := duel.opponent_hand.filter(func(c: Card) -> bool: return not world.revealed.has(c))
+			if hidden.is_empty():
+				hud.toast("Spiegel: du kennst schon alle seine Karten.", MatchHUD.COLOR_GOLD)
+				return
+			Run.use_item(i)
+			hud.set_relics(Run.relics, Run.items)
+			var card: Card = hidden[randi() % hidden.size()]
+			world.mirror_flight(func() -> void:
+				if duel.opponent_hand.has(card):
+					world.revealed[card] = true
+					hud.toast("Spiegel: %s hat %s auf der Hand." % [opponent.display_name, card], MatchHUD.COLOR_GOLD)
+					_render())
+
+
+func _cancel_burn() -> void:
+	_burning = -1
+	hud.toast("Feuerzeug weggesteckt.", MatchHUD.COLOR_MUTED)
+	_render()
+
+
+func _input(event: InputEvent) -> void:
+	if _burning >= 0 and ((event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT)
+			or event.is_action_pressed("ui_cancel")):
+		get_viewport().set_input_as_handled()
+		_cancel_burn()
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if not (event is InputEventKey and event.pressed and not event.echo) or duel == null or duel.is_over:
 		return
@@ -383,6 +442,10 @@ func _render() -> void:
 					playable.append(c)
 	else:
 		playable = duel.legal_attacks() # auch während der Gegner verteidigt
+	if _burning >= 0:
+		playable = duel.burnable_cards(DurakMatch.PLAYER) # Feuerzeug: Ziel wählen
+		if playable.is_empty():
+			_burning = -1 # Ziel ist weg (Runde vorbei): Feuerzeug bleibt erhalten
 	_playable = playable
 	world.sync(duel, playable)
 

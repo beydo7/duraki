@@ -33,6 +33,15 @@ const DIFF_SOULS: Array[float] = [0.75, 1.0, 1.25]
 ## Seelen-Bonus, wenn ohne Hinweise (keine Hervorhebung spielbarer Karten) gespielt wird
 const NO_HINTS_SOULS := 1.5
 
+## Items: einmal einsetzbar im Duell, höchstens ITEM_SLOTS gleichzeitig (Kauf beim Händler).
+const ITEM_SLOTS := 2
+const ITEMS := {
+	&"lighter": {"name": "Feuerzeug", "emoji": "🔥", "price": 6,
+		"text": "Verbrennt eine Gegnerkarte auf dem Tisch: seinen Angriff oder seine Verteidigung. Er muss neu legen."},
+	&"mirror": {"name": "Spiegel", "emoji": "🪞", "price": 5,
+		"text": "Schwebt hinter dem Gegner vorbei und verrät dir eine zufällige Karte seiner Hand."},
+}
+
 ## Tutorial: leichter Gegner und kleines Punkteziel
 const TUTORIAL_OPPONENT := "res://data/opponents/jester.tres"
 const TUTORIAL_TARGET := 150
@@ -44,6 +53,8 @@ var gold := 0
 var floor_index := 0
 var encounters: Array[OpponentData] = []
 var relics: Array[RelicData] = []
+## Items im Besitz (ids aus ITEMS)
+var items: Array[StringName] = []
 var last_gold_reward := 0
 var last_interest := 0
 var won_run := false
@@ -108,6 +119,7 @@ func _reset(p_seed: int) -> void:
 	gold = 0
 	floor_index = 0
 	relics.clear()
+	items.clear()
 	won_run = false
 	card_enhancements.clear()
 	suit_chip_bonus.clear()
@@ -262,10 +274,17 @@ func open_shop() -> void:
 func make_shop_offers() -> Array[Dictionary]:
 	var offers: Array[Dictionary] = []
 	for r in get_reward_choices(2):
-		offers.append(_offer("RELIKT", r.display_name, r.description, 7 + rng.randi_range(0, 3),
-			"★", Color(0.55, 0.22, 0.42), func() -> void: add_relic(r)))
+		var o := _offer("RELIKT", r.display_name, r.description, 7 + rng.randi_range(0, 3),
+			r.icon(), Color(0.55, 0.22, 0.42), func() -> void: add_relic(r))
+		o.emoji = true # wie im Duell: freies Emoji statt Medaille
+		offers.append(o)
 	for i in 2:
 		offers.append(_card_offer())
+	for id: StringName in ITEMS:
+		var it: Dictionary = ITEMS[id]
+		var io := _offer("ITEM", it.name, it.text, it.price, it.emoji, Color.BLACK, func() -> void: add_item(id))
+		io.emoji = true
+		offers.append(io)
 	var upgrades := _upgrade_pool()
 	_shuffle(upgrades)
 	for u in upgrades.slice(0, 2):
@@ -275,6 +294,8 @@ func make_shop_offers() -> Array[Dictionary]:
 
 func buy(offer: Dictionary) -> bool:
 	if offer.get("sold", false) or gold < offer.price:
+		return false
+	if offer.kind == "ITEM" and not has_item_slot():
 		return false
 	gold -= offer.price
 	offer.sold = true
@@ -356,6 +377,23 @@ func _upgrade_pool() -> Array[Dictionary]:
 	pool.append(_offer("VERBESSERUNG", "Sparschwein", "Zinsen bis zu +3 Gold mehr pro Sieg.", 5, "◆",
 		Color(0.78, 0.58, 0.1), func() -> void: interest_max_bonus += 3))
 	return pool
+
+
+func has_item_slot() -> bool:
+	return items.size() < ITEM_SLOTS
+
+
+func add_item(id: StringName) -> void:
+	if has_item_slot():
+		items.append(id)
+		changed.emit()
+
+
+## Item an Platz `i` verbrauchen.
+func use_item(i: int) -> void:
+	if i >= 0 and i < items.size():
+		items.remove_at(i)
+		changed.emit()
 
 
 func add_relic(relic: RelicData) -> void:

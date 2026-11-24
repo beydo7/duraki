@@ -409,24 +409,36 @@ func _build_left() -> void:
 	_gold_label = _roundel(Vector2(LEFT_X, 497), 20, PGOLD, BLACK, "GOLD", BLACK)
 	_deck_label = _roundel(Vector2(LEFT_X, 546), 20, BLACK, CREAM, "STAPEL", CREAM)
 	_deck_roundel = _deck_label.get_parent() as Roundel
-	# Trumpf als kleine schräge Karte (Creme, roter Rand, großes Farbsymbol)
-	var card := _slab(CREAM, [], 0.0)
-	card.outline_color = RED
-	card.outline_width = 3.0
-	card.shadow_offset = Vector2(4, 5)
-	card.fit_children = false
-	var sz := Vector2(50, 68)
-	_anchor(card, Vector2.ZERO, Vector2(TRUMP_CENTER_X - sz.x * 0.5, 580), sz)
+	# Trumpf als kleine Karte – mit demselben Goldrahmen wie die Trumpfkarten in der Hand
+	var sz := Vector2(54, 76)
+	var card := PanelContainer.new()
+	var frame := StyleBoxFlat.new()
+	frame.bg_color = Card3D.COLOR_TRUMP
+	frame.set_corner_radius_all(3)
+	frame.set_content_margin_all(4)
+	frame.shadow_color = Color(0, 0, 0, 0.6)
+	frame.shadow_offset = Vector2(3, 4)
+	frame.shadow_size = 1
+	card.add_theme_stylebox_override("panel", frame)
+	card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_anchor(card, Vector2.ZERO, Vector2(TRUMP_CENTER_X - sz.x * 0.5, 574), sz)
 	card.pivot_offset = sz * 0.5
 	card.rotation_degrees = -7.0
 	add_child(card)
-	_trump_symbol = UIKit.poster_label("♥", UIKit.SYMBOL_FONT, 34, RED)
+	var face := TextureRect.new()
+	face.texture = load("res://assets/cards/blank.png")
+	face.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	face.stretch_mode = TextureRect.STRETCH_SCALE
+	face.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	card.add_child(face)
+	_trump_symbol = UIKit.poster_label("♥", UIKit.SYMBOL_FONT, 32, Card3D.COLOR_TRUMP)
 	_trump_symbol.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_trump_symbol.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_at(card, _trump_symbol, Vector2(0, 2), sz - Vector2(0, 4))
+	face.add_child(_trump_symbol)
+	_trump_symbol.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_trump_caption = UIKit.poster_label("TRUMPF", UIKit.body_font(700, 3), 12, CREAM, 2)
 	_trump_caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_anchor(_trump_caption, Vector2.ZERO, Vector2(TRUMP_CENTER_X - 60, 662), Vector2(120, 16))
+	_anchor(_trump_caption, Vector2.ZERO, Vector2(TRUMP_CENTER_X - 56, 664), Vector2(120, 16))
 	add_child(_trump_caption)
 	_bout_label = UIKit.poster_label("", UIKit.body_font(600, 2), 13, CREAM, 2)
 	_anchor(_bout_label, Vector2.ZERO, Vector2(110, 690), Vector2(160, 20))
@@ -685,7 +697,8 @@ func set_run_info(lives: int, gold: int, deck: int, trump_suit: int) -> void:
 		_deck_roundel.color = RED_DARK if deck == 0 else BLACK
 		_deck = deck
 	_trump_symbol.text = Card.SUIT_SYMBOLS[trump_suit]
-	_trump_symbol.add_theme_color_override("font_color", RED if trump_suit <= Card.Suit.DIAMONDS else BLACK)
+	# Farben wie auf den Karten: Herz/Karo korallenrot, Kreuz/Pik gold
+	_trump_symbol.add_theme_color_override("font_color", Color("e8685e") if trump_suit <= Card.Suit.DIAMONDS else Card3D.COLOR_TRUMP)
 	_trump_caption.text = "TRUMPF · %s" % String(Card.SUIT_NAMES[trump_suit]).to_upper()
 
 
@@ -701,18 +714,33 @@ func set_bout(attack_count: int, limit: int, can_transfer: bool) -> void:
 
 
 ## Plätze für Items (einsetzbar/verbrauchbar) – kommen später, bis dahin leere Fassungen.
-const ITEM_SLOTS := 2
+signal item_pressed(index: int)
 const RELIC_SIZE := 46.0
 var _relic_nodes := {} # id → Control
 
 
 ## Relikte wie in Slay the Spire: frei stehende Symbole ohne Rahmen, mit Schatten.
 ## Maus drüber → Name und Wirkung; wirkt ein Relikt, blitzt es kurz auf (flash_relic).
-func set_relics(relics: Array) -> void:
+func set_relics(relics: Array, items: Array = []) -> void:
 	for c in _relics.get_children():
 		c.queue_free()
 	_relic_nodes.clear()
-	for i in ITEM_SLOTS:
+	for i in Run.ITEM_SLOTS:
+		if i < items.size():
+			var it: Dictionary = Run.ITEMS[items[i]]
+			var item := UIKit.relic_icon(it.emoji, 40, 28)
+			item.mouse_filter = Control.MOUSE_FILTER_STOP
+			item.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+			item.draw.connect(func() -> void:
+				item.draw_circle(item.size * 0.5, 19.0, Color(0, 0, 0, 0.5), true, -1.0, true)
+				item.draw_arc(item.size * 0.5, 19.0, 0, TAU, 32, Color(PGOLD, 0.7), 1.5, true))
+			_hover_info(item, String(it.name).to_upper() + " · KLICKEN", it.text, true)
+			var idx := i
+			item.gui_input.connect(func(e: InputEvent) -> void:
+				if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
+					item_pressed.emit(idx))
+			_relics.add_child(item)
+			continue
 		var slot := Control.new()
 		slot.custom_minimum_size = Vector2(36, RELIC_SIZE)
 		slot.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -720,27 +748,15 @@ func set_relics(relics: Array) -> void:
 			var c := slot.size * 0.5
 			slot.draw_circle(c, 14.0, Color(0, 0, 0, 0.45), true, -1.0, true)
 			slot.draw_arc(c, 14.0, 0, TAU, 32, Color(CREAM, 0.3), 1.5, true))
-		_hover_info(slot, "ITEM-PLATZ", "Bald: Gegenstände, die du im Duell einsetzen oder verbrauchen kannst.")
+		_hover_info(slot, "FREIER ITEM-PLATZ", "Items wie Feuerzeug und Spiegel gibt es beim Händler.")
 		_relics.add_child(slot)
 	if not relics.is_empty():
 		var gap := Control.new()
 		gap.custom_minimum_size = Vector2(8, 0)
 		_relics.add_child(gap)
 	for r: RelicData in relics:
-		var box := Control.new()
-		box.custom_minimum_size = Vector2(RELIC_SIZE, RELIC_SIZE)
-		box.pivot_offset = Vector2(RELIC_SIZE, RELIC_SIZE) * 0.5
+		var box := UIKit.relic_icon(r.icon(), RELIC_SIZE, 32)
 		box.mouse_filter = Control.MOUSE_FILTER_STOP
-		var shadow := UIKit.poster_label(r.icon(), UIKit.emoji_font(), 32, CREAM)
-		shadow.modulate = Color(0, 0, 0, 0.6) # Emoji als dunkle Silhouette = Schatten
-		var icon := UIKit.poster_label(r.icon(), UIKit.emoji_font(), 32, CREAM)
-		for l: Label in [shadow, icon]:
-			l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-			l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-			l.size = Vector2(RELIC_SIZE, RELIC_SIZE)
-			l.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			box.add_child(l)
-		shadow.position = Vector2(3, 4)
 		_hover_info(box, r.display_name.to_upper(), r.description, true)
 		_relics.add_child(box)
 		_relic_nodes[r.id] = box

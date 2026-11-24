@@ -444,11 +444,41 @@ def clink():
     save("clink.wav", buf)
 
 
+def burn():
+    """Feuerzeug: Karte fängt Feuer – Aufflammen, leises Fauchen und Knistern, verglimmt."""
+    dur = 1.5
+    n = int(dur * SR)
+    buf = np.zeros(n)
+    roar = soft(noise(dur), 120, 1400, order=2) * env(n, 0.06, 0.5, 0.15) * np.linspace(1, 0.2, n)
+    place(buf, roar, 0.0, 0.55)
+    whoomp = soft(noise(0.25), 60, 700, order=2) * env(int(0.25 * SR), 0.02, 0.08)
+    place(buf, whoomp, 0.0, 0.8)
+    for _ in range(70):
+        at = rng.uniform(0.02, 1.35) ** 1.3
+        size = rng.uniform(0.002, 0.008)
+        crack = soft(noise(size), 800, 6000, order=2) * env(int(size * SR), 0.0002, size * 0.3)
+        place(buf, crack, at, rng.uniform(0.25, 0.9) * (1.2 - at / 1.5))
+    save("burn.wav", buf, peak=0.6)
+
+
+def mirror():
+    """Spiegel: Luftzug beim Vorbeischweben und ein weicher, gläserner Schimmer in der Mitte."""
+    dur = 2.6
+    n = int(dur * SR)
+    buf = np.zeros(n)
+    place(buf, soft(noise(dur), 200, 1800, order=2) * np.sin(np.linspace(0, np.pi, n)) ** 2, 0.0, 0.35)
+    for f, d in ((1318.5, 0.0), (1760.0, 0.05), (2217.5, 0.1), (2637.0, 0.16)):
+        m = int(1.2 * SR)
+        tone = sine(f, 1.2) * env(m, 0.01, 0.35) * 0.25
+        place(buf, tone, 1.25 + d, 1.0)
+    save("mirror.wav", reverb(buf, 0.4, 0.15), peak=0.5)
+
+
 def main():
     os.makedirs(OUT, exist_ok=True)
     # Jeder Sound bekommt einen festen eigenen Zufallswert: Änderungen an einem Sound
     # verändern die anderen nicht.
-    for fn in (intro, card_hover, card_select, lighter, inhale, exhale, gulp, candle_flicker, clink, bottle_knock, pour, index_hover, ui_click, candle_loop, card_hand_hover, card_deal, card_play, card_take, cards_discard, coins, win_sting, lose_sting, button):
+    for fn in (intro, card_hover, card_select, lighter, inhale, exhale, gulp, candle_flicker, clink, bottle_knock, pour, index_hover, ui_click, candle_loop, card_hand_hover, card_deal, card_play, card_take, cards_discard, coins, win_sting, lose_sting, button, burn, mirror):
         rng.seed(zlib.crc32(fn.__name__.encode()) % (2 ** 31))
         fn()
     print("Sounds erzeugt in", OUT)

@@ -32,6 +32,8 @@ signal transferred(who: int, card: Card)
 ## Der Verteidiger hat „nehmen“ angesagt; der Angreifer darf noch nachwerfen.
 signal take_declared(who: int)
 signal finished(loser: int)
+## Feuerzeug: eine Karte auf dem Tisch ist verbrannt (vor `changed`)
+signal card_burned(card: Card)
 
 const PLAYER := 0
 const OPPONENT := 1
@@ -218,6 +220,45 @@ func attack(card: Card, at := -1) -> bool:
 	if taking and legal_attacks().is_empty():
 		finish_take() # nichts mehr nachzuwerfen
 		return true
+	changed.emit()
+	return true
+
+
+## Karten auf dem Tisch, die `who` mit dem Feuerzeug verbrennen darf: die ungeschlagenen
+## Angriffskarten des Gegners oder seine Verteidigungskarten.
+func burnable_cards(who: int) -> Array[Card]:
+	var result: Array[Card] = []
+	if is_over or taking:
+		return result
+	var other := 1 - who
+	for i in attack_cards.size():
+		if attacker == other and defense_cards[i] == null:
+			result.append(attack_cards[i])
+		elif attacker == who and defense_cards[i] != null:
+			result.append(defense_cards[i])
+	return result
+
+
+## Verbrennt eine Karte vom Tisch (aus dem Spiel). Angriffskarte weg → der Angreifer muss
+## (falls nichts mehr liegt) neu angreifen; Verteidigungskarte weg → der Verteidiger muss
+## die Angriffskarte noch einmal schlagen oder nehmen.
+func burn(card: Card) -> bool:
+	if is_over or taking:
+		return false
+	var i := attack_cards.find(card)
+	if i >= 0:
+		if defense_cards[i] != null:
+			return false # geschlagene Angriffskarte nicht (die Verteidigung läge sonst lose)
+		attack_cards.remove_at(i)
+		defense_cards.remove_at(i)
+	else:
+		i = defense_cards.find(card)
+		if i < 0:
+			return false
+		defense_cards[i] = null
+	discard_pile.append(card)
+	card_burned.emit(card)
+	message.emit("%s geht in Flammen auf!" % card)
 	changed.emit()
 	return true
 

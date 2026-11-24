@@ -14,6 +14,8 @@ uniform float shine = 0.0;
 uniform float glow = 0.0;
 uniform vec3 glow_color : source_color = vec3(1.0, 0.9, 0.62);
 uniform float rough = 0.8;
+// Verbrennen (Feuerzeug): 0 = heil, 1 = ganz weg. Rand glüht orange.
+uniform float burn = 0.0;
 
 varying vec3 view_vec;
 
@@ -44,4 +46,20 @@ vec3 card_emission(vec3 base, vec2 uv, vec3 view, float time) {
 	}
 	e += glow_color * glow * 0.1;
 	return e;
+}
+
+// Wertrauschen für die Brandkante
+float burn_hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float burn_noise(vec2 p) {
+	vec2 i = floor(p);
+	vec2 f = fract(p);
+	f = f * f * (3.0 - 2.0 * f);
+	return mix(mix(burn_hash(i), burn_hash(i + vec2(1, 0)), f.x), mix(burn_hash(i + vec2(0, 1)), burn_hash(i + vec2(1, 1)), f.x), f.y);
+}
+// Gibt Glut zurück (>0 an der Kante); verwirft Pixel, die schon verbrannt sind.
+// Das Feuer frisst sich von unten (UV.y = 1) nach oben.
+float burn_mask(vec2 uv) {
+	float n = burn_noise(uv * vec2(9.0, 12.0)) * 0.55 + burn_noise(uv * 31.0) * 0.25 + (1.0 - uv.y) * 0.45;
+	float t = burn * 1.35;
+	return (n < t) ? -1.0 : 1.0 - smoothstep(t, t + 0.08, n);
 }

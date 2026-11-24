@@ -61,6 +61,8 @@ var sway_strength := 1.0
 
 var _cards := {} # Card -> Card3D
 var _base := {} # Card3D -> Transform3D (Ziel ohne Hover)
+## Gegnerkarten, die der Spiegel verraten hat (liegen offen in seiner Hand)
+var revealed := {}
 ## Tisch beim letzten sync (um eine Karte, die die Runde sofort beendet, noch hinzulegen)
 var _last_attacks: Array[Card] = []
 var _last_defs: Array[Card] = []
@@ -190,7 +192,11 @@ func sync(duel: DurakMatch, playable: Array[Card]) -> void:
 		targets[hand[i]] = [_player_hand_xf(i, hand.size()), true, "hand"]
 	var opp := duel.opponent_hand
 	for i in opp.size():
-		targets[opp[i]] = [_opp_hand_xf(i, opp.size()), false, "opp"]
+		var oxf := _opp_hand_xf(i, opp.size())
+		if revealed.has(opp[i]):
+			# verratene Karte ragt offen und größer aus seinem Fächer heraus
+			oxf = Transform3D(oxf.basis.scaled_local(Vector3.ONE * 1.3), oxf.origin + oxf.basis * Vector3(0, 0.004, -0.07))
+		targets[opp[i]] = [oxf, revealed.has(opp[i]), "opp"]
 	for i in duel.attack_cards.size():
 		targets[duel.attack_cards[i]] = [_table_xf(i, duel.attack_cards.size(), false, duel.attack_cards[i]), true, "table_a"]
 		var d: Card = duel.defense_cards[i]
@@ -401,6 +407,122 @@ func _impact(pos: Vector3, strong: bool) -> void:
 	tw.tween_property(mi, "scale", Vector3.ONE * (1.4 if strong else 1.0), 0.4).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	tw.parallel().tween_property(mat, "albedo_color:a", 0.0, 0.4)
 	tw.tween_callback(mi.queue_free)
+
+
+# --- Items ------------------------------------------------------------------------------
+
+## Feuerzeug: Karte auf dem Tisch verbrennt (Flammen, Glut, Knistern) und löst sich auf.
+## Vor dem nächsten sync aufrufen – die Karte wird nicht mehr abgeräumt.
+func burn(card: Card) -> void:
+	var node: Card3D = _cards.get(card)
+	if node == null:
+		return
+	_cards.erase(card)
+	_base.erase(node)
+	_zone.erase(card)
+	if node.has_meta("tween"):
+		(node.get_meta("tween") as Tween).kill()
+	Sfx.play(&"burn")
+	node.burn_away(1.1)
+	var base := node.global_position
+	for i in 14:
+		var flame := Sprite3D.new()
+		flame.texture = Ashtray._puff_texture()
+		flame.pixel_size = 1.0 / 64.0
+		flame.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		flame.shaded = false
+		flame.transparent = true
+		flame.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		flame.top_level = true
+		flame.modulate = Color(1.0, randf_range(0.45, 0.75), 0.15, 0.0)
+		flame.scale = Vector3.ONE * randf_range(0.03, 0.06)
+		add_child(flame)
+		flame.global_position = base + Vector3(randf_range(-0.05, 0.05), 0.01, randf_range(-0.07, 0.07))
+		var start := i * 0.06
+		var tw := flame.create_tween()
+		tw.tween_interval(start)
+		tw.tween_property(flame, "modulate:a", 0.9, 0.08)
+		tw.parallel().tween_property(flame, "global_position:y", base.y + randf_range(0.06, 0.14), 0.6).set_ease(Tween.EASE_OUT)
+		tw.parallel().tween_property(flame, "scale", Vector3.ONE * 0.012, 0.6)
+		tw.parallel().tween_property(flame, "modulate", Color(0.25, 0.22, 0.2, 0.0), 0.6).set_delay(0.15)
+		tw.tween_callback(flame.queue_free)
+	# kurzes Glutlicht
+	var light := OmniLight3D.new()
+	light.light_color = Color(1.0, 0.55, 0.2)
+	light.omni_range = 0.5
+	light.light_energy = 0.0
+	add_child(light)
+	light.global_position = base + Vector3(0, 0.08, 0)
+	var lt := light.create_tween()
+	lt.tween_property(light, "light_energy", 1.6, 0.15)
+	lt.tween_property(light, "light_energy", 0.0, 1.0)
+	lt.tween_callback(light.queue_free)
+
+
+## Spiegel: schwebt hinter dem Gegner von links nach rechts vorbei; in der Mitte blitzt er auf
+## und `on_reveal` wird aufgerufen (dann wird eine Karte seiner Hand aufgedeckt).
+func mirror_flight(on_reveal: Callable) -> void:
+	var mirror := Node3D.new()
+	var frame_mat := StandardMaterial3D.new()
+	frame_mat.albedo_color = Color("c99a4a")
+	frame_mat.metallic = 0.8
+	frame_mat.roughness = 0.35
+	var glass_mat := StandardMaterial3D.new()
+	glass_mat.albedo_color = Color(0.3, 0.36, 0.48)
+	glass_mat.metallic = 1.0
+	glass_mat.roughness = 0.05
+	glass_mat.emission_enabled = true
+	glass_mat.emission = Color(0.35, 0.4, 0.55)
+	glass_mat.emission_energy_multiplier = 0.25
+	var frame := MeshInstance3D.new()
+	var fm := CylinderMesh.new()
+	fm.top_radius = 0.16
+	fm.bottom_radius = 0.16
+	fm.height = 0.02
+	fm.radial_segments = 32
+	frame.mesh = fm
+	frame.material_override = frame_mat
+	frame.rotation_degrees.x = 90
+	frame.scale = Vector3(0.8, 1, 1.1)
+	mirror.add_child(frame)
+	var glass := MeshInstance3D.new()
+	var gm := CylinderMesh.new()
+	gm.top_radius = 0.14
+	gm.bottom_radius = 0.14
+	gm.height = 0.024
+	gm.radial_segments = 32
+	glass.mesh = gm
+	glass.material_override = glass_mat
+	glass.rotation_degrees.x = 90
+	glass.scale = Vector3(0.8, 1, 1.1)
+	mirror.add_child(glass)
+	var glow := OmniLight3D.new()
+	glow.light_color = Color(0.75, 0.82, 1.0)
+	glow.omni_range = 0.8
+	glow.light_energy = 0.4
+	mirror.add_child(glow)
+	add_child(mirror)
+	var z := -TABLE_SIZE.y * 0.5 - 0.75
+	var from := Vector3(-1.6, 1.45, z)
+	var to := Vector3(1.6, 1.45, z)
+	mirror.position = from
+	Sfx.play(&"mirror")
+	var flashed := [false]
+	var tw := create_tween()
+	tw.tween_method(func(v: float) -> void:
+		var p := from.lerp(to, v)
+		p.y += sin(v * PI) * 0.18 + sin(v * TAU * 2.0) * 0.02
+		mirror.position = p
+		mirror.rotation = Vector3(0.1, sin(v * PI * 1.5) * 0.5, sin(v * TAU) * 0.12)
+		if v >= 0.5 and not flashed[0]:
+			flashed[0] = true
+			glow.light_energy = 3.0
+			glass_mat.emission_energy_multiplier = 4.0
+			on_reveal.call()
+		glow.light_energy = move_toward(glow.light_energy, 0.4, 0.08)
+		glass_mat.emission_energy_multiplier = move_toward(glass_mat.emission_energy_multiplier, 0.25, 0.1),
+		0.0, 1.0, 2.6).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tw.tween_callback(mirror.queue_free)
 
 
 # --- Klicken und Ziehen -----------------------------------------------------------------

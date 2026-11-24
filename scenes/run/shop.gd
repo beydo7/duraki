@@ -3,7 +3,7 @@ extends Control
 ## davor drei Stände als Plakatflächen:
 ##   KARTEN   – verbesserte Spielkarten (echtes Kartenbild)
 ##   RELIKTE  – Relikte und dauerhafte Boni als Medaillons
-##   ITEMS    – Platzhalter-Münzen mit „?“ (kommt noch)
+##   ITEMS    – Feuerzeug und Spiegel (einmal im Duell einsetzbar, höchstens 2 Plätze)
 
 const CARD_SIZE := Vector2(108, 151)
 const STALL_GAP := 20
@@ -54,9 +54,12 @@ func _render(deal := false) -> void:
 		c.queue_free()
 	var cards: Array[Dictionary] = []
 	var relics: Array[Dictionary] = []
+	var items: Array[Dictionary] = []
 	for o in Run.shop_offers:
 		if o.kind == "KARTE":
 			cards.append(o)
+		elif o.kind == "ITEM":
+			items.append(o)
 		else:
 			relics.append(o)
 
@@ -66,8 +69,10 @@ func _render(deal := false) -> void:
 	var relic_row := _stall("RELIKTE", "dauerhafte Vorteile", relics.size() * (RELIC_W + 10) + 26, deal, 1)
 	for i in relics.size():
 		relic_row.add_child(_relic_offer(relics[i], deal, 0.35 + i * 0.06))
-	var item_row := _stall("ITEMS", "bald im Angebot", 268, deal, 2)
-	_items_soon(item_row)
+	var item_row := _stall("ITEMS", "einmal im Duell einsetzbar",
+		maxi(items.size(), 1) * (RELIC_W + 10) + 26, deal, 2)
+	for i in items.size():
+		item_row.add_child(_relic_offer(items[i], deal, 0.45 + i * 0.06))
 	_render_owned()
 
 
@@ -259,6 +264,11 @@ func _relic_offer(offer: Dictionary, deal: bool, delay: float) -> Control:
 	medal_holder.custom_minimum_size = Vector2(RELIC_W, 84)
 	medal_holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	box.add_child(medal_holder)
+	if offer.get("emoji", false):
+		var icon := UIKit.relic_icon(offer.symbol, 76, 52)
+		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		medal_holder.add_child(icon)
+		return _relic_texts(parts, offer, is_relic)
 	var medal := Roundel.new()
 	medal.color = offer.color
 	medal.ring_color = UIKit.P_GOLD if is_relic else UIKit.P_CREAM
@@ -270,8 +280,13 @@ func _relic_offer(offer: Dictionary, deal: bool, delay: float) -> Control:
 	sym.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	sym.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	medal.add_child(sym)
+	return _relic_texts(parts, offer, is_relic)
 
-	var kind := _label("RELIKT" if is_relic else "BONUS", 10, UIKit.P_GOLD if is_relic else Color(1, 0.8, 0.76), false)
+
+func _relic_texts(parts: Array, offer: Dictionary, is_relic: bool) -> Control:
+	var box: VBoxContainer = parts[2]
+	var kind_text := "RELIKT" if is_relic else ("ITEM" if offer.kind == "ITEM" else "BONUS")
+	var kind := _label(kind_text, 10, UIKit.P_GOLD if is_relic else Color(1, 0.8, 0.76), false)
 	kind.add_theme_font_override("font", UIKit.body_font(700, 3))
 	box.add_child(kind)
 	box.add_child(_label(offer.title, 14, UIKit.P_CREAM, true))
@@ -297,9 +312,13 @@ func _apply_state(entry: Dictionary) -> void:
 	var btn: Button = entry.btn
 	var sold: bool = offer.sold
 	var affordable: bool = Run.gold >= offer.price
-	btn.disabled = sold or not affordable
+	var full: bool = offer.kind == "ITEM" and not Run.has_item_slot()
+	btn.disabled = sold or not affordable or full
 	btn.modulate = Color(1, 1, 1, 0.38) if sold else (Color.WHITE if affordable else Color(0.75, 0.72, 0.72, 0.85))
 	btn.tooltip_text = "Zu wenig Gold" if not affordable and not sold else ""
+	if full and not sold:
+		btn.tooltip_text = "Keine freien Item-Plätze"
+		btn.modulate = Color(0.75, 0.72, 0.72, 0.85)
 	btn.mouse_filter = Control.MOUSE_FILTER_IGNORE if sold else Control.MOUSE_FILTER_STOP
 	var center: CenterContainer = entry.price
 	for c in center.get_children():
@@ -316,46 +335,6 @@ func _lift(btn: Control, up: bool) -> void:
 	btn.z_index = 1 if up else 0
 	var tw := btn.create_tween()
 	tw.tween_property(btn, "scale", Vector2.ONE * (1.1 if up else 1.0), 0.12).set_trans(Tween.TRANS_QUAD)
-
-
-## Platzhalter für Items: drei Münzen mit Fragezeichen und ein „COMING SOON“-Stempel.
-func _items_soon(row: HBoxContainer) -> void:
-	var area := Control.new()
-	area.custom_minimum_size = Vector2(236, 230)
-	area.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	row.add_child(area)
-	for i in 3:
-		var x := 6.0 + i * 80.0
-		var coin := Roundel.new()
-		coin.color = UIKit.P_GOLD.darkened(0.15)
-		coin.ring_color = Color(0.45, 0.32, 0.08)
-		coin.size = Vector2(66, 66)
-		coin.position = Vector2(x, 40 + (i % 2) * 26)
-		coin.tooltip_text = "Items kommen bald"
-		coin.mouse_filter = Control.MOUSE_FILTER_STOP
-		coin.mouse_entered.connect(func() -> void: _lift(coin, true))
-		coin.mouse_exited.connect(func() -> void: _lift(coin, false))
-		area.add_child(coin)
-		var q := UIKit.poster_label("?", UIKit.display_font(), 34, Color(0.3, 0.2, 0.05))
-		q.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		q.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		q.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-		coin.add_child(q)
-	# Stempel quer über den Stand
-	var stamp := Slab.new()
-	stamp.color = Color(0.07, 0.055, 0.055, 0.6)
-	stamp.outline_color = UIKit.P_RED
-	stamp.outline_width = 4.0
-	stamp.shadow_offset = Vector2.ZERO
-	stamp.points = PackedVector2Array([Vector2(0, 0.04), Vector2(1, 0), Vector2(0.99, 1), Vector2(0.01, 0.96)])
-	stamp.margins = Vector4(18, 4, 18, 6)
-	stamp.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	stamp.add_child(UIKit.poster_label("COMING SOON", UIKit.display_font(3), 26, UIKit.P_RED))
-	area.add_child(stamp)
-	stamp.reset_size()
-	stamp.pivot_offset = stamp.size * 0.5
-	stamp.rotation_degrees = -12.0
-	stamp.position = Vector2(118, 150) - stamp.size * 0.5
 
 
 func _price(offer: Dictionary) -> Control:
@@ -387,6 +366,8 @@ func _owned_items() -> Array:
 	var items := []
 	for r in Run.relics:
 		items.append(["%s %s" % [r.icon(), r.display_name], r.description])
+	for id in Run.items:
+		items.append(["%s %s" % [Run.ITEMS[id].emoji, Run.ITEMS[id].name], Run.ITEMS[id].text])
 	for key in Run.card_enhancements:
 		var parts: PackedStringArray = key.split(":")
 		var enh: int = Run.card_enhancements[key]

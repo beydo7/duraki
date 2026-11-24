@@ -63,6 +63,24 @@ static func emoji_font() -> Font:
 	return _emoji
 
 
+## Relikt/Item-Symbol wie in Slay the Spire: Emoji frei stehend mit dunklem Schatten.
+static func relic_icon(emoji: String, box: float, font_size: int) -> Control:
+	var c := Control.new()
+	c.custom_minimum_size = Vector2(box, box)
+	c.pivot_offset = Vector2(box, box) * 0.5
+	var shadow := poster_label(emoji, emoji_font(), font_size, P_CREAM)
+	shadow.modulate = Color(0, 0, 0, 0.6) # Emoji als dunkle Silhouette = Schatten
+	var icon := poster_label(emoji, emoji_font(), font_size, P_CREAM)
+	for l: Label in [shadow, icon]:
+		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		l.size = Vector2(box, box)
+		l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		c.add_child(l)
+	shadow.position = Vector2(box, box) * 0.07
+	return c
+
+
 static func display_font(spacing := 0) -> FontVariation:
 	var key := "d_%d" % spacing
 	if _fonts.has(key):

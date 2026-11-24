@@ -17,6 +17,7 @@ func _init() -> void:
 	test_enhancements()
 	test_multi_attack()
 	test_transfer()
+	test_burn_and_insert()
 	test_transfer_needs_cards()
 	test_throw_in_on_take()
 	print("\n%d Checks, %d Fehler" % [_checks, _failures])
@@ -256,6 +257,31 @@ func test_transfer() -> void:
 	duel2.attack(duel2.player_hand[0])
 	duel2.defend(duel2.opponent_hand[1]) # 8♥ schlägt 7♥
 	check(not duel2.can_transfer_with(duel2.opponent_hand[0]), "nach einem Schlag kein Schieben mehr")
+
+
+## Feuerzeug (verbrennen) und Angriff an beliebiger Stelle einreihen.
+func test_burn_and_insert() -> void:
+	var H := Card.Suit.HEARTS
+	var C := Card.Suit.CLUBS
+	var D := Card.Suit.DIAMONDS
+	var duel := _fixed_duel([[H, 7], [D, 7], [D, 9]], [[H, 8], [C, 12], [D, 12]])
+	duel.attack(duel.player_hand[0]) # 7♥
+	duel.attack(duel.player_hand[0], 0) # 7♦ links davor
+	check(duel.attack_cards[0].suit == D, "Angriff links eingereiht")
+	check(duel.burnable_cards(DurakMatch.PLAYER).is_empty(), "ohne Gegner-Verteidigung nichts zu verbrennen")
+	var eight: Card = duel.opponent_hand[0]
+	check(duel.defend(eight, 1), "8♥ schlägt 7♥ an Platz 2")
+	check(duel.burnable_cards(DurakMatch.PLAYER) == [eight], "seine Verteidigung ist verbrennbar")
+	check(duel.burn(eight) and duel.defense_cards[1] == null, "verbrannt: Angriff wieder offen")
+	check(duel.current_actor() == DurakMatch.OPPONENT, "Gegner muss neu verteidigen")
+	# Gegner greift an, Spieler verbrennt den Angriff → Gegner muss neu angreifen
+	var d2 := _fixed_duel([[H, 7]], [[C, 9], [D, 10]])
+	d2.attacker = DurakMatch.OPPONENT
+	d2.attack(d2.opponent_hand[0])
+	var a: Card = d2.attack_cards[0]
+	check(d2.burnable_cards(DurakMatch.PLAYER) == [a], "sein Angriff ist verbrennbar")
+	check(d2.burn(a) and d2.attack_cards.is_empty(), "Angriff verbrannt")
+	check(d2.current_actor() == DurakMatch.OPPONENT and d2.can_attack_with(d2.opponent_hand[0]), "Gegner greift neu an")
 
 
 ## Schieben nur, wenn der neue Verteidiger genug Karten hat.

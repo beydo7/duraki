@@ -14,4 +14,10 @@ void fragment() {
 	ROUGHNESS = 0.08;
 	SPECULAR = 0.9;
 	EMISSION = card_emission(col, UV, view_vec, TIME);
+	if (burn > 0.0) {
+		float edge = burn_mask(UV);
+		if (edge < 0.0) discard;
+		ALBEDO = mix(ALBEDO, vec3(0.05, 0.02, 0.01), smoothstep(0.0, 0.6, burn) * 0.6 + edge * 0.4);
+		EMISSION += vec3(1.0, 0.45, 0.08) * edge * 3.0;
+	}
 }

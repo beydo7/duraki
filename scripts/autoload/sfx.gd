@@ -30,6 +30,8 @@ const SOUNDS := {
 	&"win": preload("res://assets/sfx/win.wav"),
 	&"lose": preload("res://assets/sfx/lose.wav"),
 	&"button": preload("res://assets/sfx/button.wav"),
+	&"burn": preload("res://assets/sfx/burn.wav"),
+	&"mirror": preload("res://assets/sfx/mirror.wav"),
 }
 ## Grundlautstärke in dB (0 = volle Lautstärke der Datei)
 const VOLUME := {
@@ -56,6 +58,8 @@ const VOLUME := {
 	&"win": -12.0,
 	&"lose": -12.0,
 	&"button": -15.0,
+	&"burn": -12.0,
+	&"mirror": -16.0,
 }
 const POOL_SIZE := 10
 

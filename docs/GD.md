@@ -71,6 +71,16 @@ Ein Run = 3 normale Gegner + Boss, 3 Leben (Kerzen). Wer verliert, ist der Durak
   Nachziehstapel zeigt die Anzahl. Relikte wie in Slay the Spire: frei stehende Emojis ohne Rahmen
   (`RelicData.emoji`, im Duell oben rechts), Maus drüber → Name und Wirkung darunter, wirkt ein
   Relikt, blitzt es auf (`MatchHUD.flash_relic`). Daneben zwei leere Item-Plätze als Platzhalter.
+- **Items** (`Run.ITEMS`, höchstens 2, beim Händler im Stand ITEMS, einmal einsetzbar; im Duell oben
+  rechts anklicken):
+  - 🔥 **Feuerzeug** (6 G): eine Gegnerkarte auf dem Tisch wählen (leuchtet) → sie verbrennt mit Glut-Shader
+    (`burn` in `card_face.gdshaderinc`), Flammen und Knistern (`burn.wav`). Seine ungeschlagene Angriffskarte
+    → er muss neu angreifen; seine Verteidigungskarte → er muss neu schlagen oder nehmen
+    (`DurakMatch.burnable_cards/burn`). Rechtsklick/Esc bricht ab, das Feuerzeug bleibt.
+  - 🪞 **Spiegel** (5 G): schwebt hinter dem Gegner vorbei (`TableWorld.mirror_flight`, `mirror.wav`) und
+    deckt eine zufällige Karte seiner Hand auf; sie ragt offen aus seinem Fächer (`TableWorld.revealed`).
+- Händler zeigt Relikte wie im Duell (freie Emojis, `UIKit.relic_icon`); Trumpf unten links mit dem
+  Goldrahmen der Trumpfkarten.
 - **Reihenfolge**: erst wird abgeräumt bzw. aufgenommen, dann nachgezogen (Gegner wartet so lange).
 - Angriffskarten lassen sich beim Ziehen links oder rechts neben die anderen legen (`attack(card, at)`).
 - Gegner-Animationen laufen über geglättete Werte (`OpponentFigure.SMOOTH`), nichts springt mehr.

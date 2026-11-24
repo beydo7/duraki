@@ -114,6 +114,22 @@ func set_state(p_playable: bool) -> void:
 	_update_look()
 
 
+## Feuerzeug: Karte verbrennt von unten nach oben und löst sich auf, dann verschwindet sie.
+func burn_away(time := 1.1) -> Tween:
+	playable = false
+	# nur die Vorderseite brennt sichtbar; Rahmen, Kante und Rückseite gleich weg
+	for c in _body.get_children():
+		if c is GeometryInstance3D and (c as MeshInstance3D).material_override != _face_mat:
+			(c as Node3D).visible = false
+		elif not (c is GeometryInstance3D):
+			(c as Node3D).visible = false
+	var tw := create_tween()
+	tw.tween_method(func(v: float) -> void: _face_mat.set_shader_parameter("burn", v), 0.0, 1.0, time)
+	tw.parallel().tween_property(self, "position:y", position.y + 0.01, time)
+	tw.tween_callback(queue_free)
+	return tw
+
+
 ## Karte ist gelandet: kurz federn und wackeln (`strength` 0..1).
 func land(strength := 0.5) -> void:
 	_hop_v += 0.12 * strength
