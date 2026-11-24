@@ -40,7 +40,6 @@ const DEFAULTS := {
 	"graphics/fps_limit": 0,
 	"graphics/msaa": 2, # 4× – schärfere Kanten
 	"graphics/sharpen": 1, # Nachschärfen: Aus/Normal/Stark
-	"graphics/retro": false, # Retro-Look (Pixel, Röhre, Zeilen) wie in Balatro
 	"graphics/version": GRAPHICS_VERSION,
 	"graphics/render_scale": 1.0,
 	"graphics/shadows": Quality.HIGH,
@@ -170,7 +169,7 @@ func apply_all() -> void:
 		root.content_scale_factor = get_value("general/ui_scale")
 
 
-# --- Bild-Nachbearbeitung (Schärfe, Retro) über allem ------------------------------------
+# --- Bild-Nachbearbeitung (Schärfe) über allem ------------------------------------
 
 var _post: ColorRect
 
@@ -190,11 +189,9 @@ func _apply_post() -> void:
 		layer.add_child(_post)
 		add_child.call_deferred(layer)
 	var sharpen: float = SHARPEN_VALUES[clampi(int(get_value("graphics/sharpen")), 0, 2)]
-	var retro: bool = get_value("graphics/retro")
 	var m := _post.material as ShaderMaterial
 	m.set_shader_parameter("sharpen", sharpen)
-	m.set_shader_parameter("retro", 1.0 if retro else 0.0)
-	_post.visible = retro or sharpen > 0.0 # aus = keine Extra-Kosten
+	_post.visible = sharpen > 0.0 # aus = keine Extra-Kosten
 
 
 ## Für SubViewports mit 3D-Inhalt (Kantenglättung, Renderauflösung, Schatten).
