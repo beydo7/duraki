@@ -92,7 +92,8 @@ Ein Run = 3 normale Gegner + Boss, 3 Leben (Kerzen). Wer verliert, ist der Durak
 - **Regel: Auf Karten steht nie ein Schriftzug der Verbesserung** (kein GOLD/GLAS/GLÜCK) – auch nicht bei
   künftigen Kartenarten. Man erkennt sie am Bild.
 - **Look**: Nachschärfen (Aus/Normal/Stark, Standard Normal) und **Retro-Look** (Pixel, Röhrenwölbung,
-  Zeilen, Farbsaum – wie Balatro) als Bildpass über allem (`ui/post_screen.gdshader`, CanvasLayer 120 im
+  Zeilen, Farbsaum – wie Balatro): grobe Pixel nur in der 3D-Welt (`UIKit.fit_viewport` rendert kleiner,
+  nearest-Filter), Texte bleiben scharf; Röhre/Zeilen als Bildpass über allem (`ui/post_screen.gdshader`, CanvasLayer 120 im
   Autoload Settings). Kantenglättung Standard 4× (`GRAPHICS_VERSION` hebt ältere Einstellungen einmalig an).
 - Während ausgeteilt wird, kann man nicht ausspielen (`TableWorld.busy_until`).
 - **Balance (25.11.)**: Siegprämien der Gegner −20 %, Zinsen max. 4, Spiegel 4 G, Schwer-Ziel ×1,4.
@@ -232,6 +233,10 @@ setzt ältere Einstellungsdateien einmalig darauf).
 - **Whiskeyflasche** (`scenes/match/whiskey_bottle.gd`, ersetzt die grüne Flasche überall): eckig,
   Bernsteinglas mit Füllstand, erfundene Marke „Hinterzimmer Whiskey · seit 1926“, Etikett zur Kamera,
   offen – der Verschluss steht daneben.
+- **Zigarettenschachtel** (`scenes/match/cigarette_pack.gd`, eigene Marke „DURAKI“, rot-weiß, kein
+  echtes Markenlogo) rechts neben deinem Aschenbecher: 1. Klick Deckel auf, 2. Klick drei Zigaretten
+  rutschen halb raus, 3. Klick eine wandert in den Aschenbecher (der startet im Duell leer). Ist sie
+  aufgeraucht, holt der nächste Klick die nächste.
 - **Aschenbecher** (`scenes/match/ashtray.gd`): hinten links der des Gegners (Filter zeigt zu ihm, Deko),
   im Duell zusätzlich dein eigener vorne links neben den Kerzen. Klick = anzünden, dann 5 Züge
   (Zigarette zum Mund, brennt ab, Rauchwolke), danach qualmt der Stummel in der Kerbe 12 s und geht aus.

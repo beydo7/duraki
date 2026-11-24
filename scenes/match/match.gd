@@ -162,6 +162,7 @@ func _ready() -> void:
 
 func _on_settings_changed() -> void:
 	Settings.apply_viewport(%Viewport)
+	_fit_viewport() # Retro-Look an/aus ändert die Renderauflösung
 
 
 ## Die 3D-Welt in voller Bildschirmauflösung rendern. Mit stretch = true würde der

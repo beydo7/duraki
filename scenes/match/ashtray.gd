@@ -17,9 +17,11 @@ const PAPER_LEN := 0.062
 const FILTER_LEN := 0.022
 const R := 0.0045
 
-enum State { UNLIT, LIT, BUTT, OUT }
+enum State { UNLIT, LIT, BUTT, OUT, EMPTY }
 
 var interactive := false
+## Ohne Zigarette starten – sie kommt aus der Schachtel daneben (CigarettePack)
+var starts_empty := false
 var center := BACK_CENTER
 ## Richtung der Kerbe mit der Zigarette (Filter zeigt dorthin)
 var notch_dir := Vector3(0.55, 0, 0.83)
@@ -51,6 +53,39 @@ func _ready() -> void:
 	position = center
 	_build_tray()
 	_build_cigarette()
+	if starts_empty:
+		state = State.EMPTY
+		_cig.visible = false
+
+
+## Kann gerade eine neue Zigarette aus der Schachtel abgelegt werden?
+func wants_cigarette() -> bool:
+	return not _busy and state in [State.EMPTY, State.OUT]
+
+
+## Neue Zigarette fliegt von `from` (global) in die Kerbe; danach kann man sie anzünden.
+func receive_cigarette(from: Transform3D) -> void:
+	_busy = true
+	_puffs = 0
+	_set_burn(0.0)
+	_ash.visible = false
+	_trail = false
+	_glow_target = 0.0
+	_cig.visible = true
+	var rest := global_transform * _cig_rest
+	var lift := from.translated(Vector3(0, 0.05, 0))
+	var tw := create_tween()
+	tw.tween_method(func(v: float) -> void: _cig.global_transform = from.interpolate_with(lift, v), 0.0, 1.0, 0.25) \
+		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.tween_method(func(v: float) -> void:
+		var xf := lift.interpolate_with(rest, v)
+		xf.origin.y += sin(v * PI) * 0.03
+		_cig.global_transform = xf, 0.0, 1.0, 0.55).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tw.tween_callback(func() -> void:
+		Sfx.play(&"card_hand_hover", 0.8)
+		_cig.transform = _cig_rest
+		state = State.UNLIT
+		_busy = false)
 
 
 ## Das alte Modell ausblenden (Teile aus props.glb).

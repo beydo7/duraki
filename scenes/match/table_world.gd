@@ -138,7 +138,13 @@ func build(opponent: OpponentData) -> void:
 	ashtray.center = PLAYER_ASHTRAY_POS
 	ashtray.notch_dir = Vector3(0.5, 0, 0.87)
 	ashtray.interactive = true
+	ashtray.starts_empty = true # die Zigarette kommt aus der Schachtel daneben
 	add_child(ashtray)
+	var pack := CigarettePack.new()
+	pack.ashtray = ashtray
+	pack.position = Vector3(-0.52, TABLE_Y, 0.2) # rechts neben dem Aschenbecher, vor den Kerzen
+	pack.rotation.y = 0.35
+	add_child(pack)
 	props = TableProps.new()
 	add_child(props)
 	_deck_pile = _pile_mesh()

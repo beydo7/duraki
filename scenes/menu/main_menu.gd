@@ -28,6 +28,7 @@ func _ready() -> void:
 	get_viewport().size_changed.connect(func() -> void: UIKit.fit_viewport(self, %View, %Viewport))
 
 	_build_cards()
+	Settings.changed.connect(func() -> void: UIKit.fit_viewport(self, %View, %Viewport))
 	Settings.changed.connect(func() -> void:
 		if _has_tutorial != bool(Settings.get_value("general/show_tutorial")):
 			_build_cards())

@@ -273,6 +273,12 @@ static func show_unlocks(owner: Control) -> void:
 ## SubViewport in echter Bildschirmauflösung rendern (statt der Basisauflösung
 ## hochzuskalieren). `scale` < 1 rendert absichtlich kleiner (z. B. für unscharfe Hintergründe).
 static func fit_viewport(owner: Control, view: SubViewportContainer, vp: SubViewport, scale := 1.0) -> void:
+	# Retro-Look: nur die 3D-Welt wird grob gepixelt (kleiner rendern, scharf hochskalieren) –
+	# Texte und Oberfläche bleiben lesbar
+	var retro: bool = Settings.get_value("graphics/retro")
+	if retro:
+		scale *= 0.4
+	view.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST if retro else CanvasItem.TEXTURE_FILTER_PARENT_NODE
 	var canvas := owner.get_viewport_rect().size
 	var pixels := Vector2(owner.get_tree().root.size)
 	var factor := maxf(pixels.x / maxf(canvas.x, 1.0), 1.0) * scale
