@@ -155,8 +155,8 @@ static func label(text: String, size := 16, color := CREAM, variation := &"") ->
 
 
 ## Roter Plakat-Keil oben links hinter einem Titel (Menü, Weg, Händler),
-## mit kleiner kyrillischer Zeile im dunklen Streifen.
-static func poster_wedge(owner: Control, size: Vector2, behind: Control, russian := "") -> Slab:
+## optional mit kleiner Zeile im dunklen Streifen (z. B. Credits im Hauptmenü).
+static func poster_wedge(owner: Control, size: Vector2, behind: Control, subline := "") -> Slab:
 	var wedge := Slab.new()
 	wedge.color = P_RED
 	wedge.points = PackedVector2Array([Vector2(0, 0), Vector2(1, 0), Vector2(0.84, 0.8), Vector2(0, 1)])
@@ -169,8 +169,8 @@ static func poster_wedge(owner: Control, size: Vector2, behind: Control, russian
 	wedge.size = size
 	owner.add_child(wedge)
 	owner.move_child(wedge, behind.get_index())
-	if russian != "":
-		var ru := poster_label(russian, body_font(600, 4), 12, Color(1, 0.8, 0.76))
+	if subline != "":
+		var ru := poster_label(subline, body_font(600, 4), 12, Color(1, 0.8, 0.76))
 		var y0 := size.y * 0.89
 		ru.position = Vector2(64, y0 - 14)
 		ru.rotation = atan2(-(0.14 * size.y), 0.86 * size.x)

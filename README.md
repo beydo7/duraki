@@ -33,7 +33,7 @@ Die Schriften (Russo One, Oswald, Cinzel Decorative u. a.) liegen in `assets/fon
 - **Run:** 3 Gegner + Boss, 3 Leben (Kerzen auf dem Tisch), Gold, Händler nach jedem Sieg mit Relikten, Karten-Verbesserungen (Gold, Glas, Glück) und Zinsen.
 - **Decks:** 12 Kartenrücken mit kleinem Spieleffekt, freizuschalten über besiegte Gegner oder mit Seelen.
 - **3D-Duell** in Ich-Perspektive. Die Gegner halten ihre Karten als Fächer in den Händen, denken, reagieren und spielen mit Animationen aus.
-- **Stil „Plakat“** für HUD und Menüs (russischer Konstruktivismus, Rot / Schwarz / Creme) und Kartenblatt **„Okkult-Gold“** mit Animationen (Austeilen, Hover-Kippen, Wirbel beim Schieben, Stempel „БИТО“, Folienglanz).
+- **Stil „Plakat“** für HUD und Menüs (russischer Konstruktivismus, Rot / Schwarz / Creme) und Kartenblatt **„Okkult-Gold“** mit Animationen (Austeilen, Hover-Kippen, Wirbel beim Schieben, Stempel „BITO“, Folienglanz).
 - **Optionen:** Grafik, Audio, Allgemein; Esc-Pause im Spiel.
 
 Alles Weitere zu Regeln, Wertung, Stil und offenen Punkten: [`docs/GD.md`](docs/GD.md).

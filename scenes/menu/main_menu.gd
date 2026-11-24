@@ -1,7 +1,7 @@
 extends Control
 ## Hauptmenü in 3D: Du sitzt schon am Tisch im Hinterzimmer, gegenüber wartet eine
-## Gestalt im Dunkeln. Die Menüpunkte liegen als Karten auf dem Tisch (anklickbar)
-## und stehen zusätzlich links als Knöpfe (Tastatur/Controller).
+## Gestalt im Dunkeln. Die Menüpunkte liegen als Karten auf dem Tisch: anklicken
+## oder mit Pfeiltasten/Controller wählen und mit Enter/A bestätigen.
 
 const MENU_OPPONENT := "res://data/opponents/crow.tres"
 var CAM_START := Transform3D(Basis.from_euler(Vector3(-0.18, 0, 0)), Vector3(0, 1.62, 1.75))
@@ -9,7 +9,9 @@ const CARD_Z := 0.08
 
 var world: TableWorld
 var _cards: Array[MenuCard3D] = []
-var _buttons: Array[Button] = []
+var _actions: Array[Callable] = []
+var _sel := 0
+var _sub_open := false
 var _leaving := false
 var _t := 0.0
 
@@ -43,18 +45,11 @@ func _ready() -> void:
 			if on:
 				_focus(_cards.find(c)))
 		_cards.append(card)
+		_actions.append(s[4])
 
-	UIKit.poster_wedge(self, Vector2(640, 335), %TitleBlock, "ДУРАКИ · НОЧЬ В ЗАДНЕЙ КОМНАТЕ")
-	_buttons = [%PlayButton, %DecksButton, %OptionsButton, %QuitButton]
+	UIKit.poster_wedge(self, Vector2(640, 335), %TitleBlock, "BEYD & FLÖRRY")
 	_update_info()
 	Profile.changed.connect(_update_info)
-	for i in _buttons.size():
-		var b: Button = _buttons[i]
-		UIKit.hover(b, 1.04)
-		b.pressed.connect(specs[i][4])
-		var index := i
-		b.focus_entered.connect(func() -> void: _focus(index))
-		b.mouse_entered.connect(func() -> void: _focus(index))
 
 	# Auftritt: Kamera gleitet an den Tisch, Titel und Menü blenden ein
 	var seat := world.get_camera_pose()
@@ -64,9 +59,8 @@ func _ready() -> void:
 		world.set_camera_pose(CAM_START.interpolate_with(seat, v)),
 		0.0, 1.0, 2.4).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	UIKit.appear(%TitleBlock, 0.5, Vector2(-30, 0), 0.8)
-	UIKit.appear(%MenuList, 1.0, Vector2(-30, 0), 0.6)
 	UIKit.appear(%Hint, 1.4, Vector2(0, 8), 0.6)
-	%PlayButton.grab_focus.call_deferred()
+	_focus(0)
 
 
 func _process(delta: float) -> void:
@@ -77,10 +71,26 @@ func _process(delta: float) -> void:
 
 
 func _focus(index: int) -> void:
+	if index < 0 or index >= _cards.size():
+		return
+	_sel = index
 	for i in _cards.size():
 		_cards[i].focused = i == index
-	if index >= 0 and index < _buttons.size() and not _buttons[index].has_focus():
-		_buttons[index].grab_focus()
+
+
+## Tastatur/Controller: links/rechts (oder hoch/runter) wechselt die Karte, Bestätigen wählt sie.
+func _unhandled_input(event: InputEvent) -> void:
+	if _leaving or _sub_open:
+		return
+	if event.is_action_pressed("ui_left") or event.is_action_pressed("ui_up"):
+		_focus(wrapi(_sel - 1, 0, _cards.size()))
+	elif event.is_action_pressed("ui_right") or event.is_action_pressed("ui_down"):
+		_focus(wrapi(_sel + 1, 0, _cards.size()))
+	elif event.is_action_pressed("ui_accept"):
+		_actions[_sel].call()
+	else:
+		return
+	get_viewport().set_input_as_handled()
 
 
 func _start_run() -> void:
@@ -104,13 +114,15 @@ func _update_info() -> void:
 func _open_decks() -> void:
 	var menu := DeckMenu.new()
 	add_child(menu)
-	menu.closed.connect(func() -> void: %DecksButton.grab_focus())
+	_sub_open = true
+	menu.closed.connect(func() -> void: _sub_open = false)
 
 
 func _open_options() -> void:
 	var menu := OptionsMenu.new()
 	add_child(menu)
-	menu.closed.connect(func() -> void: %OptionsButton.grab_focus())
+	_sub_open = true
+	menu.closed.connect(func() -> void: _sub_open = false)
 
 
 func _quit() -> void:

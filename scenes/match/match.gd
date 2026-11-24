@@ -96,7 +96,7 @@ func _ready() -> void:
 		else:
 			world.figure.recoil()
 			hud.show_banner("WEITERGESCHOBEN"))
-	duel.cards_discarded.connect(func(_count: int) -> void: hud.stamp("БИТО", "BITO"))
+	duel.cards_discarded.connect(func(_count: int) -> void: hud.stamp("BITO"))
 	duel.take_declared.connect(func(who: int) -> void:
 		if who == DurakMatch.OPPONENT and duel.taking:
 			hud.toast("%s nimmt – du darfst passende Karten nachwerfen." % opponent.display_name, MatchHUD.COLOR_GOLD))

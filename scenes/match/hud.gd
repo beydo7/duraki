@@ -8,7 +8,7 @@ extends Control
 ##   rechts oben   schwarzer Balken mit Gegner (Foto, Name kyrillisch + deutsch, Tisch, Handkarten),
 ##                 darunter Relikte als Briefmarken
 ##   rechts unten  Zug-Plakette (wer ist dran, was geht) und die Aktionen
-##   Mitte         kurz eingeblendete Schrägbanner („ЗАЩИТА – VERTEIDIGE DICH“)
+##   Mitte         kurz eingeblendete Schrägbanner („VERTEIDIGE DICH“)
 ## Die Spiellogik ruft nur die öffentlichen Funktionen auf (siehe match.gd).
 
 enum Turn { ATTACK, DEFEND, WAIT, THROW_IN, OVER }
@@ -26,15 +26,6 @@ const PGOLD := UIKit.P_GOLD
 const EDGE_SHADER := preload("res://scenes/match/edge_glow.gdshader")
 const RELIC_SYMBOLS := {&"ace_up_sleeve": "A", &"lucky_coin": "₽", &"samovar": "♨", &"vodka": "✶"}
 const RELIC_COLORS := [Color(0.47, 0.24, 0.59), Color(0.16, 0.43, 0.27), Color(0.67, 0.43, 0.12), Color(0.2, 0.32, 0.55)]
-## Gegnernamen auf Russisch (nach Dateiname der Gegner-Ressource)
-const CYRILLIC := {
-	"bandit": "БАНДИТ", "swamp_man": "БОЛОТНИК", "crow": "ВОРОНА", "wolf": "ВОЛЧИЦА",
-	"jester": "ШУТ", "bone_man": "КОСТЛЯВЫЙ", "witch": "ВЕДЬМА", "giant": "ВЕЛИКАН",
-}
-const BANNER_RU := {
-	"DEIN ANGRIFF": "АТАКА", "VERTEIDIGE DICH": "ЗАЩИТА", "GESCHOBEN!": "ПЕРЕВОД",
-	"WEITERGESCHOBEN": "ПЕРЕВОД",
-}
 ## Zug-Plakette: [Hintergrund, Titelfarbe, Hinweisfarbe]
 const TURN_LOOK := {
 	Turn.ATTACK: [CREAM, BLACK, Color(0.2, 0.16, 0.16)],
@@ -79,7 +70,7 @@ var _sub_label: Label
 var _toasts: VBoxContainer
 var _opp_bar: Slab
 var _portrait: TextureRect
-var _cyr_label: Label
+var _role_label: Label
 var _opp_label: Label
 var _floor_label: Label
 var _opp_cards_draw: Control
@@ -202,7 +193,7 @@ func _build_score() -> void:
 	_wedge.fit_children = false
 	_anchor(_wedge, Vector2.ZERO, Vector2(0, 0), Vector2(430, 160))
 	add_child(_wedge)
-	var head := UIKit.poster_label("ОЧКИ · PUNKTE", UIKit.body_font(600, 3), 14, CREAM)
+	var head := UIKit.poster_label("PUNKTE", UIKit.body_font(600, 3), 14, CREAM)
 	_at(_wedge, head, Vector2(26, 10))
 	_score_label = UIKit.poster_label("0", UIKit.display_font(), 72, CREAM, 4)
 	_at(_wedge, _score_label, Vector2(20, 18))
@@ -272,8 +263,8 @@ func _build_opponent() -> void:
 	frame.outline_color = RED
 	frame.outline_width = 2.5
 	_at(_opp_bar, frame, Vector2(18, 13), Vector2(68, 66))
-	_cyr_label = UIKit.poster_label("", UIKit.body_font(600, 5), 14, UIKit.INK_RED)
-	_at(_opp_bar, _cyr_label, Vector2(98, 16))
+	_role_label = UIKit.poster_label("", UIKit.body_font(600, 5), 14, UIKit.INK_RED)
+	_at(_opp_bar, _role_label, Vector2(98, 16))
 	_opp_label = UIKit.poster_label("", UIKit.display_font(), 26, CREAM)
 	_at(_opp_bar, _opp_label, Vector2(96, 34))
 	_floor_label = UIKit.poster_label("", UIKit.body_font(600, 2), 13, UIKit.MUTED)
@@ -499,8 +490,7 @@ func _build_result() -> void:
 func setup(opponent: OpponentData, target: int, floor_i := 0, floor_count := 1) -> void:
 	_opp_label.text = opponent.display_name.to_upper()
 	_portrait.texture = opponent.portrait
-	var id := opponent.resource_path.get_file().get_basename()
-	_cyr_label.text = CYRILLIC.get(id, "ПРОТИВНИК")
+	_role_label.text = "ENDGEGNER" if opponent.is_boss else "GEGNER"
 	_floor_label.text = ("BOSS · TISCH %d/%d" if opponent.is_boss else "TISCH %d/%d") % [floor_i + 1, floor_count]
 	_target = maxi(1, target)
 	_target_label.text = "/%d" % target
@@ -720,10 +710,10 @@ func toast(text: String, color: Color = COLOR_TEXT) -> void:
 	tw.tween_callback(pill.queue_free)
 
 
-## Großes Schrägbanner in der Bildmitte („DEIN ANGRIFF“ …), mit russischer Unterzeile.
+## Großes Schrägbanner in der Bildmitte („DEIN ANGRIFF“ …).
 func show_banner(text: String, color: Color = Color(1, 0.86, 0.5)) -> void:
 	_banner_label.text = text
-	_banner_sub.text = BANNER_RU.get(text, "")
+	_banner_sub.text = ""
 	_banner_sub.visible = _banner_sub.text != ""
 	# Rötliche Farben → rotes Banner, sonst schwarzes Banner mit rotem Balken
 	var reddish := color.r > 0.8 and color.g < 0.7
@@ -818,7 +808,7 @@ func show_result(won: bool, title: String, text: String, score_text: String) -> 
 	set_actions(false, false, false)
 	close_choice()
 	_glow_target = 0.0
-	_result_header.text = "ПОБЕДА · DUELL GEWONNEN" if won else "ПОРАЖЕНИЕ · DUELL VERLOREN"
+	_result_header.text = "DUELL GEWONNEN" if won else "DUELL VERLOREN"
 	_result_title.text = title
 	_result_panel.color = RED if won else BLACK
 	_result_panel.extra = [] if won else [PackedVector2Array([Vector2(0.03, 0), Vector2(1, 0.02), Vector2(0.999, 0.045), Vector2(0.029, 0.025)])]
@@ -881,7 +871,7 @@ func speed_lines(up: bool) -> void:
 	tw.tween_callback(c.queue_free)
 
 
-## Roter Stempel über dem Spielfeld (z. B. „БИТО“ beim Abwerfen).
+## Roter Stempel über dem Spielfeld (z. B. „BITO“ beim Abwerfen).
 func stamp(text: String, sub := "") -> void:
 	var s := _slab(Color(0, 0, 0, 0), [Vector2(0, 0.04), Vector2(1, 0), Vector2(0.99, 1), Vector2(0.01, 0.96)], 0.0, Vector4(26, 6, 26, 8))
 	s.outline_color = RED

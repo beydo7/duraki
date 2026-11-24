@@ -24,10 +24,10 @@ func _ready() -> void:
 
 	if Run.won_run:
 		%TitleLabel.text = "RUN GEWONNEN!"
-		%Header.text = "ПОБЕДА · DIE NACHT GEHÖRT DIR"
+		%Header.text = "DIE NACHT GEHÖRT DIR"
 		%AgainButton.theme_type_variation = &""
 	else:
-		%Header.text = "ДУРАК · DIE LETZTE KERZE IST AUS"
+		%Header.text = "DIE LETZTE KERZE IST AUS"
 		%TitleLabel.text = "DU BIST DER DURAK."
 		%Panel.theme_type_variation = &""
 		%Panel.add_theme_stylebox_override("panel", UIKit.paper(Vector4(30, 26, 30, 26), true))

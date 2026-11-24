@@ -247,9 +247,9 @@ func _draw_hitbox() -> void:
 		draw_dashed_line(r.position + Vector2(0, arm), Vector2(r.position.x, r.end.y - arm), dc, 3.0, 14.0)
 		draw_dashed_line(Vector2(r.end.x, r.position.y + arm), r.end - Vector2(0, arm), dc, 3.0, 14.0)
 		# Etikett der Hitbox
-		var tag := Rect2(r.position.x, r.position.y - 38, 196, 30)
+		var tag := Rect2(r.position.x, r.position.y - 38, 104, 30)
 		draw_rect(tag, Color(CREAM, dash))
-		_text(_body_bold, "HITBOX · ХИТБОКС", tag.get_center() + Vector2(0, 8), 17, Color(BLACK, dash))
+		_text(_body_bold, "HITBOX", tag.get_center() + Vector2(0, 8), 17, Color(BLACK, dash))
 
 
 func _draw_hit_stamp() -> void:
@@ -273,7 +273,7 @@ func _draw_presents(center: Vector2, k: float) -> void:
 	if a <= 0.0:
 		return
 	var pos := center + Vector2(0, 345 * k + (1.0 - _ease_out(a)) * 14.0)
-	_text(_body, "ПРЕДСТАВЛЯЕТ  ·  PRÄSENTIERT", pos, int(round(24 * k / 0.74)), Color(CREAM, a * 0.85))
+	_text(_body, "PRÄSENTIERT", pos, int(round(24 * k / 0.74)), Color(CREAM, a * 0.85))
 
 
 # --- Helfer -----------------------------------------------------------------------------

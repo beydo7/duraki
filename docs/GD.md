@@ -65,7 +65,7 @@ Russisches Konstruktivismus-Plakat, modern umgesetzt (Referenz-Gefühl: Balatro-
 Persona-Dynamik). **Rot `#CE2628` / Schwarz `#120E0E` / Creme `#F0E4CC`**, Gold `#E8B446` als Akzent,
 Chips blau, Mult rot.
 - Schräge Flächen mit hartem Versatz-Schatten, keine runden „Web“-Panels.
-- Kyrillische Unterzeilen als Würze (ОЧКИ · PUNKTE, Gegnernamen, ЗАЩИТА / АТАКА / ПЕРЕВОД).
+- Alle Texte auf Deutsch, **keine kyrillischen Zeilen mehr** (auf Leons Wunsch entfernt).
 - Schriften: **Russo One** (Titel, Zahlen), **Oswald** (Text, variable Stärke) – beide OFL.
 - Bausteine: `ui/slab.gd` (Plakatfläche aus Vielecken), `ui/roundel.gd` (runde Plakette / Stern),
   `ui/seg_bar.gd` (Segmentbalken). Helfer in `ui/ui_kit.gd`: `body_font()`, `display_font()`,
@@ -77,7 +77,7 @@ Chips blau, Mult rot.
 - links oben roter Keil: Punkte groß, „/Ziel“, Segmentbalken; darunter Chips × Mult + Hinweis
 - darunter Spielprotokoll (Toasts)
 - links runde Plaketten Leben / Gold / Stapel, roter Stern = Trumpf, „ANGRIFF x/y“
-- rechts oben schwarzer Balken: Foto, Name kyrillisch + deutsch, Tisch x/y, Handkarten
+- rechts oben schwarzer Balken: Foto, „GEGNER“/„ENDGEGNER“ + Name, Tisch x/y, Handkarten
 - darunter Relikte als Briefmarken (Tooltip)
 - rechts unten Zug-Plakette (Farbe je Zustand: Angriff creme, Verteidigung rot, Warten schwarz,
   Nachwerfen gold) mit Etikett „SCHIEBEN MÖGLICH“, darunter Knöpfe NEHMEN [E] / BITO [LEER]
@@ -89,8 +89,11 @@ Chips blau, Mult rot.
 
 **Studio-Intro** (`scenes/intro/studio_intro.tscn`, Hauptszene): ~3 s, Logo „Hitbox Hooligans“ als
 Spielmodul – fällt, knallt auf (roter Plakat-Keil, Wackeln), Hitbox-Ecken schnappen zu, Stempel „HIT!“,
-„ПРЕДСТАВЛЯЕТ · PRÄSENTIERT“, dann Hauptmenü. Komplett im Code gezeichnet, jede Eingabe überspringt,
+„PRÄSENTIERT“, dann Hauptmenü. Komplett im Code gezeichnet, jede Eingabe überspringt,
 headless (Tests) direkt ins Menü.
+
+Hauptmenü: nur die vier Karten auf dem Tisch (Maus, Pfeiltasten/Controller + Enter/A), keine
+Knopfleiste links; im roten Keil unten die Zeile „BEYD & FLÖRRY“.
 
 Menüs (Hauptmenü in 3D mit Karten auf dem Tisch, Weg, Händler, Pause, Optionen, Decks, Run-Ende)
 nutzen dasselbe Theme; Hauptmenü, Weg und Händler haben den roten Keil hinter dem Titel.
@@ -119,7 +122,7 @@ zwei Ebenen: Karten = Spielwelt, HUD = Plakat darüber.
   Austeilen (Bogen, Drehung, Federn), Ausspielen (hoher Bogen, Wumms, Staubring, kurzes Wackeln
   der Kamera – bei Trumpf stärker mit Goldblitz), Schlagen (Angriffskarte wird geschubst),
   Schieben (Wirbel um die Hochachse + rote Tempo-Streifen im HUD), Nehmen (hoch und zurück in die
-  Hand), Bito (Stempel „БИТО“ im HUD, Karten drehen sich zum Ablagestapel).
+  Hand), Bito (Stempel „BITO“ im HUD, Karten drehen sich zum Ablagestapel).
 - Kamerawackeln nur, wenn „Kamera-Schwenk“ in den Optionen an ist; alle Zeiten folgen der
   Einstellung „Kartenanimationen“.
 - Prüfen: `tests/screenshot.tscn -- film` nimmt eine Bildfolge in Zeitlupe auf.
