@@ -18,9 +18,9 @@ enum Enhancement { NONE, GOLD, GLASS, LUCKY }
 const ENHANCEMENT_NAMES := ["", "Goldkarte", "Glaskarte", "Glückskarte"]
 const ENHANCEMENT_TEXT := [
 	"",
-	"+2 Mult, wenn du sie spielst.",
-	"Doppelte Chips, wenn du sie spielst.",
 	"+3 Gold, wenn du sie spielst.",
+	"Doppelte Chips, wenn du sie spielst.",
+	"+1 Gold, wenn du sie spielst.",
 ]
 const ENHANCEMENT_TAGS := ["", "GOLD", "GLAS", "GLÜCK"]
 

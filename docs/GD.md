@@ -116,9 +116,18 @@ Herz = Sonne, Karo = Auge, Pik = Mond (+ „DURAKI“), Kreuz = Stern. Glasversi
 im selben Stil. Nachtblau/Gold der Karten und Rot/Schwarz/Creme des HUDs sind bewusst
 zwei Ebenen: Karten = Spielwelt, HUD = Plakat darüber.
 
+### Kartenarten (eigene Bilder, von Leon gewählt)
+- **Goldkarte** „Blattgold“ (`assets/cards/gold/`): ganze Karte vergoldet mit Craquelé und Glanzband,
+  Linien dunkel eingraviert, Herz/Karo tiefrot. Effekt: **+3 Gold**, wenn gespielt (Preis 6 G).
+- **Glückskarte** „Klee-Ecken“ (`assets/cards/lucky/`): normales Kartenbild, vierblättrige Kleeblätter
+  in den freien Ecken, grüne Innenlinie. Effekt: **+1 Gold**, wenn gespielt (Preis 4 G).
+- **Glaskarte** (`assets/cards/glass/`): unverändert durchscheinend. Effekt: doppelte Chips (Preis 5 G).
+- Erzeugen: `python tools/generate_cards.py special` (nur Gold + Glück). `Card3D.face_texture()`
+  wählt den Ordner nach `card.enhancement`.
+
 ### Karten-Animationen
 - Vorderseite: `scenes/match/card_face.gdshader` (+ `_glass`, gemeinsamer Teil `.gdshaderinc`):
-  Folienglanz, der mit Blickwinkel und Zeit wandert (Trumpf leicht gold, Goldkarte kräftig,
+  Folienglanz, der mit Blickwinkel und Zeit wandert (Trumpf leicht gold, Goldkarte warm,
   Glückskarte grün, Glas irisierend), Lichtreflex an der Mausposition, Leuchten für spielbare Karten.
 - `Card3D` (`scenes/match/card_3d.gd`): alle sichtbaren Teile hängen an `_body`; darauf liegen
   Kippen zur Maus (Hover), Wiegen in der Hand, Anheben spielbarer Karten, Federn beim Landen

@@ -166,6 +166,24 @@ func test_enhancements() -> void:
 	tracker.suit_chip_bonus = {Card.Suit.HEARTS: 3}
 	check(tracker.card_chips(Card.new(Card.Suit.HEARTS, 6)) == 9, "Herz-Schliff: +3 Chips")
 	check(tracker.card_chips(Card.new(Card.Suit.SPADES, 6)) == 6, "Schliff gilt nur für seine Farbe")
+	# Gold- und Glückskarte bringen Gold, wenn sie gespielt werden
+	var gold_duel := DurakMatch.new()
+	var gold_rng := RandomNumberGenerator.new()
+	gold_rng.seed = 11
+	gold_duel.start(gold_rng)
+	var gold_tracker := ScoreTracker.new(999)
+	gold_tracker.attach(gold_duel)
+	var found_gold := []
+	gold_tracker.gold_found.connect(func(amount: int, _src: String) -> void: found_gold.append(amount))
+	gold_duel.attacker = DurakMatch.PLAYER
+	var g1 := Card.new(Card.Suit.HEARTS, 9)
+	g1.enhancement = Card.Enhancement.GOLD
+	var g2 := Card.new(Card.Suit.CLUBS, 9)
+	g2.enhancement = Card.Enhancement.LUCKY
+	gold_duel.player_hand.assign([g1, g2, Card.new(Card.Suit.SPADES, 7)])
+	gold_duel.attack(g1)
+	gold_duel.attack(g2)
+	check(found_gold == [3, 1], "Goldkarte +3 Gold, Glückskarte +1 Gold (bekommen: %s)" % [found_gold])
 	# Verbesserungen landen beim Mischen auf der richtigen Karte
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 5

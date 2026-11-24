@@ -58,10 +58,10 @@ func _ready() -> void:
 	score = ScoreTracker.new(target, Run.base_mult())
 	score.suit_chip_bonus = Run.suit_chip_bonus
 	score.trump_mult_bonus = Run.trump_mult_bonus
-	score.gold_found.connect(func(amount: int) -> void:
+	score.gold_found.connect(func(amount: int, source: String) -> void:
 		Run.add_gold(amount)
 		world.props.set_gold(Run.gold)
-		hud.toast("Glückskarte: +%d Gold" % amount, MatchHUD.COLOR_GOLD))
+		hud.toast("%s: +%d Gold" % [source, amount], MatchHUD.COLOR_GOLD))
 	score.attach(duel) # vor den UI-Signalen verbinden, damit zuerst gewertet wird
 	score.changed.connect(_render_score)
 	score.bout_scored.connect(func(points: int, text: String) -> void: hud.bout_scored(points, text))

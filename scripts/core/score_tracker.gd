@@ -20,7 +20,7 @@ signal changed
 signal bout_scored(points: int, text: String)
 signal target_reached
 ## Eine Glückskarte wurde gespielt.
-signal gold_found(amount: int)
+signal gold_found(amount: int, source: String)
 
 const CHIP_VALUES := {
 	6: 6, 7: 7, 8: 8, 9: 9, 10: 10,
@@ -93,9 +93,9 @@ func _on_card_played(who: int, card: Card, as_attack: bool) -> void:
 	chips += card_chips(card)
 	match card.enhancement:
 		Card.Enhancement.GOLD:
-			mult += 2
+			gold_found.emit(3, "Goldkarte")
 		Card.Enhancement.LUCKY:
-			gold_found.emit(3)
+			gold_found.emit(1, "Glückskarte")
 	if as_attack:
 		if _duel.attack_cards.size() > 1:
 			mult += 1 # Nachlegen

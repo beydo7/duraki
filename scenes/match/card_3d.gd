@@ -28,7 +28,7 @@ const ENH_TAG := [Color.WHITE, Color("ffd36a"), Color("9fd8ff"), Color("8ff0a0")
 ## Folienglanz je Card.Enhancement: [Stärke, Farbe, Regenbogen]
 const ENH_FOIL := [
 	[0.0, Color.WHITE, 0.0],
-	[1.0, Color(1.0, 0.8, 0.42), 0.0],
+	[0.55, Color(1.0, 0.86, 0.55), 0.0],
 	[0.75, Color(0.8, 0.95, 1.0), 1.0],
 	[0.85, Color(0.45, 1.0, 0.55), 0.0],
 ]
@@ -70,9 +70,14 @@ const SUIT_FILES := ["h", "d", "c", "s"]
 static var _textures := {}
 
 
-## Kartenbild aus assets/cards (erzeugt mit tools/generate_cards.py).
-static func face_texture(c: Card, glass := false) -> Texture2D:
-	return _texture("%s%s_%d" % ["glass/" if glass else "", SUIT_FILES[c.suit], c.rank])
+## Unterordner der Kartenbilder je Verbesserung (NONE, GOLD, GLASS, LUCKY)
+const ENH_FOLDERS := ["", "gold/", "glass/", "lucky/"]
+
+
+## Kartenbild aus assets/cards (erzeugt mit tools/generate_cards.py), passend zur
+## Verbesserung der Karte: Blattgold, Glas oder Kleeblatt-Ecken.
+static func face_texture(c: Card) -> Texture2D:
+	return _texture("%s%s_%d" % [ENH_FOLDERS[c.enhancement], SUIT_FILES[c.suit], c.rank])
 
 
 static func back_texture() -> Texture2D:
@@ -183,7 +188,7 @@ func _build() -> void:
 	_face_mat = ShaderMaterial.new()
 	_face_mat.shader = GLASS_SHADER if glass else FACE_SHADER
 	if card != null:
-		_face_mat.set_shader_parameter("tex", face_texture(card, glass))
+		_face_mat.set_shader_parameter("tex", face_texture(card))
 	var foil: Array = ENH_FOIL[enh]
 	var foil_amount: float = foil[0]
 	if enh == Card.Enhancement.NONE and is_trump:

@@ -220,7 +220,9 @@ func _card_offer(offer: Dictionary, deal: bool, delay: float) -> Control:
 	pic.pivot_offset = CARD_SIZE * 0.5
 	pic.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	if offer.has("suit"):
-		pic.texture = Card3D.face_texture(Card.new(offer.suit, offer.rank), enh == Card.Enhancement.GLASS)
+		var shown := Card.new(offer.suit, offer.rank)
+		shown.enhancement = enh
+		pic.texture = Card3D.face_texture(shown)
 	pic_holder.add_child(pic)
 	# Etikett der Verbesserung schräg über der Karte
 	var tag := Slab.new()

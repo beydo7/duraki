@@ -10,11 +10,14 @@ Aufruf (aus dem Projektordner):
     python tools/generate_cards.py            # alles
     python tools/generate_cards.py faces      # nur Vorderseiten (+ Glas)
     python tools/generate_cards.py backs      # nur Rückseiten
+    python tools/generate_cards.py special    # nur Gold- und Glückskarten
 Benötigt: Pillow und numpy  (pip install pillow numpy)
 
 Ausgabe:
   assets/cards/<farbe>_<rang>.png         Vorderseiten
   assets/cards/glass/<farbe>_<rang>.png   Glaskarten (durchscheinend, Linien bleiben)
+  assets/cards/gold/<farbe>_<rang>.png    Goldkarten („Blattgold“: vergoldet, Linien eingraviert)
+  assets/cards/lucky/<farbe>_<rang>.png   Glückskarten (Kleeblätter in den freien Ecken)
   assets/cards/blank.png                   leere Vorderseite (Menükarten)
   assets/cards/back.png                    Standard-Rückseite (= Deck „hinterzimmer“)
   assets/cards/backs/<deck>.png            Rückseiten aller Decks (siehe DECK_BACKS)
@@ -640,6 +643,93 @@ def glass_version(art):
     return glass
 
 
+# --- Gold- und Glückskarten ------------------------------------------------------------
+
+GOLD_LEAF_TOP = (222, 178, 92)
+GOLD_LEAF_BOT = (146, 102, 40)
+ENGRAVE = (22, 20, 44)
+DEEP_RED = (156, 26, 34)  # Herz/Karo auf Gold kräftiger, sonst zu blass
+CLOVER = (92, 214, 120)
+
+
+def gold_version(art, seed):
+    """Blattgold: ganze Karte vergoldet mit feinem Craquelé und Glanzband,
+    die goldenen Linien werden dunkel „eingraviert“, Korallenrot wird tiefrot."""
+    bg = background(seed, GOLD_LEAF_TOP, GOLD_LEAF_BOT, stars=0)
+    d = ImageDraw.Draw(bg)
+    r = random.Random(seed)
+    for _ in range(90):
+        x, y = r.uniform(0, W), r.uniform(0, H)
+        pts = [(x, y)]
+        for _ in range(r.randint(2, 5)):
+            x += r.uniform(-30, 30) * S
+            y += r.uniform(-30, 30) * S
+            pts.append((x, y))
+        d.line(pts, fill=(120, 82, 30, 70), width=2)
+    a = np.asarray(bg).astype(np.float32)
+    yy, xx = np.mgrid[0:H, 0:W]
+    band = np.clip(1 - np.abs((xx / W + yy / H * 0.7) - 0.75) / 0.12, 0, 1) ** 2
+    a[..., :3] += band[..., None] * 60
+    bg = Image.fromarray(a.clip(0, 255).astype(np.uint8), "RGBA")
+    ar = np.asarray(art).astype(np.float32)
+    rr, gg, bb = ar[..., 0], ar[..., 1], ar[..., 2]
+    goldish = (rr > 120) & (gg > 90) & (bb < 170) & (gg > bb + 25)
+    coral = (rr > 180) & (gg < 150) & (bb < 150)
+    for i in range(3):
+        ar[..., i] = np.where(goldish, ENGRAVE[i], ar[..., i])
+        ar[..., i] = np.where(coral, DEEP_RED[i], ar[..., i])
+    bg.alpha_composite(Image.fromarray(ar.clip(0, 255).astype(np.uint8), "RGBA"))
+    return bg
+
+
+def _leaf(cx, cy, size, ang):
+    """Herzförmiges Kleeblatt-Blatt, Spitze bei (cx, cy), in Richtung ang (Grad)."""
+    pts = []
+    for side in (-1, 1):
+        seg = bez((0, 0), (side * 0.55, -0.35), (side * 0.75, -0.95), (side * 0.32, -1.0))
+        seg += bez((side * 0.32, -1.0), (side * 0.12, -1.0), (side * 0.02, -0.9), (0, -0.78))
+        pts.append(seg if side < 0 else list(reversed(seg)))
+    a = math.radians(ang)
+    return [(cx + x * size * math.cos(a) - y * size * math.sin(a), cy + x * size * math.sin(a) + y * size * math.cos(a))
+            for x, y in pts[0] + pts[1]]
+
+
+def clover(size, color, stem=True):
+    """Vierblättriges Kleeblatt aus vier Herzblättern (Spitzen zur Mitte)."""
+    ss = size * 2
+    tile = Image.new("RGBA", (ss, ss), (0, 0, 0, 0))
+    d = ImageDraw.Draw(tile)
+    c = ss / 2
+    leaf = ss * 0.24
+    dark = tuple(int(v * 0.6) for v in color[:3])
+    if stem:
+        pts = bez((c, c), (c + ss * 0.04, c + ss * 0.16), (c + ss * 0.14, c + ss * 0.28), (c + ss * 0.22, c + ss * 0.42))
+        d.line(pts, fill=rgba(color), width=max(2, int(ss * 0.035)), joint="curve")
+    for k in range(4):
+        ang = 45 + k * 90
+        d.polygon(_leaf(c, c, leaf, ang), fill=rgba(color))
+        a = math.radians(ang)
+        d.line([(c, c), (c + math.sin(a) * leaf * 0.7, c - math.cos(a) * leaf * 0.7)], fill=rgba(dark), width=max(1, int(ss * 0.008)))
+    d.ellipse([c - ss * 0.03, c - ss * 0.03, c + ss * 0.03, c + ss * 0.03], fill=rgba(dark))
+    return tile.resize((size, size), Image.LANCZOS)
+
+
+def lucky_version(bg, art):
+    """Klee-Ecken: Kartenbild bleibt, Kleeblätter in den beiden freien Ecken,
+    grüne Innenlinie und kleine Kleeblätter oben/unten am Rahmen."""
+    art = art.copy()
+    big = clover(int(0.22 * W), CLOVER)
+    put(art, big, (W - 0.13 * W, 0.16 * W))
+    put(art, big, (0.13 * W, H - 0.16 * W), rotate=True)
+    d = ImageDraw.Draw(art)
+    m = 0.07 * W
+    d.rounded_rectangle([m, m, W - m, H - m], radius=0.02 * W, outline=rgba(CLOVER, 120), width=int(0.004 * W))
+    small = clover(int(0.06 * W), CLOVER, False)
+    for x, y in ((W / 2, 0.043 * W), (W / 2, H - 0.043 * W)):
+        put(art, small, (x, y))
+    return compose(bg, art)
+
+
 def blank_card():
     """Leere Vorderseite (Rahmen, Sterne, feine Ringe) für die Menükarten im Hauptmenü."""
     art = layer()
@@ -655,11 +745,20 @@ def save_card(bg, art, name):
     glass_version(art).save(os.path.join(OUT, "glass", name + ".png"), optimize=True)
 
 
+def save_special(bg, art, name, seed):
+    """Gold- und Glücksversion einer Karte."""
+    for folder in ("gold", "lucky"):
+        os.makedirs(os.path.join(OUT, folder), exist_ok=True)
+    save(gold_version(art, seed), os.path.join("gold", name))
+    save(lucky_version(bg, art), os.path.join("lucky", name))
+
+
 def main():
     import sys
     os.makedirs(OUT, exist_ok=True)
     only = sys.argv[1:]
-    if not only or "faces" in only:
+    if not only or "faces" in only or "special" in only:
+        faces = not only or "faces" in only
         seed = 0
         for suit in SUITS:
             for rank in range(6, 15):
@@ -670,9 +769,12 @@ def main():
                     bg, art = ace_card(suit, seed)
                 else:
                     bg, art = face_card(rank, suit, seed)
-                save_card(bg, art, "%s_%d" % (suit, rank))
+                if faces:
+                    save_card(bg, art, "%s_%d" % (suit, rank))
+                save_special(bg, art, "%s_%d" % (suit, rank), seed)
                 print("  ", suit, rank)
-        save(blank_card(), "blank")
+        if faces:
+            save(blank_card(), "blank")
     if not only or "backs" in only:
         os.makedirs(os.path.join(OUT, "backs"), exist_ok=True)
         for deck_id in DECK_BACKS:

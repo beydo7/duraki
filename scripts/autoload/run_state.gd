@@ -253,8 +253,9 @@ func _card_offer() -> Dictionary:
 	var label := "%s%s" % [Card.RANK_NAMES[rank], Card.SUIT_SYMBOLS[suit]]
 	var colors := [Color.WHITE, Color(0.78, 0.58, 0.1), Color(0.25, 0.55, 0.8), Color(0.2, 0.6, 0.3)]
 	var key := "%d:%d" % [suit, rank]
+	var prices := [0, 6, 5, 4] # Gold (+3 Gold), Glas (doppelte Chips), Glück (+1 Gold)
 	var offer := _offer("KARTE", "%s %s" % [Card.ENHANCEMENT_NAMES[enh], label], Card.ENHANCEMENT_TEXT[enh],
-		4 + enh, label, colors[enh], func() -> void: card_enhancements[key] = enh)
+		prices[enh], label, colors[enh], func() -> void: card_enhancements[key] = enh)
 	# für die Anzeige im Shop (echtes Kartenbild)
 	offer.suit = suit
 	offer.rank = rank
