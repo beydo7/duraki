@@ -63,6 +63,13 @@ Ein Run = 3 normale Gegner + Boss, 3 Leben (Kerzen). Wer verliert, ist der Durak
   passende Hinweise ein (Willkommen, Trumpf, Hand – diese halten den Gegner an – dann Angriff,
   Verteidigen, Schieben, Nehmen, Nachwerfen, Punkte), jeden nur einmal. Gewonnen → Karte verschwindet;
   in den Optionen „Tutorial im Hauptmenü anzeigen“ holt sie zurück.
+- **Verteidigen**: Reihenfolge frei. Passt eine Karte auf mehrere Angriffskarten (oder geht auch
+  Schieben), fragt eine Auswahl „AUF 7♠ / AUF 9♠ / SCHIEBEN“. Handkarten lassen sich auch direkt auf
+  eine Angriffskarte (oder beim Angriff auf den Tisch) ziehen. Beendet die letzte Verteidigung die Runde
+  sofort, landet die Karte trotzdem erst sichtbar auf dem Tisch und wird dann abgeräumt.
+- **Infos**: Shift über einer offenen Karte zeigt Chips, Trumpf- und Verbesserungs-Effekt; Maus über dem
+  Nachziehstapel zeigt die Anzahl. Relikte haben Emojis (`RelicData.emoji`, im Duell oben rechts),
+  daneben zwei leere Item-Plätze als Platzhalter.
 - **Nachwerfen**: nimmt der Gegner, erscheint ein Banner „<NAME> GIBT AUF – DU DARFST NACHWERFEN“,
   die Zugtafel wird gold („<NAME> NIMMT – NACHWERFEN!“) und der Rand leuchtet gold.
 - Gegner (`data/opponents/`): Bandit, Sumpfmann, Krähe, Wölfin, Gaukler, Knochenmann, Hexe, Riese (Boss).

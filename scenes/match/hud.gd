@@ -24,7 +24,6 @@ const BLACK := UIKit.P_BLACK
 const CREAM := UIKit.P_CREAM
 const PGOLD := UIKit.P_GOLD
 const EDGE_SHADER := preload("res://scenes/match/edge_glow.gdshader")
-const RELIC_SYMBOLS := {&"ace_up_sleeve": "A", &"lucky_coin": "₽", &"samovar": "♨", &"vodka": "✶"}
 const RELIC_COLORS := [Color(0.47, 0.24, 0.59), Color(0.16, 0.43, 0.27), Color(0.67, 0.43, 0.12), Color(0.2, 0.32, 0.55)]
 ## Zug-Plakette: [Hintergrund, Titelfarbe, Hinweisfarbe]
 const TURN_LOOK := {
@@ -125,6 +124,57 @@ func _process(delta: float) -> void:
 	_turn_plate.self_modulate = Color(1, 1, 1).lerp(Color(1.12, 1.08, 1.04), pulse)
 	_glow = move_toward(_glow, _glow_target, delta * 0.8)
 	(_edge.material as ShaderMaterial).set_shader_parameter("strength", _glow)
+	if _info != null and _info.visible:
+		_place_info()
+
+
+# --- Info-Tafel an der Maus (Shift über einer Karte, Nachziehstapel) -------------------
+
+var _info: Slab
+var _info_title: Label
+var _info_body: Label
+
+
+## Kleine Tafel neben dem Mauszeiger. Gleicher Inhalt → nichts neu aufbauen.
+func show_info(title: String, body: String) -> void:
+	if _info == null:
+		_info = _slab(BLACK, [], 0.0, Vector4(14, 8, 14, 10))
+		_info.outline_color = PGOLD
+		_info.outline_width = 2.0
+		var col := VBoxContainer.new()
+		col.add_theme_constant_override("separation", 2)
+		col.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_info.add_child(col)
+		_info_title = UIKit.poster_label("", UIKit.display_font(1), 18, PGOLD)
+		col.add_child(_info_title)
+		_info_body = UIKit.poster_label("", UIKit.body_font(500), 15, CREAM)
+		_info_body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_info_body.custom_minimum_size = Vector2(240, 0)
+		col.add_child(_info_body)
+		_info.top_level = false
+		add_child(_info)
+	if _info.visible and _info_title.text == title and _info_body.text == body:
+		return
+	_info_title.text = title
+	_info_body.text = body
+	_info.visible = true
+	_info.size = Vector2.ZERO
+	_info.reset_size()
+	_info.reset_size.call_deferred()
+	_place_info()
+
+
+func hide_info() -> void:
+	if _info != null:
+		_info.visible = false
+
+
+func _place_info() -> void:
+	var m := get_local_mouse_position()
+	var p := m + Vector2(22, -_info.size.y - 12)
+	p.x = clampf(p.x, 8, size.x - _info.size.x - 8)
+	p.y = clampf(p.y, 8, size.y - _info.size.y - 8)
+	_info.position = p
 
 
 # --- Aufbau ---------------------------------------------------------------------------
@@ -314,6 +364,8 @@ func _draw_opp_cards() -> void:
 		x += w + gap
 
 
+## Runde Plakette mit dem Wert in der Mitte, Beschriftung rechts daneben (früher stand
+## beides im Kreis und überlappte sich). Gibt das Wert-Label zurück.
 func _roundel(center: Vector2, radius: float, color: Color, ring: Color, caption: String, text_color: Color) -> Label:
 	var r := Roundel.new()
 	r.color = color
@@ -321,38 +373,50 @@ func _roundel(center: Vector2, radius: float, color: Color, ring: Color, caption
 	r.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_anchor(r, Vector2.ZERO, center - Vector2(radius, radius), Vector2(radius, radius) * 2)
 	add_child(r)
-	var cap := UIKit.poster_label(caption, UIKit.body_font(600, 1), 8, text_color)
-	cap.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_at(r, cap, Vector2(0, radius * 0.32), Vector2(radius * 2, 11))
+	r.pivot_offset = Vector2(radius, radius)
 	var val := UIKit.poster_label("", UIKit.display_font(), 19, text_color)
 	val.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_at(r, val, Vector2(0, radius * 0.66), Vector2(radius * 2, 24))
+	val.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_at(r, val, Vector2(0, 0), Vector2(radius * 2, radius * 2))
+	var cap := UIKit.poster_label(caption, UIKit.body_font(700, 3), 12, CREAM, 2)
+	cap.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_anchor(cap, Vector2.ZERO, Vector2(center.x + radius + 8, center.y - 9), Vector2(70, 18))
+	add_child(cap)
 	r.set_meta("value", val)
 	return val
 
 
+## Spalte links: Leben, Gold, Stapel untereinander, darunter mittig die Trumpfkarte.
+const LEFT_X := 34.0
+const TRUMP_CENTER_X := 62.0
+
+
 func _build_left() -> void:
-	# Leben / Gold / Stapel klein am linken Rand über dem Trumpf-Stern: unter dem
-	# Spielprotokoll und links neben der Hand, damit nichts überlappt.
-	_lives_label = _roundel(Vector2(36, 458), 26, RED, CREAM, "LEBEN", CREAM)
-	_gold_label = _roundel(Vector2(36, 517), 26, PGOLD, BLACK, "GOLD", BLACK)
-	_deck_label = _roundel(Vector2(36, 576), 26, BLACK, CREAM, "STAPEL", CREAM)
+	_lives_label = _roundel(Vector2(LEFT_X, 448), 20, RED, CREAM, "LEBEN", CREAM)
+	_gold_label = _roundel(Vector2(LEFT_X, 497), 20, PGOLD, BLACK, "GOLD", BLACK)
+	_deck_label = _roundel(Vector2(LEFT_X, 546), 20, BLACK, CREAM, "STAPEL", CREAM)
 	_deck_roundel = _deck_label.get_parent() as Roundel
-	var star := Roundel.new()
-	star.star = true
-	star.color = RED
-	star.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_anchor(star, Vector2.ZERO, Vector2(56 - 26, 650 - 26), Vector2(52, 52))
-	add_child(star)
-	_trump_symbol = UIKit.poster_label("♥", UIKit.SYMBOL_FONT, 20, CREAM)
+	# Trumpf als kleine schräge Karte (Creme, roter Rand, großes Farbsymbol)
+	var card := _slab(CREAM, [], 0.0)
+	card.outline_color = RED
+	card.outline_width = 3.0
+	card.shadow_offset = Vector2(4, 5)
+	card.fit_children = false
+	var sz := Vector2(50, 68)
+	_anchor(card, Vector2.ZERO, Vector2(TRUMP_CENTER_X - sz.x * 0.5, 580), sz)
+	card.pivot_offset = sz * 0.5
+	card.rotation_degrees = -7.0
+	add_child(card)
+	_trump_symbol = UIKit.poster_label("♥", UIKit.SYMBOL_FONT, 34, RED)
 	_trump_symbol.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_at(star, _trump_symbol, Vector2(0, 13), Vector2(52, 26))
-	_trump_caption = UIKit.poster_label("TRUMPF", UIKit.body_font(600, 2), 11, CREAM, 2)
+	_trump_symbol.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_at(card, _trump_symbol, Vector2(0, 2), sz - Vector2(0, 4))
+	_trump_caption = UIKit.poster_label("TRUMPF", UIKit.body_font(700, 3), 12, CREAM, 2)
 	_trump_caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_anchor(_trump_caption, Vector2.ZERO, Vector2(6, 680), Vector2(100, 16))
+	_anchor(_trump_caption, Vector2.ZERO, Vector2(TRUMP_CENTER_X - 60, 662), Vector2(120, 16))
 	add_child(_trump_caption)
 	_bout_label = UIKit.poster_label("", UIKit.body_font(600, 2), 13, CREAM, 2)
-	_anchor(_bout_label, Vector2.ZERO, Vector2(98, 640), Vector2(160, 20))
+	_anchor(_bout_label, Vector2.ZERO, Vector2(110, 690), Vector2(160, 20))
 	add_child(_bout_label)
 
 
@@ -608,6 +672,7 @@ func set_run_info(lives: int, gold: int, deck: int, trump_suit: int) -> void:
 		_deck_roundel.color = RED_DARK if deck == 0 else BLACK
 		_deck = deck
 	_trump_symbol.text = Card.SUIT_SYMBOLS[trump_suit]
+	_trump_symbol.add_theme_color_override("font_color", RED if trump_suit <= Card.Suit.DIAMONDS else BLACK)
 	_trump_caption.text = "TRUMPF · %s" % String(Card.SUIT_NAMES[trump_suit]).to_upper()
 
 
@@ -622,9 +687,30 @@ func set_bout(attack_count: int, limit: int, can_transfer: bool) -> void:
 			UIKit.pop(_transfer_tag, 1.3)
 
 
+## Plätze für Items (einsetzbar/verbrauchbar) – kommen später, bis dahin leere Fassungen.
+const ITEM_SLOTS := 2
+
+
 func set_relics(relics: Array) -> void:
 	for c in _relics.get_children():
 		c.queue_free()
+	for i in ITEM_SLOTS:
+		var slot := _slab(Color(0, 0, 0, 0.55), [], 0.0)
+		slot.custom_minimum_size = Vector2(40, 50)
+		slot.outline_color = Color(CREAM, 0.35)
+		slot.outline_width = 1.5
+		slot.shadow_offset = Vector2.ZERO
+		slot.mouse_filter = Control.MOUSE_FILTER_PASS
+		slot.tooltip_text = "Item-Platz – bald: Gegenstände, die du im Duell einsetzen kannst."
+		var q := UIKit.poster_label("?", UIKit.display_font(), 18, Color(CREAM, 0.35))
+		q.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		q.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		slot.add_child(q)
+		_relics.add_child(slot)
+	if not relics.is_empty():
+		var gap := Control.new()
+		gap.custom_minimum_size = Vector2(6, 0)
+		_relics.add_child(gap)
 	for i in relics.size():
 		var r: RelicData = relics[i]
 		var stamp := _slab(CREAM, [], 0.0, Vector4(5, 5, 5, 5))
@@ -635,7 +721,7 @@ func set_relics(relics: Array) -> void:
 		var inner := _slab(RELIC_COLORS[i % RELIC_COLORS.size()], [], 0.0)
 		inner.shadow_offset = Vector2.ZERO
 		stamp.add_child(inner)
-		var sym := UIKit.poster_label(RELIC_SYMBOLS.get(r.id, r.display_name.left(1)), UIKit.display_font(), 22, CREAM, 2)
+		var sym := UIKit.poster_label(r.icon(), UIKit.emoji_font(), 24, CREAM)
 		sym.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		sym.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		stamp.add_child(sym)

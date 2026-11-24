@@ -47,7 +47,7 @@ func setup(match_node: Node) -> void:
 	_tip("trump", "TRUMPF",
 		"Die offene Karte unter dem Stapel zeigt den Trumpf: %s. Trumpf schlägt jede andere Farbe – spar ihn dir für schwierige Momente." % Card.SUIT_NAMES[duel.trump_suit], true)
 	_tip("hand", "DEINE HAND",
-		"Unten liegen deine Karten. Leuchtende Karten kannst du gerade spielen – einfach anklicken.", true)
+		"Unten liegen deine Karten. Leuchtende Karten kannst du gerade spielen – einfach anklicken. Halte Shift über einer Karte, um zu sehen, was sie bringt.", true)
 
 
 func _build() -> void:
@@ -69,7 +69,7 @@ func _build() -> void:
 	_panel.anchor_right = 1.0
 	_panel.offset_left = -PANEL_W - 28
 	_panel.offset_right = -28
-	_panel.offset_top = 205
+	_panel.offset_top = 118
 	_panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	_panel.visible = false
 	add_child(_panel)
@@ -112,7 +112,7 @@ func _check() -> void:
 					"Keine deiner Karten schlägt den Angriff. Drück NEHMEN – die Karten kommen auf deine Hand.", false, true)
 			else:
 				_tip("defend", "VERTEIDIGE DICH",
-					"Schlag die Karte mit einer höheren derselben Farbe oder mit einem Trumpf. Klick dazu eine leuchtende Karte an – oder drück NEHMEN.", false, true)
+					"Schlag die Karte mit einer höheren derselben Farbe oder mit einem Trumpf. Klick eine leuchtende Karte an oder zieh sie direkt auf die Angriffskarte – oder drück NEHMEN.", false, true)
 		elif _open_key in ["defend", "transfer", "must_take"]:
 			_close_current()
 	elif not duel.taking:

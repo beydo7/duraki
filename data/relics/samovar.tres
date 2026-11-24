@@ -7,6 +7,7 @@ script = ExtResource("1_rel")
 id = &"samovar"
 display_name = "Samowar"
 description = "+1 Leben."
+emoji = "🫖"
 hand_size_bonus = 0
 bonus_gold_per_win = 0
 extra_lives = 1

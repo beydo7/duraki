@@ -34,6 +34,9 @@ var _hold_until := 0.0
 ## Tutorial: solange ein Hinweis-Schritt offen ist, wartet der Gegner
 var coach_hold := false
 var coach: TutorialCoach
+## Maus über Karte / Stapel (Shift-Info, Stapelanzahl)
+var _hover_card: Card
+var _deck_hover := false
 var _think_style := 0
 var hud: MatchHUD
 var _was_my_turn := false
@@ -58,6 +61,13 @@ func _ready() -> void:
 	_fit_viewport()
 	get_viewport().size_changed.connect(_fit_viewport)
 	world.card_clicked.connect(_on_player_card)
+	world.card_hovered.connect(func(card: Card, on: bool) -> void:
+		if on:
+			_hover_card = card
+		elif _hover_card == card:
+			_hover_card = null)
+	world.deck_hovered.connect(func(on: bool) -> void: _deck_hover = on)
+	world.card_dropped.connect(_on_player_card)
 
 	ai = SimpleAI.new(Run.rng, Run.mistake_chance(opponent))
 	Card3D.hints = Run.hints
@@ -110,11 +120,11 @@ func _ready() -> void:
 	duel.cards_discarded.connect(func(_count: int) -> void:
 		hud.stamp("FERTIG")
 		# verteidigte Karten bleiben liegen und werden dann abgeräumt; so lange wartet der Gegner
-		_hold_until = _now() + TableWorld.DISCARD_DELAY + 0.6)
+		_hold_until = _now() + TableWorld.DISCARD_DELAY + 0.9)
 	duel.take_declared.connect(func(who: int) -> void:
 		if who == DurakMatch.OPPONENT and duel.taking:
 			# klar zeigen: der Gegner gibt auf – du darfst aber noch Karten dazulegen
-			var sub := "DU DARFST NACHWERFEN" if not duel.legal_attacks().is_empty() else "NICHTS ZUM NACHWERFEN – FERTIG"
+			var sub := "DU DARFST NACHWERFEN" if not Run.hints or not duel.legal_attacks().is_empty() else "NICHTS ZUM NACHWERFEN – FERTIG"
 			hud.show_banner("%s GIBT AUF" % opponent.display_name.to_upper(), Color(1, 0.86, 0.5), sub, 1.6))
 
 	hud.take_button.pressed.connect(func() -> void:
@@ -209,7 +219,8 @@ func _run_ai_turn() -> void:
 		ai.take_turn(duel, DurakMatch.OPPONENT)
 
 
-func _on_player_card(card: Card) -> void:
+## Karte angeklickt (`target` = -1) oder auf eine Angriffskarte gezogen (`target` = deren Index).
+func _on_player_card(card: Card, target := -1) -> void:
 	hud.close_choice()
 	if not _playable.has(card):
 		# nur möglich, wenn Hinweise aus sind: alle Handkarten sind anklickbar
@@ -218,19 +229,34 @@ func _on_player_card(card: Card) -> void:
 	if duel.defender() == DurakMatch.PLAYER:
 		if duel.current_actor() != DurakMatch.PLAYER:
 			return
-		var can_beat := duel.can_defend_with(card)
 		var can_shift := duel.can_transfer_with(card)
-		if can_beat and can_shift:
-			hud.ask_choice("%s: schlagen oder weiterschieben?" % card, ["SCHLAGEN", "SCHIEBEN"],
-				func(i: int) -> void:
-					if i == 0:
-						duel.defend(card)
-					else:
-						duel.transfer(card))
-		elif can_shift:
-			duel.transfer(card)
-		else:
-			duel.defend(card)
+		if target >= 0:
+			if duel.can_defend_at(card, target):
+				duel.defend(card, target)
+			elif can_shift:
+				duel.transfer(card)
+			else:
+				hud.toast("%s schlägt %s nicht." % [card, duel.attack_cards[target]], MatchHUD.COLOR_GOLD)
+			return
+		# Mehrere Möglichkeiten? Dann fragen: welche Karte schlagen – oder schieben.
+		var targets := duel.defense_targets(card)
+		var labels: Array[String] = []
+		for i in targets:
+			labels.append("AUF %s" % duel.attack_cards[i])
+		if can_shift:
+			labels.append("SCHIEBEN")
+		if labels.size() == 1:
+			if can_shift:
+				duel.transfer(card)
+			else:
+				duel.defend(card, targets[0])
+			return
+		var question := "%s: welche Karte schlagen?" % card if not can_shift else "%s: schlagen oder weiterschieben?" % card
+		hud.ask_choice(question, labels, func(i: int) -> void:
+			if i < targets.size():
+				duel.defend(card, targets[i])
+			else:
+				duel.transfer(card))
 	else:
 		# als Angreifer jederzeit (auch während der Gegner noch überlegt)
 		duel.attack(card)
@@ -286,6 +312,41 @@ func _maybe_say(lines: Array, chance: float) -> void:
 		hud.say(lines[randi() % lines.size()], 2.6)
 
 
+func _process(_delta: float) -> void:
+	if duel == null:
+		return
+	if _deck_hover and not duel.deck.is_empty():
+		var n := duel.deck.size()
+		hud.show_info("NACHZIEHSTAPEL", "Noch %d %s im Stapel (die unterste ist der Trumpf %s)." % [
+			n, "Karte" if n == 1 else "Karten", duel.trump_card])
+	elif _hover_card != null and Input.is_key_pressed(KEY_SHIFT) and _is_visible_card(_hover_card):
+		hud.show_info(_card_title(_hover_card), _card_info(_hover_card))
+	else:
+		hud.hide_info()
+
+
+## Nur offene Karten erklären (deine Hand, der Tisch, der Trumpf) – nie die Gegnerhand.
+func _is_visible_card(c: Card) -> bool:
+	return duel.player_hand.has(c) or duel.table_cards().has(c) or c == duel.trump_card
+
+
+func _card_title(c: Card) -> String:
+	var name := "%s %s" % [Card.RANK_NAMES[c.rank], Card.SUIT_NAMES[c.suit]]
+	if c.enhancement != Card.Enhancement.NONE:
+		name = "%s · %s" % [name, Card.ENHANCEMENT_NAMES[c.enhancement]]
+	return name.to_upper()
+
+
+func _card_info(c: Card) -> String:
+	var lines := PackedStringArray()
+	lines.append("%d Chips, wenn du sie spielst." % score.card_chips(c))
+	if c.suit == duel.trump_suit:
+		lines.append("Trumpf: schlägt jede andere Farbe und gibt +%d Mult." % (1 + score.trump_mult_bonus))
+	if c.enhancement != Card.Enhancement.NONE:
+		lines.append(Card.ENHANCEMENT_TEXT[c.enhancement])
+	return "\n".join(lines)
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if not (event is InputEventKey and event.pressed and not event.echo) or duel == null or duel.is_over:
 		return
@@ -324,7 +385,8 @@ func _render() -> void:
 		hud.set_actions(my_turn and defending and duel.can_take(), not defending and duel.can_pass(), duel.can_pass())
 	var info := _turn_info(my_turn, defending)
 	hud.set_turn(info[0], info[1], info[2])
-	var can_shift := defending and my_turn and not duel.legal_transfers().is_empty()
+	# ohne Hinweise nicht verraten, ob Schieben geht
+	var can_shift := Run.hints and defending and my_turn and not duel.legal_transfers().is_empty()
 	hud.set_bout(duel.attack_cards.size(), duel.bout_limit, can_shift)
 	if defending and my_turn:
 		hud.set_danger(minf(0.1 + 0.05 * duel.unbeaten_count(), 0.3))
@@ -364,16 +426,18 @@ func _turn_info(my_turn: bool, defending: bool) -> Array:
 	if duel.taking:
 		if defending:
 			return [MatchHUD.Turn.WAIT, "DU NIMMST AUF", "%s wirft noch Karten nach …" % opponent.display_name]
-		if duel.legal_attacks().is_empty():
+		if Run.hints and duel.legal_attacks().is_empty():
 			return [MatchHUD.Turn.THROW_IN, "%s NIMMT" % them, "Nichts mehr nachzuwerfen – drück FERTIG."]
 		return [MatchHUD.Turn.THROW_IN, "%s NIMMT – NACHWERFEN!" % them, "Leg passende Ränge dazu, er muss alles aufnehmen. Dann FERTIG."]
 	if not my_turn:
-		if not defending and not duel.legal_attacks().is_empty():
+		if not defending and (not Run.hints or not duel.legal_attacks().is_empty()):
 			return [MatchHUD.Turn.WAIT, "%s VERTEIDIGT" % them, "Du darfst noch passende Ränge dazuwerfen."]
 		if _thinking:
 			return [MatchHUD.Turn.WAIT, "%s IST AM ZUG" % them, THINK_TEXT[_think_style] % opponent.display_name]
 		return [MatchHUD.Turn.WAIT, "%s IST AM ZUG" % them, "Warte ab …"]
 	if defending:
+		if not Run.hints:
+			return [MatchHUD.Turn.DEFEND, "VERTEIDIGE DICH", "Schlagen, mit gleichem Rang schieben – oder nehmen."]
 		if not duel.legal_transfers().is_empty():
 			return [MatchHUD.Turn.DEFEND, "VERTEIDIGE DICH", "Schlagen, mit gleichem Rang schieben – oder nehmen."]
 		if duel.legal_defenses().is_empty():

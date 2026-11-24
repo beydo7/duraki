@@ -7,6 +7,7 @@ script = ExtResource("1_rel")
 id = &"lucky_coin"
 display_name = "Glücksmünze"
 description = "+5 Gold pro Sieg."
+emoji = "🪙"
 hand_size_bonus = 0
 bonus_gold_per_win = 5
 extra_lives = 0

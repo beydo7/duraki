@@ -174,8 +174,8 @@ func _card_pic(c: Card) -> Control:
 		Card.ENHANCEMENT_NAMES[c.enhancement] if c.enhancement != 0 else "Karte",
 		Card.RANK_NAMES[c.rank], Card.SUIT_SYMBOLS[c.suit], ScoreTracker.chip_value(c)]
 	if c.enhancement == Card.Enhancement.GLASS:
-		var felt := ColorRect.new() # Glas ist durchsichtig: auf Filz zeigen
-		felt.color = Color(0.15, 0.27, 0.2)
+		var felt := ColorRect.new() # Glas liegt auf dunklem Grund (wie im Spiel)
+		felt.color = Color(0.07, 0.08, 0.16)
 		felt.size = CARD_SIZE
 		felt.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		holder.add_child(felt)
@@ -208,7 +208,7 @@ func _relics_tab() -> Control:
 	var relics := Run.all_relics()
 	for i in relics.size():
 		var r: RelicData = relics[i]
-		entries.append([MatchHUD.RELIC_SYMBOLS.get(r.id, "★"), colors[i % colors.size()], UIKit.P_GOLD,
+		entries.append([r.icon(), colors[i % colors.size()], UIKit.P_GOLD,
 			r.display_name, r.description, _relic_details(r)])
 	return _medal_grid(entries, "Relikte gibt es beim Händler (7–10 G) und als Belohnung. Neue Relikte: data/relics/")
 
@@ -255,7 +255,8 @@ func _medal_grid(entries: Array, note: String) -> Control:
 		medal.ring_color = e[2]
 		medal.custom_minimum_size = Vector2(72, 72)
 		medal.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-		var sym := UIKit.poster_label(e[0], UIKit.SYMBOL_FONT, 28, UIKit.P_CREAM)
+		var is_emoji := String(e[0]).unicode_at(0) >= 0x1F000
+		var sym := UIKit.poster_label(e[0], UIKit.emoji_font() if is_emoji else UIKit.SYMBOL_FONT, 28, UIKit.P_CREAM)
 		sym.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		sym.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		sym.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)

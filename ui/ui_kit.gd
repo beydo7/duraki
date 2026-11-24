@@ -50,6 +50,19 @@ static func body_font(weight := 400, spacing := 0) -> FontVariation:
 
 
 ## Russo One (Plakatschrift), optional mit Zeichenabstand.
+static var _emoji: Font
+
+
+## Farbige Emojis aus der Systemschrift (Windows: Segoe UI Emoji), sonst Textschrift.
+static func emoji_font() -> Font:
+	if _emoji == null:
+		var f := SystemFont.new()
+		f.font_names = PackedStringArray(["Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji"])
+		f.fallbacks = [BODY_FONT]
+		_emoji = f
+	return _emoji
+
+
 static func display_font(spacing := 0) -> FontVariation:
 	var key := "d_%d" % spacing
 	if _fonts.has(key):

@@ -74,8 +74,9 @@ func _render(next: OpponentData) -> void:
 	%RunInfo.add_child(_chip("Hand %d" % Run.player_hand_size(), UIKit.INK, "Deine Handkarten"))
 	%RunInfo.add_child(_chip("Deck: %s" % Run.deck_name(), UIKit.INK, Run.deck_description()))
 	for r in Run.relics:
-		%RunInfo.add_child(_chip(MatchHUD.RELIC_SYMBOLS.get(r.id, r.display_name.left(1)), UIKit.INK,
-			"%s – %s" % [r.display_name, r.description]))
+		var chip := _chip(r.icon(), UIKit.INK, "%s – %s" % [r.display_name, r.description])
+		(chip.get_child(0) as Label).add_theme_font_override("font", UIKit.emoji_font())
+		%RunInfo.add_child(chip)
 
 
 ## Eine Station auf dem Pfad: Linie, Porträt, Name, Ziel/Status.

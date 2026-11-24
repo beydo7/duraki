@@ -213,6 +213,15 @@ func _card_offer(offer: Dictionary, deal: bool, delay: float) -> Control:
 	pic.rotation_degrees = -3.0
 	pic.pivot_offset = CARD_SIZE * 0.5
 	pic.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if enh == Card.Enhancement.GLASS:
+		var under := ColorRect.new() # Glas auf dunklem Grund, wie im Spiel
+		under.color = Color(0.07, 0.08, 0.16)
+		under.position = pic.position + Vector2(4, 4)
+		under.size = CARD_SIZE - Vector2(8, 8)
+		under.rotation_degrees = -3.0
+		under.pivot_offset = under.size * 0.5
+		under.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		pic_holder.add_child(under)
 	if offer.has("suit"):
 		var shown := Card.new(offer.suit, offer.rank)
 		shown.enhancement = enh
@@ -377,7 +386,7 @@ func _price(offer: Dictionary) -> Control:
 func _owned_items() -> Array:
 	var items := []
 	for r in Run.relics:
-		items.append(["%s %s" % [MatchHUD.RELIC_SYMBOLS.get(r.id, "★"), r.display_name], r.description])
+		items.append(["%s %s" % [r.icon(), r.display_name], r.description])
 	for key in Run.card_enhancements:
 		var parts: PackedStringArray = key.split(":")
 		var enh: int = Run.card_enhancements[key]

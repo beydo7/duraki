@@ -9,6 +9,8 @@ extends Node3D
 ## und Schubsen. Die Vorderseite nutzt card_face.gdshader (Folienglanz, Lichtreflex).
 
 signal clicked(card: Card)
+## Maustaste auf einer spielbaren Karte gedrückt (TableWorld entscheidet: Klick oder Ziehen)
+signal grabbed(node: Card3D)
 signal hover_changed(card3d: Card3D, hovered: bool)
 
 const WIDTH := 0.10
@@ -169,8 +171,7 @@ func _build() -> void:
 	var enh := card.enhancement if card != null else Card.Enhancement.NONE
 	var glass := enh == Card.Enhancement.GLASS
 	if glass:
-		var gm := _mat(Color(0.75, 0.9, 1.0, 0.3), 0.05)
-		gm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		var gm := _mat(Color(0.35, 0.5, 0.7), 0.05) # Glaskante, nicht durchsichtig (wirkte sonst weiß)
 		gm.metallic_specular = 1.0
 		body.material_override = gm
 	else:
@@ -207,7 +208,7 @@ func _build() -> void:
 	back_mat.albedo_texture = back_texture()
 	_add_quad(Vector2(WIDTH, HEIGHT), THICKNESS * 0.5 + 0.0002, back_mat, true)
 
-	if card != null and enh != Card.Enhancement.NONE:
+	if card != null and enh != Card.Enhancement.NONE and not glass: # Glas ohne Schriftzug
 		var tag := _label(Card.ENHANCEMENT_TAGS[enh], 80, ENH_TAG[enh], false, 0.0002)
 		tag.font = INDEX_FONT
 		tag.shaded = false
@@ -237,7 +238,7 @@ func _on_input_event(_cam: Node, event: InputEvent, pos: Vector3, _normal: Vecto
 		_hover_uv = Vector2(clampf(local.x / WIDTH + 0.5, 0.0, 1.0), clampf(local.z / HEIGHT + 0.5, 0.0, 1.0))
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		if card != null and (playable or (not hints and in_hand)):
-			clicked.emit(card)
+			grabbed.emit(self)
 
 
 func _set_hovered(value: bool) -> void:

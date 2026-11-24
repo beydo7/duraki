@@ -8,6 +8,11 @@ extends Node3D
 ## assets/models/*.glb). Licht, Kamera und Spielfeld-Markierungen bleiben hier.
 
 signal card_clicked(card: Card)
+## Maus über einer Karte (für die Shift-Info) bzw. über dem Nachziehstapel
+signal card_hovered(card: Card, on: bool)
+signal deck_hovered(on: bool)
+## Karte aus der Hand auf den Tisch gezogen: `target` = Angriffskarte darunter (-1: freie Fläche)
+signal card_dropped(card: Card, target: int)
 
 const MODELS: Array[PackedScene] = [
 	preload("res://assets/models/room.glb"),
@@ -55,6 +60,9 @@ var sway_strength := 1.0
 
 var _cards := {} # Card -> Card3D
 var _base := {} # Card3D -> Transform3D (Ziel ohne Hover)
+## Tisch beim letzten sync (um eine Karte, die die Runde sofort beendet, noch hinzulegen)
+var _last_attacks: Array[Card] = []
+var _last_defs: Array[Card] = []
 var _deck_pile: MeshInstance3D
 var _discard_pile: MeshInstance3D
 var _discard_count := 0
@@ -129,6 +137,18 @@ func build(opponent: OpponentData) -> void:
 	_deck_pile.position = DECK_POS
 	_deck_pile.rotation_degrees.y = 90
 	add_child(_deck_pile)
+	# Maus über dem Stapel (samt Trumpfkarte) → Anzahl der Karten anzeigen
+	var deck_area := Area3D.new()
+	deck_area.input_ray_pickable = true
+	var deck_shape := CollisionShape3D.new()
+	var deck_box := BoxShape3D.new()
+	deck_box.size = Vector3(Card3D.HEIGHT + 0.07, 0.06, Card3D.WIDTH + 0.02)
+	deck_shape.shape = deck_box
+	deck_area.add_child(deck_shape)
+	deck_area.position = DECK_POS + Vector3(0.03, 0.03, 0)
+	deck_area.mouse_entered.connect(func() -> void: deck_hovered.emit(true))
+	deck_area.mouse_exited.connect(func() -> void: deck_hovered.emit(false))
+	add_child(deck_area)
 	_discard_pile = _pile_mesh()
 	_discard_pile.position = DISCARD_POS
 	_discard_pile.rotation_degrees.y = 12
@@ -203,7 +223,7 @@ func sync(duel: DurakMatch, playable: Array[Card]) -> void:
 			node = Card3D.create(card, card.suit == duel.trump_suit)
 			node.transform = _deck_top_xf()
 			add_child(node)
-			node.clicked.connect(func(c: Card) -> void: card_clicked.emit(c))
+			node.grabbed.connect(_on_grabbed)
 			node.hover_changed.connect(_on_hover)
 			_cards[card] = node
 			if card != duel.trump_card or duel.deck.is_empty():
@@ -234,6 +254,10 @@ func sync(duel: DurakMatch, playable: Array[Card]) -> void:
 			_transfer_card = null
 	if new_count > 0:
 		_deal_queue_until = deal_start + new_count * DEAL_STAGGER
+	var last_attacks := _last_attacks
+	var last_defs := _last_defs
+	_last_attacks = duel.attack_cards.duplicate()
+	_last_defs = duel.defense_cards.duplicate()
 
 	# Karten, die nirgends mehr sind → Ablagestapel (Fertig: umdrehen, wegwirbeln)
 	var discard_i := 0
@@ -241,20 +265,46 @@ func sync(duel: DurakMatch, playable: Array[Card]) -> void:
 		if targets.has(card):
 			continue
 		var node: Card3D = _cards[card]
+		var prev_zone: String = _zone.get(card, "")
 		_cards.erase(card)
 		_base.erase(node)
 		_zone.erase(card)
 		node.in_hand = false
 		node.set_state(false)
-		var xf := Transform3D(Basis(Vector3.UP, randf_range(-0.3, 0.3)) * Basis(Vector3.FORWARD, PI), DISCARD_POS + Vector3(0, 0.02, 0))
-		# Karten bleiben kurz liegen, bevor sie abgeräumt werden
-		var tw := _move(node, xf, DISCARD_DELAY + discard_i * 0.07, 0.45, "bito")
+		var wait := DISCARD_DELAY + discard_i * 0.07
 		discard_i += 1
-		tw.finished.connect(func() -> void:
-			_discard_count += 1
-			_discard_pile.visible = true
-			_set_pile_height(_discard_pile, DISCARD_POS, _discard_count)
-			node.queue_free())
+		# Letzte Verteidigungskarte direkt aus der Hand (Runde endet sofort): erst sichtbar
+		# auf die geschlagene Karte legen, dann mit den anderen abräumen.
+		var idx := _beaten_slot(card, last_attacks, last_defs, duel.trump_suit) if prev_zone in ["hand", "opp"] else -1
+		if idx >= 0:
+			last_defs[idx] = card
+			var txf := _table_xf(idx, last_attacks.size(), true, card)
+			var tw0 := _move(node, txf, 0.0, MOVE_TIME, "play")
+			var under: Card = last_attacks[idx]
+			tw0.finished.connect(func() -> void:
+				_on_landed(node, "play", card.suit == duel.trump_suit, under)
+				if is_instance_valid(node):
+					_to_discard(node, DISCARD_DELAY))
+		else:
+			_to_discard(node, wait)
+
+
+## Welche Angriffskarte der letzten Runde hat `card` geschlagen? (-1: keine)
+func _beaten_slot(card: Card, attacks: Array, defs: Array, trump: Card.Suit) -> int:
+	for i in attacks.size():
+		if i < defs.size() and defs[i] == null and DurakRules.can_beat(attacks[i], card, trump):
+			return i
+	return -1
+
+
+func _to_discard(node: Card3D, delay: float) -> void:
+	var xf := Transform3D(Basis(Vector3.UP, randf_range(-0.3, 0.3)) * Basis(Vector3.FORWARD, PI), DISCARD_POS + Vector3(0, 0.02, 0))
+	var tw := _move(node, xf, delay, 0.45, "bito")
+	tw.finished.connect(func() -> void:
+		_discard_count += 1
+		_discard_pile.visible = true
+		_set_pile_height(_discard_pile, DISCARD_POS, _discard_count)
+		node.queue_free())
 
 
 ## Gegnerkarten bewegen sich mit der Hand der Gestalt (Atmen, Ausspielen, Trommeln …).
@@ -341,7 +391,92 @@ func _impact(pos: Vector3, strong: bool) -> void:
 	tw.tween_callback(mi.queue_free)
 
 
+# --- Klicken und Ziehen -----------------------------------------------------------------
+
+const DRAG_START_PX := 10.0
+const DROP_RADIUS := 0.09
+var _drag_node: Card3D
+var _drag_from := Vector2.ZERO
+var _dragging := false
+
+
+func _on_grabbed(node: Card3D) -> void:
+	_drag_node = node
+	_drag_from = get_viewport().get_mouse_position()
+	_dragging = false
+
+
+func _input(event: InputEvent) -> void:
+	if _drag_node == null:
+		return
+	if not is_instance_valid(_drag_node):
+		_drag_node = null
+		return
+	if event is InputEventMouseMotion and not (event.button_mask & MOUSE_BUTTON_MASK_LEFT):
+		# Loslassen verpasst (z. B. über der Oberfläche): Ziehen abbrechen
+		if _dragging and _base.has(_drag_node):
+			_move(_drag_node, _base[_drag_node], 0.0, 0.18)
+		_drag_node = null
+		_dragging = false
+		return
+	if event is InputEventMouseMotion:
+		var pos: Vector2 = event.position
+		if not _dragging and pos.distance_to(_drag_from) > DRAG_START_PX and _drag_node.in_hand:
+			_dragging = true
+			if _drag_node.has_meta("tween"):
+				(_drag_node.get_meta("tween") as Tween).kill()
+		if _dragging:
+			var p := _mouse_on_table(pos, 0.07)
+			var flat := Basis(Vector3.UP, 0.0).scaled(Vector3.ONE * TABLE_CARD_SCALE)
+			_drag_node.transform = _drag_node.transform.interpolate_with(Transform3D(flat, p), 0.5)
+	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and not event.pressed:
+		var node := _drag_node
+		var was_drag := _dragging
+		_drag_node = null
+		_dragging = false
+		if not was_drag:
+			card_clicked.emit(node.card)
+			return
+		var p := _mouse_on_table(event.position, 0.0)
+		# erst zurück an den Platz – klappt der Zug, legt sync die Karte gleich auf den Tisch
+		if _base.has(node):
+			_move(node, _base[node], 0.0, 0.18)
+		if p.z > PLAYER_HAND_POS.z - 0.18:
+			return # zurück in die Hand gezogen: nichts tun
+		card_dropped.emit(node.card, _drop_target(p))
+
+
+## Punkt auf der Tischebene (plus `lift`) unter der Maus.
+func _mouse_on_table(pos: Vector2, lift: float) -> Vector3:
+	var o := camera.project_ray_origin(pos)
+	var d := camera.project_ray_normal(pos)
+	var y := TABLE_Y + 0.01 + lift
+	if absf(d.y) < 0.0001:
+		return o
+	var t := (y - o.y) / d.y
+	return o + d * maxf(t, 0.0)
+
+
+## Welche Angriffskarte liegt unter dem Ablagepunkt? (-1: keine)
+func _drop_target(p: Vector3) -> int:
+	var best := -1
+	var best_d := DROP_RADIUS
+	for i in _last_attacks.size():
+		var a: Card3D = _cards.get(_last_attacks[i])
+		if a == null:
+			continue
+		var d := Vector2(a.global_position.x - p.x, a.global_position.z - p.z).length()
+		if d < best_d:
+			best_d = d
+			best = i
+	return best
+
+
 func _on_hover(node: Card3D, hovered: bool) -> void:
+	if node == _drag_node and _dragging:
+		return
+	if node.card != null and (node.in_hand or _base.has(node)):
+		card_hovered.emit(node.card, hovered)
 	if hovered and node.in_hand:
 		_sfx(&"card_hand_hover", randf_range(0.94, 1.1)) # Handkarte ansehen: ganz leises Rascheln
 	if _base.has(node):

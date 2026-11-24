@@ -137,11 +137,27 @@ func legal_attacks() -> Array[Card]:
 	return hand(attacker).filter(can_attack_with)
 
 
+## Schlägt `card` irgendeine noch ungeschlagene Angriffskarte? (Reihenfolge ist frei.)
 func can_defend_with(card: Card) -> bool:
-	var idx := unbeaten_index()
-	if is_over or taking or idx == -1 or not hand(defender()).has(card):
+	return not defense_targets(card).is_empty()
+
+
+## Darf `card` die Angriffskarte Nr. `idx` schlagen?
+func can_defend_at(card: Card, idx: int) -> bool:
+	if is_over or taking or not hand(defender()).has(card):
+		return false
+	if idx < 0 or idx >= attack_cards.size() or defense_cards[idx] != null:
 		return false
 	return DurakRules.can_beat(attack_cards[idx], card, trump_suit)
+
+
+## Alle ungeschlagenen Angriffskarten (Index), die `card` schlagen kann.
+func defense_targets(card: Card) -> Array[int]:
+	var result: Array[int] = []
+	for i in attack_cards.size():
+		if can_defend_at(card, i):
+			result.append(i)
+	return result
 
 
 ## Darf der Verteidiger mit `card` weiterschieben?
@@ -200,10 +216,15 @@ func attack(card: Card) -> bool:
 	return true
 
 
-func defend(card: Card) -> bool:
-	if not can_defend_with(card):
+## Schlägt mit `card` die Angriffskarte `idx` (-1: die erste, die passt).
+func defend(card: Card, idx := -1) -> bool:
+	if idx < 0:
+		var options := defense_targets(card)
+		if options.is_empty():
+			return false
+		idx = options[0]
+	if not can_defend_at(card, idx):
 		return false
-	var idx := unbeaten_index()
 	hand(defender()).erase(card)
 	defense_cards[idx] = card
 	card_played.emit(defender(), card, false)
