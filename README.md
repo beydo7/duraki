@@ -85,6 +85,8 @@ python art/blender/build_models.py --rebuild wolf        # einen Gegner neu baue
 python art/blender/render_portraits.py wolf              # Porträt für das HUD neu rendern
 ```
 
+**Unter Windows ohne Konsole:** `.blend` in Blender bearbeiten, speichern, dann Doppelklick auf `Modelle_exportieren.bat` (alle Modelle) bzw. `Modelle_exportieren.bat wolf` (nur eines). Die `.blend`-Dateien bleiben dabei unverändert, es werden nur die `.glb` neu geschrieben. Blender wird unter `C:\Program Files\Blender Foundation\` gefunden oder über die Umgebungsvariable `BLENDER`.
+
 Godot setzt die Figuren über **Objektnamen** zusammen (`Torso`, `Head`, `EyeL/EyeR`, `Shoulder_L/R`, `Hand_L/R`, `SleeveUpper/SleeveFore`, `Void*` …). Die Namen also nicht ändern. Das vollständige Rezept steht in [`docs/CHARAKTERE.md`](docs/CHARAKTERE.md). Einstellungen pro Gegner (Name, Spruch, Stärke, Augenfarbe, Größe) in `data/opponents/<id>.tres`.
 
 Raum, Tisch und Requisiten liegen in `art/blender/room.blend`, `table.blend` und `props.blend`, exportiert nach `assets/models/`.
