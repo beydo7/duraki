@@ -27,7 +27,10 @@ rem (class_name) erkannt werden. Dauert nur ein paar Sekunden.
 echo Projekt wird aktualisiert, bitte kurz warten ...
 "%GODOT_EXE%" --headless --path "%CD%" --import >nul 2>&1
 
-start "" "%GODOT_EXE%" --path "%CD%" %*
+rem Protokoll in den Projektordner (logs\letzter_start.log), damit man Fehler nachlesen kann
+if not exist "%CD%\logs" mkdir "%CD%\logs"
+if not exist "%CD%\logs\.gdignore" type nul > "%CD%\logs\.gdignore"
+start "" "%GODOT_EXE%" --path "%CD%" --log-file "%CD%\logs\letzter_start.log" %*
 exit /b 0
 
 :not_found

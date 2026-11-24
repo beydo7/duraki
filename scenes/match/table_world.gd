@@ -349,7 +349,7 @@ func _on_hover(node: Card3D, hovered: bool) -> void:
 
 
 func _with_hover(node: Card3D, xf: Transform3D) -> Transform3D:
-	if node.hovered and node.playable:
+	if node.hovered and (node.playable if Card3D.hints else node.in_hand):
 		return Transform3D(xf.basis, xf.origin + HOVER_LIFT)
 	return xf
 

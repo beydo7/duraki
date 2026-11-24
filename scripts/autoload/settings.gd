@@ -21,6 +21,7 @@ const MSAA_NAMES := ["Aus", "2×", "4×", "8×"]
 const MSAA_VALUES := [Viewport.MSAA_DISABLED, Viewport.MSAA_2X, Viewport.MSAA_4X, Viewport.MSAA_8X]
 const QUALITY_NAMES := ["Niedrig", "Mittel", "Hoch"]
 const SPEED_NAMES := ["Gemütlich", "Normal", "Schnell"]
+const DIFFICULTY_NAMES := ["Leicht", "Normal", "Schwer"]
 const SHADOW_ATLAS := [0, 2048, 4096]
 
 ## Erhöhen, wenn sich Audio-Standardwerte ändern: ältere Einstellungsdateien übernehmen
@@ -48,6 +49,9 @@ const DEFAULTS := {
 	"general/camera_sway": true,
 	"general/messages": true,
 	"general/ui_scale": 1.0,
+	"general/difficulty": 1, # zuletzt gewählte Schwierigkeit (Leicht/Normal/Schwer)
+	"general/hints": true, # spielbare Karten hervorheben (aus = ×1,5 Seelen)
+	"general/show_tutorial": true, # Tutorial-Karte im Hauptmenü
 }
 
 var _values := {}

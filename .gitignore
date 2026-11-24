@@ -12,6 +12,9 @@
 # Godot-Binary nicht ins Repo
 Godot_v*
 
+# Protokolle von Spiel_starten.bat
+/logs/
+
 # System
 .DS_Store
 Thumbs.db

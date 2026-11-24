@@ -3,7 +3,7 @@ extends Node
 ## Ausführen:
 ##   godot --headless --path . res://tests/autoplay.tscn
 
-const RUNS := 5
+var RUNS := int(OS.get_environment("DURAKI_RUNS")) if OS.has_environment("DURAKI_RUNS") else 5
 
 var _bot := SimpleAI.new(RandomNumberGenerator.new(), 0.0)
 var _runs_done := 0
@@ -13,6 +13,9 @@ var _cooldown := 0
 func _ready() -> void:
 	Profile.reset_for_tests()
 	Engine.time_scale = 20.0
+	# Schwierigkeit per Umgebungsvariable testen: DURAKI_DIFF=0/1/2 (Standard Normal)
+	Settings._values["general/difficulty"] = int(OS.get_environment("DURAKI_DIFF")) if OS.has_environment("DURAKI_DIFF") else 1
+	Settings._values["general/hints"] = true
 	# Damit der Szenenwechsel diesen Node nicht mit entlädt:
 	_detach.call_deferred()
 

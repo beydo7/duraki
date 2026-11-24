@@ -14,6 +14,7 @@ var _sel := 0
 var _sub_open := false
 var _leaving := false
 var _t := 0.0
+var _has_tutorial := false
 
 
 func _ready() -> void:
@@ -26,28 +27,10 @@ func _ready() -> void:
 	UIKit.fit_viewport(self, %View, %Viewport)
 	get_viewport().size_changed.connect(func() -> void: UIKit.fit_viewport(self, %View, %Viewport))
 
-	# Menükarten fächerförmig auf dem Tisch
-	var specs := [
-		["SPIELEN", "Neuer Run", "♠", Color("ecc87c"), _start_run],
-		["DECKS", "Karten wählen", "♥", Color("f2625c"), _open_decks],
-		["OPTIONEN", "Bild · Ton · Spiel", "♦", Color("f2625c"), _open_options],
-		["INDEX", "Alles im Spiel", "★", Color("ecc87c"), _open_index],
-		["BEENDEN", "Aufstehen und gehen", "♣", Color("ecc87c"), _quit],
-	]
-	for i in specs.size():
-		var s: Array = specs[i]
-		var card := MenuCard3D.new().setup(s[0], s[1], s[2], s[3])
-		var f := i - (specs.size() - 1) * 0.5
-		var x := f * 0.175
-		card.transform = Transform3D(Basis.from_euler(Vector3(0, -f * 0.09, 0)), Vector3(x, TableWorld.TABLE_Y + 0.002, CARD_Z + absf(f) * 0.03))
-		world.add_child(card)
-		card.chosen.connect(func() -> void: Sfx.play(&"card_select"))
-		card.chosen.connect(s[4])
-		card.hovered_changed.connect(func(c: MenuCard3D, on: bool) -> void:
-			if on:
-				_focus(_cards.find(c)))
-		_cards.append(card)
-		_actions.append(s[4])
+	_build_cards()
+	Settings.changed.connect(func() -> void:
+		if _has_tutorial != bool(Settings.get_value("general/show_tutorial")):
+			_build_cards())
 
 	UIKit.poster_wedge(self, Vector2(640, 335), %TitleBlock, "BEYD & FLÖRRY")
 	_update_info()
@@ -70,6 +53,42 @@ func _ready() -> void:
 	_focus(0, true)
 
 
+## Menükarten fächerförmig auf dem Tisch (mit Tutorial-Karte, solange es nicht geschafft ist).
+func _build_cards() -> void:
+	for c in _cards:
+		c.queue_free()
+	_cards.clear()
+	_actions.clear()
+	_has_tutorial = bool(Settings.get_value("general/show_tutorial"))
+	var specs := [
+		["SPIELEN", "Neuer Run", "♠", Color("ecc87c"), _start_run],
+		["DECKS", "Karten wählen", "♥", Color("f2625c"), _open_decks],
+		["OPTIONEN", "Bild · Ton · Spiel", "♦", Color("f2625c"), _open_options],
+		["INDEX", "Alles im Spiel", "★", Color("ecc87c"), _open_index],
+		["BEENDEN", "Aufstehen und gehen", "♣", Color("ecc87c"), _quit],
+	]
+	if _has_tutorial:
+		specs.push_front(["TUTORIAL", "Übungsrunde mit Hilfe", "?", Color("8fd18a"), _start_tutorial])
+	var spread := 0.175 if specs.size() <= 5 else 0.165
+	for i in specs.size():
+		var s: Array = specs[i]
+		var card := MenuCard3D.new().setup(s[0], s[1], s[2], s[3])
+		var f := i - (specs.size() - 1) * 0.5
+		var x := f * spread
+		card.transform = Transform3D(Basis.from_euler(Vector3(0, -f * 0.09, 0)), Vector3(x, TableWorld.TABLE_Y + 0.002, CARD_Z + absf(f) * 0.03))
+		world.add_child(card)
+		card.chosen.connect(func() -> void: Sfx.play(&"card_select"))
+		card.chosen.connect(s[4])
+		card.hovered_changed.connect(func(c: MenuCard3D, on: bool) -> void:
+			if on:
+				_focus(_cards.find(c)))
+		_cards.append(card)
+		_actions.append(s[4])
+	_sel = clampi(_sel, 0, _cards.size() - 1)
+	for i in _cards.size():
+		_cards[i].focused = i == _sel
+
+
 func _process(delta: float) -> void:
 	_t += delta
 	# Titel flackert ganz leicht wie unter einer alten Glühbirne
@@ -82,7 +101,7 @@ func _focus(index: int, silent := false) -> void:
 		return # nach „Spielen“ (Kamera fährt an den Tisch) keine Hover-Töne mehr
 	if not silent and (index != _sel or not _cards[index].focused):
 		# leicht andere Tonhöhe je Karte, wie Töne auf einer Tonleiter
-		Sfx.play(&"card_hover", [0.94, 1.0, 1.06, 1.12, 1.19][index % 5])
+		Sfx.play(&"card_hover", [0.94, 1.0, 1.06, 1.12, 1.19, 1.26][index % 6])
 	_sel = index
 	for i in _cards.size():
 		_cards[i].focused = i == index
@@ -105,6 +124,24 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _start_run() -> void:
+	if _leaving or _sub_open:
+		return
+	var menu := RunSetupMenu.new()
+	add_child(menu)
+	_sub_open = true
+	menu.closed.connect(func() -> void: _sub_open = false)
+	menu.started.connect(func() -> void:
+		_sub_open = false
+		_begin_run())
+
+
+func _start_tutorial() -> void:
+	if _leaving or _sub_open:
+		return
+	_begin_run(Run.start_tutorial)
+
+
+func _begin_run(start: Callable = Run.start_new_run) -> void:
 	if _leaving:
 		return
 	_leaving = true
@@ -114,7 +151,7 @@ func _start_run() -> void:
 	var tw := create_tween()
 	tw.tween_method(func(v: float) -> void: world.set_camera_pose(from.interpolate_with(to, v)),
 		0.0, 1.0, 0.7).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
-	tw.tween_callback(func() -> void: Run.start_new_run())
+	tw.tween_callback(func() -> void: start.call())
 
 
 func _update_info() -> void:

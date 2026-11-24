@@ -50,7 +50,21 @@ Ein Run = 3 normale Gegner + Boss, 3 Leben (Kerzen). Wer verliert, ist der Durak
   Starter „Hinterzimmer“; je eins pro besiegtem Gegner (Bandit, Sumpfmann, Krähe, Wölfin, Gaukler,
   Knochenmann, Hexe, Riese/Run-Sieg); kaufbar mit **Seelen**: Kaufmann 25, Zar 40, Goldrand 60.
   Effekte z. B. +6 Gold, +1 Leben, Farbe +3 Chips, Trumpf +1 Mult, Start-Glaskarten.
-- **Seelen** (Autoload `Profile`, `user://profile.cfg`): 3 pro gewonnenem Tisch, 10 für Run-Sieg.
+- **Seelen** (Autoload `Profile`, `user://profile.cfg`): 3 pro gewonnenem Tisch, 10 für Run-Sieg,
+  multipliziert mit `Run.souls_factor()` (Schwierigkeit × 1,5 ohne Hinweise).
+- **Schwierigkeit** (Dialog „Neuer Run“ beim Klick auf SPIELEN, `ui/run_setup_menu.gd`; gemerkt in
+  `general/difficulty`): Leicht / Normal / Schwer = Punkteziel ×0,8 / ×1,15 / ×1,45, Fehlerquote der
+  Gegner ×1,3 / ×0,6 / ×0,25, Leben +1 / 0 / −1, Seelen ×0,75 / ×1 / ×1,25 (`Run.DIFF_*`).
+  Autoplay-Bot (fehlerfrei): Leicht 8/8, Normal 6/8, Schwer 2/8 Runs gewonnen.
+- **Hinweise aus** (`general/hints`): spielbare Karten leuchten nicht, alle Handkarten sind anklickbar,
+  unpassende werden mit „passt gerade nicht“ abgewiesen → ×1,5 Seelen.
+- **Tutorial** (Hauptmenü-Karte „TUTORIAL“, solange `general/show_tutorial` an ist): `Run.start_tutorial()`
+  → Übungstisch gegen den Gaukler, Ziel 150, Hinweise an. `scenes/match/tutorial_coach.gd` blendet rechts
+  passende Hinweise ein (Willkommen, Trumpf, Hand – diese halten den Gegner an – dann Angriff,
+  Verteidigen, Schieben, Nehmen, Nachwerfen, Punkte), jeden nur einmal. Gewonnen → Karte verschwindet;
+  in den Optionen „Tutorial im Hauptmenü anzeigen“ holt sie zurück.
+- **Nachwerfen**: nimmt der Gegner, erscheint ein Banner „<NAME> GIBT AUF – DU DARFST NACHWERFEN“,
+  die Zugtafel wird gold („<NAME> NIMMT – NACHWERFEN!“) und der Rand leuchtet gold.
 - Gegner (`data/opponents/`): Bandit, Sumpfmann, Krähe, Wölfin, Gaukler, Knochenmann, Hexe, Riese (Boss).
 
 ## 5. Look & Feel
@@ -159,7 +173,8 @@ zum Zeitplan in `studio_intro.gd`: Fallen, Aufprall, Ecken, HIT!, Glanz), Menük
 Karte) und -Auswahl, Index-Hover und -Klick, Feuerzeug, Zug, Auspusten, Schnaps, Glas-Klirren,
 Flaschen-Klopfen, Einschenken, Kerzen-Flackern (als Schleife, blendet nur beim Verweilen ein),
 Karten im Duell (Austeilen, Legen, Nehmen, Fertig, Handkarten-Hover), Knöpfe, Münzen, Sieg/Niederlage.
-Lautstärken zentral in `Sfx.VOLUME` (bewusst leise, Hover-Töne nur angedeutet).
+Lautstärken zentral in `Sfx.VOLUME` (bewusst leise, Hover-Töne nur angedeutet). Kartengeräusche
+ohne Hall und steil gefiltert (`soft()`): die kurzen Hall-Echos klangen wie ein Metallkamm.
 **Musik**: Hauptthema `assets/music/main_theme.ogg` (≈ 2 min, D-Moll, 76 BPM, Balalaika-Zupfen,
 Celesta/Klarinette, nahtlose Schleife), erzeugt mit `python tools/generate_music.py`. Autoload `Music`
 startet es im Hauptmenü und lässt es weiterlaufen. Musik-Lautstärke Standard 20 % (`Settings.AUDIO_VERSION`
@@ -187,13 +202,17 @@ setzt ältere Einstellungsdateien einmalig darauf).
 ## 6. Optionen
 Grafik (Anzeigemodus, Fenstergröße, VSync, FPS-Limit, Kantenglättung, Renderauflösung, Schatten,
 Glow, Helligkeit), Audio (Gesamt/Musik/Effekte, stumm im Hintergrund),
-Allgemein (Bedenkzeit der Gegner, Kartenanimationen, Meldungen, Kamera-Schwenk, UI-Größe).
+Allgemein (Bedenkzeit der Gegner, Kartenanimationen, Meldungen, Kamera-Schwenk, UI-Größe;
+Run: Schwierigkeit, Hinweise, Tutorial im Hauptmenü anzeigen).
 `user://settings.cfg`, Autoload `Settings`. Esc = Pause.
 
 ## 7. Tests
-- `godot --headless --path . -s res://tests/run_tests.gd` → Regeln/KI (47 Checks)
-- `godot --headless --path . res://tests/deck_tests.tscn` → Decks/Seelen (39 Checks)
+- `godot --headless --path . -s res://tests/run_tests.gd` → Regeln/KI (49 Checks)
+- `godot --headless --path . res://tests/deck_tests.tscn` → Decks/Seelen/Schwierigkeit (43 Checks)
 - `godot --headless --path . res://tests/autoplay.tscn` → 5 komplette Runs automatisch
+  (`DURAKI_DIFF=0/1/2` wählt die Schwierigkeit, `DURAKI_RUNS=n` die Anzahl)
+- `godot --headless --path . res://tests/tutorial_test.tscn` → Tutorial komplett durchspielen
+- Absturz-Suche unter Windows: `Spiel_starten.bat` schreibt das Log nach `logs\letzter_start.log`.
 - `xvfb-run godot --path . res://tests/click_test.tscn` → Handkarten per Klick
 - `tests/screenshot.tscn` (Args: transfer, result, boss, opp=<id>, nohud, many, enh, film) und
   `tests/ui_shots.tscn` → Screenshots aller Bildschirme
@@ -204,7 +223,6 @@ Allgemein (Bedenkzeit der Gegner, Kartenanimationen, Meldungen, Kamera-Schwenk, 
 2. Restliche Gegner in HD (Rezept `docs/CHARAKTERE.md`): als Nächstes Gaukler + Knochenmann,
    dann Hexe + Riese, danach die Krähe auf den neuen Stand bringen. Fertig: Bandit, Sumpfmann, Wölfin.
 3. Lila Lampen-Scheiben im Raum sind Platzhalter → echte Lampen.
-4. Musik (Bus „Music“ existiert, Effekte siehe „Sound“) und Sounds für Karten im Duell.
 5. Die 3D-Menükarten im Hauptmenü an den Okkult-Gold-Stil der Karten anpassen.
 
 ## 9. Zusammenarbeit

@@ -24,6 +24,19 @@ const REROLL_BASE_PRICE := 2
 const SCORE_TARGETS: Array[int] = [300, 380, 450, 550]
 const SCORE_TARGET_GROWTH := 1.25
 
+## Schwierigkeit (Index wie Settings.DIFFICULTY_NAMES): Punkteziel-Faktor, Fehlerquote der
+## Gegner (Faktor), Leben, Seelen-Faktor
+const DIFF_TARGET: Array[float] = [0.8, 1.15, 1.45]
+const DIFF_MISTAKE: Array[float] = [1.3, 0.6, 0.25]
+const DIFF_LIVES: Array[int] = [1, 0, -1]
+const DIFF_SOULS: Array[float] = [0.75, 1.0, 1.25]
+## Seelen-Bonus, wenn ohne Hinweise (keine Hervorhebung spielbarer Karten) gespielt wird
+const NO_HINTS_SOULS := 1.5
+
+## Tutorial: leichter Gegner und kleines Punkteziel
+const TUTORIAL_OPPONENT := "res://data/opponents/jester.tres"
+const TUTORIAL_TARGET := 150
+
 var rng := RandomNumberGenerator.new()
 var seed_value := 0
 var lives := 0
@@ -46,6 +59,11 @@ var interest_max_bonus := 0
 
 ## Deck dieses Runs (Skin + Effekt, siehe DeckData / Profile)
 var deck: DeckData
+## Schwierigkeit dieses Runs (0 Leicht, 1 Normal, 2 Schwer) und ob Hinweise an sind
+var difficulty := 1
+var hints := true
+## Tutorial-Runde (eigene Szene, kein echter Run)
+var tutorial := false
 ## Seelen, die am Ende dieses Runs gutgeschrieben wurden
 var last_souls := 0
 
@@ -55,9 +73,38 @@ var reroll_price := REROLL_BASE_PRICE
 
 
 func start_new_run(p_seed := 0) -> void:
+	_reset(p_seed)
+	difficulty = clampi(int(Settings.get_value("general/difficulty")), 0, 2)
+	hints = bool(Settings.get_value("general/hints"))
+	lives = maxi(1, START_LIVES + DIFF_LIVES[difficulty])
+	encounters = _build_encounters()
+	_apply_deck(Profile.selected_deck())
+	changed.emit()
+	goto(SCENE_MAP)
+
+
+## Geführte Übungsrunde (Tutorial-Karte im Hauptmenü): ein leichter Gegner, Hinweise an,
+## niedriges Ziel. Gewonnen → die Tutorial-Karte verschwindet (Einstellung general/show_tutorial).
+func start_tutorial() -> void:
+	_reset(0)
+	tutorial = true
+	difficulty = 0
+	hints = true
+	lives = 1
+	var o := load(TUTORIAL_OPPONENT) as OpponentData
+	if o != null:
+		encounters.assign([o])
+	else:
+		encounters = _build_encounters().slice(0, 1)
+	deck = null
+	changed.emit()
+	goto(SCENE_MATCH)
+
+
+func _reset(p_seed: int) -> void:
 	seed_value = p_seed if p_seed != 0 else randi()
 	rng.seed = seed_value
-	lives = START_LIVES
+	tutorial = false
 	gold = 0
 	floor_index = 0
 	relics.clear()
@@ -69,10 +116,6 @@ func start_new_run(p_seed := 0) -> void:
 	interest_max_bonus = 0
 	shop_offers.clear()
 	last_souls = 0
-	encounters = _build_encounters()
-	_apply_deck(Profile.selected_deck())
-	changed.emit()
-	goto(SCENE_MAP)
 
 
 ## Effekte des gewählten Decks auf den neuen Run anwenden.
@@ -127,6 +170,22 @@ func player_hand_size() -> int:
 
 ## Punkteziel für die aktuelle Etage.
 func score_target(floor_i := floor_index) -> int:
+	if tutorial:
+		return TUTORIAL_TARGET
+	return int(roundf(_base_target(floor_i) * DIFF_TARGET[difficulty] / 10.0)) * 10
+
+
+## Fehlerquote eines Gegners in diesem Run (Schwierigkeit eingerechnet).
+func mistake_chance(o: OpponentData) -> float:
+	return clampf(o.mistake_chance * DIFF_MISTAKE[difficulty], 0.0, 0.9)
+
+
+## Faktor für die Seelen am Ende (Schwierigkeit × Hinweise aus).
+func souls_factor() -> float:
+	return DIFF_SOULS[difficulty] * (1.0 if hints else NO_HINTS_SOULS)
+
+
+func _base_target(floor_i: int) -> int:
 	var opponent := encounters[floor_i] if floor_i < encounters.size() else null
 	if opponent != null and opponent.score_target > 0:
 		return opponent.score_target
@@ -148,6 +207,12 @@ func base_mult() -> int:
 ## Wird von der Match-Szene aufgerufen, sobald ein Duell vorbei ist.
 ## `loser` ist OPPONENT, wenn das Punkteziel erreicht wurde, sonst PLAYER.
 func on_match_finished(loser: int) -> void:
+	if tutorial:
+		tutorial = false
+		if loser == DurakMatch.OPPONENT:
+			Settings.set_value("general/show_tutorial", false) # geschafft: Karte ausblenden
+		goto(SCENE_MENU)
+		return
 	match loser:
 		DurakMatch.OPPONENT:
 			var opponent := current_opponent()
@@ -315,7 +380,7 @@ func abandon() -> void:
 
 func _end_run(won: bool) -> void:
 	won_run = won
-	last_souls = Profile.on_run_finished(won, mini(floor_index, encounters.size()))
+	last_souls = Profile.on_run_finished(won, mini(floor_index, encounters.size()), souls_factor())
 	changed.emit()
 	goto(SCENE_RUN_END)
 
@@ -325,6 +390,10 @@ func _build_encounters() -> Array[OpponentData]:
 	var bosses: Array[OpponentData] = []
 	for res in _load_all(OPPONENT_DIR):
 		var o := res as OpponentData
+		# unvollständige Gegner (z. B. alte Dateien ohne Figur/Porträt) nicht einsetzen
+		if o == null or o.model == null or o.portrait == null:
+			push_warning("Gegner ohne Figur oder Porträt wird übersprungen: %s" % res.resource_path)
+			continue
 		if o.is_boss:
 			bosses.append(o)
 		else:

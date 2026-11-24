@@ -14,6 +14,8 @@ func check(cond: bool, label: String) -> void:
 
 
 func _ready() -> void:
+	Settings._values["general/difficulty"] = 1 # Tests unabhängig von der eigenen Einstellung
+	Settings._values["general/hints"] = true
 	Profile.reset_for_tests()
 	check(Profile.decks().size() >= 12, "alle Decks geladen (%d)" % Profile.decks().size())
 	check(Profile.is_unlocked(&"hinterzimmer"), "Startdeck frei")
@@ -56,5 +58,21 @@ func _ready() -> void:
 	Profile.select(&"giant")
 	Run.start_new_run(80)
 	check(Run.base_mult() == 2, "Riesen-Deck: +1 Mult")
+	# Schwierigkeit und Hinweise
+	Settings._values["general/hints"] = true
+	Settings._values["general/difficulty"] = 0
+	Run.start_new_run(81)
+	var easy := Run.score_target(0)
+	var easy_lives := Run.lives
+	Settings._values["general/difficulty"] = 2
+	Run.start_new_run(81)
+	check(Run.score_target(0) > easy and Run.lives == easy_lives - 2, "Schwer: höheres Ziel, weniger Leben")
+	check(Run.mistake_chance(Run.encounters[0]) < Run.encounters[0].mistake_chance, "Schwer: Gegner machen weniger Fehler")
+	Settings._values["general/hints"] = false
+	Settings._values["general/difficulty"] = 1
+	Run.start_new_run(82)
+	check(is_equal_approx(Run.souls_factor(), 1.5), "Ohne Hinweise: Seelen ×1,5")
+	check(Profile.on_run_finished(false, 2, Run.souls_factor()) == 9, "2 Tische ohne Hinweise = 9 Seelen")
+	Settings._values["general/hints"] = true
 	print("\n%d Checks, %d Fehler" % [_checks, _fail])
 	get_tree().quit(1 if _fail > 0 else 0)

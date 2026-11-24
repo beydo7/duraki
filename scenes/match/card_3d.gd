@@ -38,6 +38,8 @@ const TILT := 0.42
 var card: Card
 var is_trump := false
 var playable := false
+## Hinweise an: spielbare Karten leuchten. Aus: alle Handkarten sehen gleich aus und sind anklickbar.
+static var hints := true
 var hovered := false
 ## Liegt in der eigenen Hand (Wiegen, Kippen, Anheben)
 var in_hand := false
@@ -133,8 +135,9 @@ func _process(delta: float) -> void:
 		tilt_target = Vector2((0.5 - _hover_uv.y) * TILT, (_hover_uv.x - 0.5) * TILT)
 	_tilt = _tilt.lerp(tilt_target, 1.0 - exp(-dt * 14.0))
 	_shine = lerpf(_shine, 1.0 if hovered and in_hand else 0.0, 1.0 - exp(-dt * 10.0))
-	_glow = lerpf(_glow, (1.0 if hovered else 0.45) if playable else 0.0, 1.0 - exp(-dt * 10.0))
-	_lift = lerpf(_lift, 0.006 if playable and in_hand else 0.0, 1.0 - exp(-dt * 8.0))
+	var shown := playable and hints
+	_glow = lerpf(_glow, (1.0 if hovered else 0.45) if shown else 0.0, 1.0 - exp(-dt * 10.0))
+	_lift = lerpf(_lift, 0.006 if shown and in_hand else 0.0, 1.0 - exp(-dt * 8.0))
 	# Federn (gedämpfte Schwingungen)
 	_hop_v += (-260.0 * _hop - 16.0 * _hop_v) * dt
 	_hop += _hop_v * dt
@@ -233,7 +236,7 @@ func _on_input_event(_cam: Node, event: InputEvent, pos: Vector3, _normal: Vecto
 		var local := to_local(pos)
 		_hover_uv = Vector2(clampf(local.x / WIDTH + 0.5, 0.0, 1.0), clampf(local.z / HEIGHT + 0.5, 0.0, 1.0))
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		if playable and card != null:
+		if card != null and (playable or (not hints and in_hand)):
 			clicked.emit(card)
 
 
@@ -246,14 +249,15 @@ func _set_hovered(value: bool) -> void:
 func _update_look() -> void:
 	if _border_mat == null:
 		return
-	var lit := playable and hovered
-	_border.visible = playable or _special
-	_border_mat.emission_enabled = playable or _special
+	var shown := playable and hints
+	var lit := shown and hovered
+	_border.visible = shown or _special
+	_border_mat.emission_enabled = shown or _special
 	_border_mat.emission = _border_mat.albedo_color
 	if not _special:
 		_border_mat.albedo_color = COLOR_PLAYABLE
 		_border_mat.emission = COLOR_PLAYABLE
-	_border_mat.emission_energy_multiplier = 1.0 if lit else (0.45 if playable else 0.25)
+	_border_mat.emission_energy_multiplier = 1.0 if lit else (0.45 if shown else 0.25)
 
 
 ## Schmaler Rahmen rund um die Karte (für Leuchten/Trumpf/Verbesserung).

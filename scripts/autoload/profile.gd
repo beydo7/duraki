@@ -93,8 +93,8 @@ func on_opponent_defeated(opponent: OpponentData) -> void:
 
 ## Ende eines Runs: Seelen gutschreiben, Statistik, ggf. Decks freischalten.
 ## Gibt die erhaltenen Seelen zurück.
-func on_run_finished(won: bool, tables_won: int) -> int:
-	var gained := tables_won * SOULS_PER_TABLE + (SOULS_RUN_WIN if won else 0)
+func on_run_finished(won: bool, tables_won: int, factor := 1.0) -> int:
+	var gained := int(roundf((tables_won * SOULS_PER_TABLE + (SOULS_RUN_WIN if won else 0)) * factor))
 	souls += gained
 	runs_played += 1
 	if won:

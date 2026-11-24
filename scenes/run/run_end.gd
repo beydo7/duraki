@@ -36,6 +36,8 @@ func _ready() -> void:
 	_stat("Gold", "%d" % Run.gold)
 	_stat("Relikte", "%d" % Run.relics.size() if Run.relics.size() > 0 else "keine")
 	_stat("Deck", Run.deck_name())
+	var mode: String = Settings.DIFFICULTY_NAMES[Run.difficulty] + ("" if Run.hints else " · ohne Hinweise")
+	_stat("Schwierigkeit", "%s  (Seelen ×%s)" % [mode, RunSetupMenu.factor_text(Run.souls_factor())])
 	_stat("Seelen erhalten", "+%d  (jetzt %d)" % [Run.last_souls, Profile.souls])
 	%MenuButton.pressed.connect(func() -> void: Run.goto(Run.SCENE_MENU))
 	%AgainButton.pressed.connect(func() -> void: Run.start_new_run())

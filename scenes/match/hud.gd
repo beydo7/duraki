@@ -492,9 +492,19 @@ func _build_result() -> void:
 
 func setup(opponent: OpponentData, target: int, floor_i := 0, floor_count := 1) -> void:
 	_opp_label.text = opponent.display_name.to_upper()
+	# lange Namen kleiner schreiben, damit sie nicht in die Kartenanzeige rechts laufen
+	var font: Font = _opp_label.get_theme_font("font")
+	var fs := 26
+	while fs > 15 and font.get_string_size(_opp_label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > 148.0:
+		fs -= 1
+	_opp_label.add_theme_font_size_override("font_size", fs)
+	_opp_label.position.y = 34 + (26 - fs) * 0.5
 	_portrait.texture = opponent.portrait
 	_role_label.text = "ENDGEGNER" if opponent.is_boss else "GEGNER"
-	_floor_label.text = ("BOSS · TISCH %d/%d" if opponent.is_boss else "TISCH %d/%d") % [floor_i + 1, floor_count]
+	if floor_count <= 0:
+		_floor_label.text = "ÜBUNGSTISCH"
+	else:
+		_floor_label.text = ("BOSS · TISCH %d/%d" if opponent.is_boss else "TISCH %d/%d") % [floor_i + 1, floor_count]
 	_target = maxi(1, target)
 	_target_label.text = "/%d" % target
 	_intro.call_deferred()
@@ -531,7 +541,9 @@ func set_turn(mode: int, title: String, hint: String) -> void:
 	_glow_target = 0.0
 	if mode == Turn.DEFEND:
 		_glow_target = 0.12
-	(_edge.material as ShaderMaterial).set_shader_parameter("glow_color", UIKit.RED)
+	elif mode == Turn.THROW_IN:
+		_glow_target = 0.16 # goldener Rand: du darfst noch nachwerfen
+	(_edge.material as ShaderMaterial).set_shader_parameter("glow_color", PGOLD if mode == Turn.THROW_IN else UIKit.RED)
 
 
 func set_danger(strength: float) -> void:
@@ -714,9 +726,9 @@ func toast(text: String, color: Color = COLOR_TEXT) -> void:
 
 
 ## Großes Schrägbanner in der Bildmitte („DEIN ANGRIFF“ …).
-func show_banner(text: String, color: Color = Color(1, 0.86, 0.5)) -> void:
+func show_banner(text: String, color: Color = Color(1, 0.86, 0.5), sub := "", hold := 0.8) -> void:
 	_banner_label.text = text
-	_banner_sub.text = ""
+	_banner_sub.text = sub
 	_banner_sub.visible = _banner_sub.text != ""
 	# Rötliche Farben → rotes Banner, sonst schwarzes Banner mit rotem Balken
 	var reddish := color.r > 0.8 and color.g < 0.7
@@ -736,7 +748,7 @@ func show_banner(text: String, color: Color = Color(1, 0.86, 0.5)) -> void:
 	_banner.rotation_degrees = -2.5
 	tw.tween_property(_banner, "modulate:a", 1.0, 0.1)
 	tw.parallel().tween_property(_banner, "scale", Vector2.ONE, 0.32).set_trans(Tween.TRANS_EXPO).set_ease(Tween.EASE_OUT)
-	tw.tween_interval(0.8)
+	tw.tween_interval(hold)
 	tw.tween_property(_banner, "modulate:a", 0.0, 0.3)
 	tw.parallel().tween_property(_banner, "scale", Vector2(1.12, 0.8), 0.3)
 

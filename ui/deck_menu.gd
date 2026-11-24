@@ -15,6 +15,8 @@ var _detail_text: Label
 var _detail_unlock: Label
 var _action: Button
 var _current: DeckData
+## Angeklicktes Deck bleibt in der Anzeige stehen (Drüberfahren ändert dann nichts mehr)
+var _locked: DeckData
 var _panel: PanelContainer
 
 
@@ -123,17 +125,28 @@ func _deck_card(d: DeckData) -> Control:
 	btn.tooltip_text = d.display_name
 	if not unlocked:
 		btn.modulate = Color(0.32, 0.3, 0.32) if not Profile.can_buy(d.id) else Color(0.6, 0.56, 0.52)
-	btn.pressed.connect(func() -> void: _show(d))
-	btn.mouse_entered.connect(func() -> void: _show(d))
+	btn.pressed.connect(func() -> void:
+		_locked = d
+		_show(d)
+		_render())
+	btn.mouse_entered.connect(func() -> void:
+		if _locked == null:
+			_show(d))
 	UIKit.hover(btn, 1.06)
 	box.add_child(btn)
 	var name := _l(d.display_name, &"InkLabel", 13)
 	name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	name.custom_minimum_size = Vector2(CARD_SIZE.x, 0)
 	name.clip_text = true
+	if _locked == d:
+		btn.self_modulate = Color(1.18, 1.12, 1.0)
+		btn.scale = Vector2.ONE * 1.06
+		btn.pivot_offset = CARD_SIZE * 0.5
 	if selected:
 		name.add_theme_color_override("font_color", UIKit.INK_RED)
 		name.text = "✓ " + d.display_name
+	elif _locked == d:
+		name.text = "▸ " + d.display_name
 	elif not unlocked:
 		name.add_theme_color_override("font_color", UIKit.INK_SOFT)
 	box.add_child(name)

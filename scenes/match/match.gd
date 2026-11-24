@@ -31,9 +31,14 @@ var _ai_pending := false
 var _thinking := false
 ## Bis zu diesem Zeitpunkt (Sekunden) wartet der Gegner, damit man den Tisch noch sieht
 var _hold_until := 0.0
+## Tutorial: solange ein Hinweis-Schritt offen ist, wartet der Gegner
+var coach_hold := false
+var coach: TutorialCoach
 var _think_style := 0
 var hud: MatchHUD
 var _was_my_turn := false
+## zuletzt spielbare Karten (für „Hinweise aus“: falsche Klicks abfangen)
+var _playable: Array[Card] = []
 
 
 func _ready() -> void:
@@ -54,7 +59,8 @@ func _ready() -> void:
 	get_viewport().size_changed.connect(_fit_viewport)
 	world.card_clicked.connect(_on_player_card)
 
-	ai = SimpleAI.new(Run.rng, opponent.mistake_chance)
+	ai = SimpleAI.new(Run.rng, Run.mistake_chance(opponent))
+	Card3D.hints = Run.hints
 	duel = DurakMatch.new()
 	var target := Run.score_target() if Run.current_opponent() != null else Run.SCORE_TARGETS[0]
 	score = ScoreTracker.new(target, Run.base_mult())
@@ -107,7 +113,9 @@ func _ready() -> void:
 		_hold_until = _now() + TableWorld.DISCARD_DELAY + 0.6)
 	duel.take_declared.connect(func(who: int) -> void:
 		if who == DurakMatch.OPPONENT and duel.taking:
-			hud.toast("%s nimmt – du darfst passende Karten nachwerfen." % opponent.display_name, MatchHUD.COLOR_GOLD))
+			# klar zeigen: der Gegner gibt auf – du darfst aber noch Karten dazulegen
+			var sub := "DU DARFST NACHWERFEN" if not duel.legal_attacks().is_empty() else "NICHTS ZUM NACHWERFEN – FERTIG"
+			hud.show_banner("%s GIBT AUF" % opponent.display_name.to_upper(), Color(1, 0.86, 0.5), sub, 1.6))
 
 	hud.take_button.pressed.connect(func() -> void:
 		hud.close_choice()
@@ -119,13 +127,17 @@ func _ready() -> void:
 			duel.pass_bout())
 	hud.continue_button.pressed.connect(func() -> void: Run.on_match_finished(_result()))
 
-	hud.setup(opponent, score.target, Run.floor_index, maxi(Run.encounters.size(), 1))
+	hud.setup(opponent, score.target, Run.floor_index, 0 if Run.tutorial else maxi(Run.encounters.size(), 1))
 	hud.set_relics(Run.relics)
 	world.props.set_lives(maxi(Run.lives, 1))
 	world.props.set_gold(Run.gold, false)
 	if not opponent.taunt.is_empty():
 		hud.say(opponent.taunt, 5.0)
 	hud.toast("Punkteziel: %d" % score.target, MatchHUD.COLOR_GOLD)
+	if Run.tutorial:
+		coach = TutorialCoach.new()
+		hud.add_child(coach)
+		coach.setup(self)
 	duel.start(Run.rng, Run.player_hand_size(), opponent.hand_size, Run.apply_card_enhancements)
 	_render_score()
 
@@ -186,6 +198,8 @@ func _run_ai_turn() -> void:
 		wait = maxf(wait, 1.2) # du hast alles geschlagen: deine Karte erst mal liegen lassen
 	wait = maxf(wait, _hold_until - _now()) # Tisch wird noch abgeräumt
 	await get_tree().create_timer(wait, false).timeout
+	while coach_hold and is_inside_tree():
+		await get_tree().process_frame
 	if _thinking:
 		_thinking = false
 		world.figure.stop_thinking()
@@ -197,6 +211,10 @@ func _run_ai_turn() -> void:
 
 func _on_player_card(card: Card) -> void:
 	hud.close_choice()
+	if not _playable.has(card):
+		# nur möglich, wenn Hinweise aus sind: alle Handkarten sind anklickbar
+		hud.toast("%s passt gerade nicht." % card, MatchHUD.COLOR_GOLD)
+		return
 	if duel.defender() == DurakMatch.PLAYER:
 		if duel.current_actor() != DurakMatch.PLAYER:
 			return
@@ -252,6 +270,10 @@ func _on_finished(_loser: int) -> void:
 
 
 func _result_text(won: bool) -> String:
+	if Run.tutorial:
+		if won:
+			return "Tutorial geschafft! Die Tutorial-Karte verschwindet – in den Optionen kannst du sie zurückholen."
+		return "Knapp daneben – über die Tutorial-Karte im Menü kannst du es gleich nochmal versuchen."
 	if won:
 		return "Punkteziel erreicht. %s steht auf." % opponent.display_name
 	if Run.lives <= 1:
@@ -293,6 +315,7 @@ func _render() -> void:
 					playable.append(c)
 	else:
 		playable = duel.legal_attacks() # auch während der Gegner verteidigt
+	_playable = playable
 	world.sync(duel, playable)
 
 	if duel.taking:
@@ -341,7 +364,9 @@ func _turn_info(my_turn: bool, defending: bool) -> Array:
 	if duel.taking:
 		if defending:
 			return [MatchHUD.Turn.WAIT, "DU NIMMST AUF", "%s wirft noch Karten nach …" % opponent.display_name]
-		return [MatchHUD.Turn.THROW_IN, "NACHWERFEN", "Passende Ränge hinterherwerfen – oder FERTIG."]
+		if duel.legal_attacks().is_empty():
+			return [MatchHUD.Turn.THROW_IN, "%s NIMMT" % them, "Nichts mehr nachzuwerfen – drück FERTIG."]
+		return [MatchHUD.Turn.THROW_IN, "%s NIMMT – NACHWERFEN!" % them, "Leg passende Ränge dazu, er muss alles aufnehmen. Dann FERTIG."]
 	if not my_turn:
 		if not defending and not duel.legal_attacks().is_empty():
 			return [MatchHUD.Turn.WAIT, "%s VERTEIDIGT" % them, "Du darfst noch passende Ränge dazuwerfen."]

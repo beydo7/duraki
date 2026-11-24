@@ -105,39 +105,62 @@ func _jiggle(pitch: float) -> void:
 	_wobble(_pivot, 0.12)
 
 
+var _wobbles := {}
+
+
 func _wobble(node: Node3D, amount: float) -> void:
+	_stop_wobble(node)
 	var tw := create_tween()
+	_wobbles[node] = tw
 	tw.tween_property(node, "rotation:z", amount, 0.05)
 	tw.tween_property(node, "rotation:z", -amount * 0.6, 0.07)
 	tw.tween_property(node, "rotation:z", 0.0, 0.1)
 
 
+## Laufendes Wackeln beenden und gerade hinstellen (sonst kämpfen zwei Animationen
+## um dieselbe Drehung, wenn direkt danach getrunken oder eingeschenkt wird).
+func _stop_wobble(node: Node3D) -> void:
+	var old: Tween = _wobbles.get(node)
+	if old != null and old.is_valid():
+		old.kill()
+	_wobbles.erase(node)
+	node.rotation.z = 0.0
+
+
 func _drink() -> void:
 	_busy = true
-	var cam := _world.camera
+	_stop_wobble(_pivot)
 	var start := _pivot.transform
-	# Vor den Mund: etwas unter der Bildmitte, nah an der Kamera
-	var cam_xf := cam.global_transform
+	var seat: Transform3D = _seat.call()
+	var head_back := seat * Transform3D(Basis.from_euler(Vector3(0.42, 0, 0)), Vector3(0, 0.02, 0.02))
+	# Glas relativ zur Kamera: vor dem Mund (aufrecht) → gekippt und ein Stück höher.
+	# Während des Trinkens hängt es an der Kamera, kippt also mit dem Kopf mit.
+	var cam_xf := _world.camera.global_transform
 	var mouth := cam_xf.origin - cam_xf.basis.z * 0.2 - cam_xf.basis.y * 0.07
 	var to_mouth := Transform3D(Basis.looking_at(cam_xf.origin - mouth, Vector3.UP), mouth)
-	var tilted := Transform3D(to_mouth.basis.rotated(cam_xf.basis.x, -1.6), mouth + cam_xf.basis.y * 0.03)
-	var seat: Transform3D = _seat.call()
-	var head_back := seat * Transform3D(Basis.from_euler(Vector3(0.35, 0, 0)), Vector3(0, 0.02, 0.02))
+	var rel_mouth := cam_xf.affine_inverse() * to_mouth
+	var rel_tilt := Transform3D(Basis(Vector3.RIGHT, -1.25) * rel_mouth.basis, rel_mouth.origin + Vector3(0, 0.035, 0.03))
+	var pose := func(v: float) -> Transform3D: return seat.interpolate_with(head_back, v)
 
 	var tw := create_tween()
 	tw.tween_property(_pivot, "transform", to_mouth, 0.55).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
 	tw.tween_callback(func() -> void: Sfx.play(&"gulp"))
-	# Glas kippen und Kopf in den Nacken – beides aus derselben Bewegung, damit sie zusammenpassen
 	tw.tween_method(func(v: float) -> void:
-		_pivot.transform = to_mouth.interpolate_with(tilted, v)
-		_world.set_camera_pose(seat.interpolate_with(head_back, v))
-		_liq_pivot.scale = Vector3(1, clampf(1.0 - (v - 0.45) / 0.45, 0.001, 1.0), 1),
-		0.0, 1.0, 0.6).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+		var p: Transform3D = pose.call(v)
+		_world.set_camera_pose(p)
+		_pivot.transform = (cam_xf * seat.affine_inverse() * p) * rel_mouth.interpolate_with(rel_tilt, v)
+		# nie auf (fast) 0 skalieren – entartete Transformationen meiden, lieber ausblenden
+		var left := clampf(1.0 - (v - 0.45) / 0.45, 0.0, 1.0)
+		_liq_pivot.scale = Vector3(1, maxf(left, 0.05), 1)
+		_liq_pivot.visible = left > 0.05,
+		0.0, 1.0, 0.7).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	tw.tween_interval(0.2)
 	tw.tween_method(func(v: float) -> void:
-		_pivot.transform = tilted.interpolate_with(start, v)
-		_world.set_camera_pose(head_back.interpolate_with(seat, v)),
-		0.0, 1.0, 0.65).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+		var p: Transform3D = pose.call(1.0 - v)
+		_world.set_camera_pose(p)
+		_pivot.transform = (cam_xf * seat.affine_inverse() * p) * rel_mouth.interpolate_with(rel_tilt, 1.0 - v),
+		0.0, 1.0, 0.55).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tw.tween_property(_pivot, "transform", start, 0.5).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
 	tw.tween_callback(func() -> void:
 		Sfx.play(&"clink", 0.8)
 		_empty = true
@@ -153,7 +176,8 @@ func _drink() -> void:
 func _pour() -> void:
 	_busy = true
 	var bottle := _world.whiskey
-	var start := bottle.transform
+	_stop_wobble(bottle)
+	var start := Transform3D(Basis(Vector3.UP, bottle.rotation.y), bottle.position) # immer gerade zurückstellen
 	var parent_inv := bottle.get_parent_node_3d().global_transform.affine_inverse()
 	var glass_top := _pivot.global_position + Vector3(0, GLASS_TOP + 0.04, 0)
 	var d := (bottle.global_position - _pivot.global_position) * Vector3(1, 0, 1)
@@ -174,13 +198,17 @@ func _pour() -> void:
 		Sfx.play(&"pour")
 		_show_stream(bottle.spout(), _pivot.global_position + Vector3(0, 0.012, 0)))
 	tw.tween_method(func(v: float) -> void: _set_stream(v, 1.0), 0.0, 1.0, 0.14)
+	tw.tween_callback(func() -> void:
+		_liq_pivot.scale = Vector3(1, 0.05, 1)
+		_liq_pivot.visible = true)
 	tw.tween_property(_liq_pivot, "scale", Vector3.ONE, 1.0).set_trans(Tween.TRANS_SINE)
 	tw.parallel().tween_property(bottle, "fill", bottle.fill - WhiskeyBottle.POUR, 1.0)
 	# Strahl reißt von oben ab
 	tw.tween_method(func(v: float) -> void: _set_stream(1.0, 1.0 - v), 0.0, 1.0, 0.12)
 	tw.tween_callback(func() -> void:
-		if _stream != null:
-			_stream.queue_free())
+		if is_instance_valid(_stream):
+			_stream.queue_free()
+		_stream = null)
 	tw.tween_property(bottle, "transform", lifted, 0.5).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
 	tw.tween_property(bottle, "transform", start, 0.3).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	tw.tween_callback(func() -> void:
@@ -219,12 +247,15 @@ func _show_stream(from: Vector3, to: Vector3) -> void:
 
 ## Strahl von der Öffnung aus: `reach` = wie weit nach unten (0..1), `top` = wie viel oben noch hängt.
 func _set_stream(reach: float, top: float) -> void:
-	if _stream == null:
+	if not is_instance_valid(_stream):
 		return
 	var a := _stream_from.lerp(_stream_to, 1.0 - top)
 	var b := _stream_from.lerp(_stream_to, maxf(reach, 0.001))
-	var len := maxf(a.distance_to(b), 0.0005)
+	var len := a.distance_to(b)
+	if len < 0.004 or reach <= 0.01 or top <= 0.01:
+		_stream.visible = false # zu kurz: nicht mit (fast) Null skalieren
+		return
 	var up := (_stream_from - _stream_to).normalized()
 	var side := up.cross(Vector3.FORWARD if absf(up.dot(Vector3.FORWARD)) < 0.9 else Vector3.RIGHT).normalized()
 	_stream.global_transform = Transform3D(Basis(side, up * len, side.cross(up)), (a + b) * 0.5)
-	_stream.visible = reach > 0.01 and top > 0.01
+	_stream.visible = true

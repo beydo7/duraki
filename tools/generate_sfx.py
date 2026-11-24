@@ -10,8 +10,8 @@ Ausgabe in assets/sfx/ (16 Bit, mono, 44,1 kHz):
                    0,25 s Fallen (Luftzug) → 0,60 s Aufprall („Klonk“ des Moduls)
                    → 0,78 s Hitbox-Ecken schnappen (4 Klicks) → 1,05 s „HIT!“-Stempel
                    → 1,55 s Glanz über das Etikett (Glitzern)
-  card_hover.wav   Menükarte unter der Maus: Kartenrascheln + weicher Holz-Tock + Ton
-  card_select.wav  Menükarte gewählt: kräftiger Schnipp
+  card_hover.wav   Menükarte unter der Maus: Karte rutscht über den Filz (ohne Klingeln)
+  card_select.wav  Menükarte gewählt: Schnippen + Auflegen
   lighter.wav      Feuerzeug (Rad + Flamme)
   inhale.wav       Zug an der Zigarette (Knistern + Atem)
   exhale.wav       Rauch auspusten (gespitzte Lippen, weich)
@@ -33,6 +33,7 @@ Die Lautstärke im Spiel regelt Sfx.VOLUME (scripts/autoload/sfx.gd).
 """
 import os
 import wave
+import zlib
 
 import numpy as np
 
@@ -76,6 +77,15 @@ def highpass(x, cutoff):
 
 def bandpass(x, lo, hi):
     return highpass(lowpass(x, hi), lo)
+
+
+def soft(x, lo, hi, order=3):
+    """Steiler Bandpass (mehrfach gefiltert): weiches Rauschen ohne scharfe Höhen."""
+    for _ in range(order):
+        x = lowpass(x, hi)
+    for _ in range(2):
+        x = highpass(x, lo)
+    return x
 
 
 def sine(freq, dur, phase=0.0):
@@ -187,29 +197,28 @@ def intro():
 
 
 def card_hover():
-    dur = 0.22
-    n = int(dur * SR)
-    buf = np.zeros(n)
-    # Kartenrascheln: gefiltertes Rauschen, schnell
-    swish = bandpass(noise(0.07), 1800, 8000) * env(int(0.07 * SR), 0.004, 0.018)
-    place(buf, swish, 0.0, 0.5)
-    # weicher Tock auf Filz/Holz
-    tock = sine(np.geomspace(320, 180, int(0.09 * SR)), 0.09) * env(int(0.09 * SR), 0.001, 0.025)
-    place(buf, tock, 0.012, 0.8)
-    # kleiner Glanz-Ton (Quinte), macht es „satisfying“
-    place(buf, chime(1175, 0.18), 0.015, 0.1)
-    place(buf, chime(1760, 0.15), 0.03, 0.06)
-    save("card_hover.wav", reverb(buf, 0.2, 0.12))
+    """Menükarte unter der Maus: weiches Wischen über Filz – dumpf, ohne Hall (Hall-Echos
+    klangen wie ein Metallkamm)."""
+    dur = 0.14
+    buf = np.zeros(int(dur * SR))
+    n = int(0.11 * SR)
+    brush = soft(noise(0.11), 250, 2200) * np.sin(np.linspace(0, np.pi, n)) ** 2
+    place(buf, brush, 0.0, 0.8)
+    felt = soft(noise(0.04), 80, 600, order=2) * env(int(0.04 * SR), 0.003, 0.012)
+    place(buf, felt, 0.025, 0.6)
+    save("card_hover.wav", buf, peak=0.45)
 
 
 def card_select():
-    dur = 0.4
+    """Menükarte gewählt: Karte wird angehoben und dumpf auf den Filz gelegt."""
+    dur = 0.28
     buf = np.zeros(int(dur * SR))
-    place(buf, bandpass(noise(0.05), 2500, 9000) * env(int(0.05 * SR), 0.001, 0.01), 0.0, 0.7)
-    place(buf, thud(140, 70, 0.25), 0.005, 0.6)
-    place(buf, chime(880, 0.35), 0.01, 0.18)
-    place(buf, chime(1320, 0.3), 0.04, 0.12)
-    save("card_select.wav", reverb(buf, 0.3, 0.18))
+    n = int(0.08 * SR)
+    place(buf, soft(noise(0.08), 300, 2600) * np.sin(np.linspace(0, np.pi, n)) ** 1.6, 0.0, 0.6)
+    slap = soft(noise(0.07), 60, 900, order=2) * env(int(0.07 * SR), 0.0008, 0.016)
+    place(buf, slap, 0.07, 1.0)
+    place(buf, sine(np.geomspace(150, 85, int(0.09 * SR)), 0.09) * env(int(0.09 * SR), 0.001, 0.022), 0.07, 0.3)
+    save("card_select.wav", buf, peak=0.55)
 
 
 def lighter():
@@ -328,7 +337,7 @@ def pour():
 def card_slide(dur=0.09, lo=1200, hi=6500, tap=True):
     """Karte gleitet über Karte/Filz: kurzes Papier-Rauschen mit weichem Anfang, dazu ein Tipp."""
     n = int(dur * SR)
-    x = bandpass(noise(dur), lo, hi) * np.sin(np.linspace(0, np.pi, n)) ** 1.6
+    x = soft(noise(dur), lo * 0.5, hi * 0.5) * np.sin(np.linspace(0, np.pi, n)) ** 1.6
     if tap:
         t_n = int(0.02 * SR)
         x[:t_n] += lowpass(noise(0.02), 1800) * env(t_n, 0.0005, 0.004) * 0.8
@@ -437,29 +446,11 @@ def clink():
 
 def main():
     os.makedirs(OUT, exist_ok=True)
-    intro()
-    card_hover()
-    card_select()
-    lighter()
-    inhale()
-    exhale()
-    gulp()
-    candle_flicker()
-    clink()
-    bottle_knock()
-    pour()
-    index_hover()
-    ui_click()
-    candle_loop()
-    card_hand_hover()
-    card_deal()
-    card_play()
-    card_take()
-    cards_discard()
-    coins()
-    win_sting()
-    lose_sting()
-    button()
+    # Jeder Sound bekommt einen festen eigenen Zufallswert: Änderungen an einem Sound
+    # verändern die anderen nicht.
+    for fn in (intro, card_hover, card_select, lighter, inhale, exhale, gulp, candle_flicker, clink, bottle_knock, pour, index_hover, ui_click, candle_loop, card_hand_hover, card_deal, card_play, card_take, cards_discard, coins, win_sting, lose_sting, button):
+        rng.seed(zlib.crc32(fn.__name__.encode()) % (2 ** 31))
+        fn()
     print("Sounds erzeugt in", OUT)
 
 
