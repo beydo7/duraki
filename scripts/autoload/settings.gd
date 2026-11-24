@@ -23,6 +23,10 @@ const QUALITY_NAMES := ["Niedrig", "Mittel", "Hoch"]
 const SPEED_NAMES := ["Gemütlich", "Normal", "Schnell"]
 const SHADOW_ATLAS := [0, 2048, 4096]
 
+## Erhöhen, wenn sich Audio-Standardwerte ändern: ältere Einstellungsdateien übernehmen
+## dann einmalig die neue Musiklautstärke (sonst bliebe der alte gespeicherte Wert).
+const AUDIO_VERSION := 2
+
 ## Standardwerte: [Abschnitt, Schlüssel] → Wert
 const DEFAULTS := {
 	"graphics/window_mode": WindowMode.WINDOWED,
@@ -35,9 +39,10 @@ const DEFAULTS := {
 	"graphics/glow": true,
 	"graphics/brightness": 1.0,
 	"audio/master": 0.8,
-	"audio/music": 0.7,
+	"audio/music": 0.2, # Musik bewusst leise (≈ 20 %)
 	"audio/sfx": 0.8,
 	"audio/mute_unfocused": true,
+	"audio/version": AUDIO_VERSION,
 	"general/ai_speed": Speed.NORMAL,
 	"general/anim_speed": Speed.NORMAL,
 	"general/camera_sway": true,
@@ -100,6 +105,10 @@ func load_settings() -> void:
 			var v: Variant = cfg.get_value(parts[0], parts[1])
 			if typeof(v) == typeof(DEFAULTS[key]) or (DEFAULTS[key] is float and v is int):
 				_values[key] = v
+	if int(cfg.get_value("audio", "version", 1)) < AUDIO_VERSION:
+		_values["audio/music"] = DEFAULTS["audio/music"]
+		_values["audio/version"] = AUDIO_VERSION
+		save_settings()
 
 
 func save_settings() -> void:

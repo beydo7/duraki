@@ -404,6 +404,7 @@ func _action_button(text: String, key: String, variation: StringName) -> Button:
 	var b := Button.new()
 	b.text = text
 	b.focus_mode = Control.FOCUS_NONE
+	b.pressed.connect(func() -> void: Sfx.play(&"button", randf_range(0.95, 1.05)))
 	b.custom_minimum_size = Vector2(250, 50)
 	b.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	b.add_theme_font_size_override("font_size", 24)
@@ -807,6 +808,7 @@ func close_choice() -> void:
 
 
 func show_result(won: bool, title: String, text: String, score_text: String) -> void:
+	Sfx.play(&"win" if won else &"lose")
 	set_actions(false, false, false)
 	close_choice()
 	_glow_target = 0.0

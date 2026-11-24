@@ -2,26 +2,35 @@ class_name WhiskeyBottle
 extends Node3D
 ## Whiskeyflasche auf dem Tisch (ersetzt die grüne Flasche aus props.glb): eckiger,
 ## bernsteinfarbener Glaskörper mit Whiskey drin, Hals, schwarzer Verschluss mit Goldring
-## und ein Etikett der erfundenen Marke „Hinterzimmer“.
+## und ein Etikett der erfundenen Marke „Hinterzimmer“. Die Flasche ist offen: Der Verschluss
+## steht daneben auf dem Tisch. Pro Einschenken sinkt der Füllstand um POUR, bis sie leer ist.
 ## Ursprung = Mitte des Flaschenbodens. Signal `clicked`, wenn man sie anklickt.
 
 signal clicked
 
 const POS := Vector3(0.68, 0.8, 0.0)
 const BODY := Vector2(0.066, 0.165) # Breite, Höhe
-const NECK_TOP := 0.268 # Höhe der Öffnung (für das Einschenken)
+const NECK_TOP := 0.245 # Höhe der Öffnung (für das Einschenken)
+const POUR := 0.13 # so viel weniger pro Schnapsglas (≈ 6 Gläser)
+## Verschluss liegt neben der Flasche (relativ zur Flasche, in Weltrichtung)
+const CAP_OFFSET := Vector3(0.062, 0.0, 0.052)
 
-var fill := 0.78: # 0..1 Füllstand
+var fill := 0.8: # 0..1 Füllstand
 	set(v):
-		fill = clampf(v, 0.05, 1.0)
+		fill = clampf(v, 0.0, 1.0)
 		_update_fill()
 
 var _liquid: MeshInstance3D
+var _cap: Node3D
 
+
+## Reicht der Whiskey noch für ein Glas?
+func can_pour() -> bool:
+	return fill >= POUR * 0.9
 
 func _ready() -> void:
 	position = POS
-	rotation.y = 0.35 # Etikett leicht zur Kamera gedreht
+	rotation.y = -0.45 # Etikett zur Kamera (Menü und Duell) gedreht
 	var glass := StandardMaterial3D.new()
 	glass.albedo_color = Color(0.55, 0.42, 0.3, 0.28)
 	glass.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
@@ -57,16 +66,40 @@ func _ready() -> void:
 	neck.bottom_radius = 0.014
 	neck.height = 0.04
 	_add(neck, glass, Vector3(0, BODY.y + 0.06, 0))
+	# offene Öffnung: Glaslippe und dunkles Loch
+	var lip := CylinderMesh.new()
+	lip.top_radius = 0.0138
+	lip.bottom_radius = 0.0138
+	lip.height = 0.004
+	_add(lip, glass, Vector3(0, NECK_TOP - 0.002, 0))
+	var hole := CylinderMesh.new()
+	hole.top_radius = 0.009
+	hole.bottom_radius = 0.009
+	hole.height = 0.001
+	_add(hole, _mat(Color(0.05, 0.03, 0.02), 0.6), Vector3(0, NECK_TOP + 0.0002, 0))
+	# Verschluss steht umgedreht neben der Flasche (eigener Knoten, bewegt sich nicht mit)
+	_cap = Node3D.new()
 	var c := CylinderMesh.new()
 	c.top_radius = 0.0155
 	c.bottom_radius = 0.0155
 	c.height = 0.026
-	_add(c, cap, Vector3(0, NECK_TOP - 0.013, 0))
+	var cm := MeshInstance3D.new()
+	cm.mesh = c
+	cm.material_override = cap
+	cm.position.y = 0.013
+	_cap.add_child(cm)
 	var ring := CylinderMesh.new()
 	ring.top_radius = 0.0158
 	ring.bottom_radius = 0.0158
 	ring.height = 0.004
-	_add(ring, gold, Vector3(0, NECK_TOP - 0.024, 0))
+	var rm := MeshInstance3D.new()
+	rm.mesh = ring
+	rm.material_override = gold
+	rm.position.y = 0.024
+	_cap.add_child(rm)
+	_cap.position = POS + CAP_OFFSET
+	_cap.rotation.z = 0.0
+	add_sibling.call_deferred(_cap)
 
 	# Etikett vorne (+Z) mit erfundener Marke
 	var frame := BoxMesh.new()
@@ -118,7 +151,8 @@ func spout() -> Vector3:
 func _update_fill() -> void:
 	if _liquid == null:
 		return
-	var h := (BODY.y - 0.01) * fill
+	_liquid.visible = fill > 0.01
+	var h := maxf((BODY.y - 0.01) * fill, 0.0005)
 	_liquid.scale = Vector3(1, h, 1)
 	_liquid.position.y = 0.004 + h * 0.5
 

@@ -176,7 +176,7 @@ func _build_audio() -> void:
 	_slider("Effekte", "audio/sfx", 0.0, 1.0, 0.05, _percent)
 	_heading("Sonstiges")
 	_toggle("Im Hintergrund stumm", "audio/mute_unfocused")
-	_note("Musik und Soundeffekte kommen noch – die Regler gelten dann sofort.")
+	_note("Die Musik startet bewusst leise (20 %). Alle Regler wirken sofort.")
 
 
 func _build_general() -> void:

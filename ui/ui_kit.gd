@@ -22,8 +22,8 @@ const LILAC := Color(0.64, 0.55, 1.0)
 const LINE := Color(0.81, 0.15, 0.16, 0.5)
 const GOLD := Color(0.95, 0.74, 0.3)
 const RED := Color(0.96, 0.34, 0.3)
-const CHIPS := Color(0.43, 0.7, 1.0)
-const MULT := Color(1.0, 0.36, 0.32)
+const CHIPS := Color(0.67, 0.57, 1.0) # Lila wie das Nachtlicht (nicht Balatro-Blau)
+const MULT := Color(0.91, 0.71, 0.27) # Gold (nicht Balatro-Rot)
 const SUIT_COLORS := [Color(1, 0.42, 0.45), Color(1, 0.55, 0.4), Color(0.75, 0.9, 1.0), Color(0.82, 0.78, 1.0)]
 
 const DISPLAY_FONT := preload("res://assets/fonts/RussoOne-Regular.ttf")
@@ -300,6 +300,7 @@ static func hover(node: Control, scale := 1.05) -> void:
 	node.focus_entered.connect(func() -> void: _scale_to(node, scale, 0.14))
 	node.focus_exited.connect(func() -> void: _scale_to(node, 1.0, 0.18))
 	if node is BaseButton:
+		(node as BaseButton).pressed.connect(func() -> void: Sfx.play(&"button", randf_range(0.95, 1.05)))
 		(node as BaseButton).button_down.connect(func() -> void: _scale_to(node, 0.96, 0.06))
 		(node as BaseButton).button_up.connect(func() -> void: _scale_to(node, scale if node.get_global_rect().has_point(node.get_global_mouse_position()) else 1.0, 0.12))
 

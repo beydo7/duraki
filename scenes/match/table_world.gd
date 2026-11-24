@@ -82,6 +82,8 @@ func build_room(opponent: OpponentData, markings := true) -> void:
 	_build_environment()
 	_build_models()
 	ashtray = Ashtray.new()
+	# Zigarette des Gegners: Filter zeigt zu ihm (Platz gegenüber)
+	ashtray.notch_dir = (Vector3(0, 0, -TABLE_SIZE.y * 0.5) - Ashtray.BACK_CENTER) * Vector3(1, 0, 1)
 	add_child(ashtray)
 	ashtray.hide_model_parts(self)
 	whiskey = WhiskeyBottle.new()
@@ -290,6 +292,7 @@ func _on_landed(node: Card3D, style: String, strong: bool, under: Card) -> void:
 		"take":
 			node.land(0.35)
 		"play", "whirl":
+			_sfx(&"card_play", randf_range(0.92, 1.05) * (0.9 if strong else 1.0), 2.0 if strong else 0.0)
 			node.land(1.0)
 			_impact(node.global_position, strong)
 			shake(0.9 if strong else 0.45)
@@ -338,7 +341,9 @@ func _impact(pos: Vector3, strong: bool) -> void:
 	tw.tween_callback(mi.queue_free)
 
 
-func _on_hover(node: Card3D, _hovered: bool) -> void:
+func _on_hover(node: Card3D, hovered: bool) -> void:
+	if hovered and node.in_hand:
+		_sfx(&"card_hand_hover", randf_range(0.94, 1.1)) # Handkarte ansehen: ganz leises Rascheln
 	if _base.has(node):
 		_move(node, _with_hover(node, _base[node]), 0.0, 0.12)
 
@@ -347,6 +352,19 @@ func _with_hover(node: Card3D, xf: Transform3D) -> Transform3D:
 	if node.hovered and node.playable:
 		return Transform3D(xf.basis, xf.origin + HOVER_LIFT)
 	return xf
+
+
+## Kartensound, aber nicht mehrfach gleichzeitig (z. B. mehrere Karten nehmen = ein Geräusch).
+var _sfx_last := {}
+
+
+func _sfx(sound: StringName, pitch := 1.0, db := 0.0) -> void:
+	var now := Time.get_ticks_msec()
+	var gap := 60 if sound == &"card_deal" else 160
+	if now - int(_sfx_last.get(sound, -1000)) < gap:
+		return
+	_sfx_last[sound] = now
+	Sfx.play(sound, pitch, db)
 
 
 ## Bewegt eine Karte. `style`:
@@ -401,6 +419,13 @@ func _move(node: Node3D, to: Transform3D, delay: float, time := MOVE_TIME, style
 	delay *= f
 	if delay > 0.0:
 		tw.tween_interval(delay)
+	match style:
+		"deal":
+			tw.tween_callback(func() -> void: _sfx(&"card_deal", randf_range(0.92, 1.08)))
+		"take":
+			tw.tween_callback(func() -> void: _sfx(&"card_take", randf_range(0.95, 1.05)))
+		"bito":
+			tw.tween_callback(func() -> void: _sfx(&"cards_discard", randf_range(0.95, 1.05)))
 	var q_from := from.basis.get_rotation_quaternion()
 	var q_to := to.basis.get_rotation_quaternion()
 	var s_from := from.basis.get_scale()

@@ -20,6 +20,16 @@ const SOUNDS := {
 	&"pour": preload("res://assets/sfx/pour.wav"),
 	&"index_hover": preload("res://assets/sfx/index_hover.wav"),
 	&"ui_click": preload("res://assets/sfx/ui_click.wav"),
+	&"candle_loop": preload("res://assets/sfx/candle_loop.wav"),
+	&"card_hand_hover": preload("res://assets/sfx/card_hand_hover.wav"),
+	&"card_deal": preload("res://assets/sfx/card_deal.wav"),
+	&"card_play": preload("res://assets/sfx/card_play.wav"),
+	&"card_take": preload("res://assets/sfx/card_take.wav"),
+	&"cards_discard": preload("res://assets/sfx/cards_discard.wav"),
+	&"coins": preload("res://assets/sfx/coins.wav"),
+	&"win": preload("res://assets/sfx/win.wav"),
+	&"lose": preload("res://assets/sfx/lose.wav"),
+	&"button": preload("res://assets/sfx/button.wav"),
 }
 ## Grundlautstärke in dB (0 = volle Lautstärke der Datei)
 const VOLUME := {
@@ -36,6 +46,16 @@ const VOLUME := {
 	&"pour": -15.0,
 	&"index_hover": -24.0,
 	&"ui_click": -17.0,
+	&"candle_loop": -26.0,
+	&"card_hand_hover": -25.0,
+	&"card_deal": -19.0,
+	&"card_play": -14.0,
+	&"card_take": -16.0,
+	&"cards_discard": -16.0,
+	&"coins": -18.0,
+	&"win": -12.0,
+	&"lose": -12.0,
+	&"button": -15.0,
 }
 const POOL_SIZE := 10
 
@@ -62,6 +82,20 @@ func play(sound: StringName, pitch := 1.0, volume_db := 0.0) -> AudioStreamPlaye
 	p.pitch_scale = pitch
 	p.volume_db = float(VOLUME.get(sound, 0.0)) + volume_db
 	p.play()
+	return p
+
+
+## Endlos-Schleife eines Sounds (z. B. Kerzen), Lautstärke steuert der Aufrufer.
+func make_loop(sound: StringName) -> AudioStreamPlayer:
+	var src := SOUNDS[sound] as AudioStreamWAV
+	var st := src.duplicate() as AudioStreamWAV
+	st.loop_mode = AudioStreamWAV.LOOP_FORWARD
+	st.loop_begin = 0
+	st.loop_end = int(st.get_length() * st.mix_rate)
+	var p := AudioStreamPlayer.new()
+	p.bus = &"SFX"
+	p.stream = st
+	p.volume_db = -80.0
 	return p
 
 

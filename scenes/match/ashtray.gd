@@ -5,7 +5,7 @@ extends Node3D
 ##   1. Klick  → anzünden (Feuerzeug, Glut, feiner Rauchfaden)
 ##   weitere Klicks → ein Zug: Zigarette zum Mund, Glut glüht auf, sie brennt ein Stück ab,
 ##                    zurück in die Kerbe, Rauchwolke vor der Kamera
-##   nach PUFFS Zügen → Stummel liegt im Aschenbecher, qualmt noch und geht nach
+##   nach PUFFS Zügen → Stummel bleibt in der Kerbe liegen, qualmt noch und geht nach
 ##                    SMOULDER_TIME Sekunden aus
 ## Danach passiert nichts mehr (bis zum nächsten Duell).
 
@@ -112,7 +112,7 @@ func _build_tray() -> void:
 	rim_node.scale = Vector3(1, 0.45, 1)
 	# drei Kerben im Rand
 	for k in 3:
-		var dir := notch_dir.rotated(Vector3.UP, k * TAU / 3.0)
+		var dir := notch_dir.normalized().rotated(Vector3.UP, k * TAU / 3.0)
 		var notch := BoxMesh.new()
 		notch.size = Vector3(0.011, 0.006, 0.022)
 		var n := _mesh(notch, well, dir * 0.059 + Vector3(0, 0.0245, 0))
@@ -268,14 +268,9 @@ func _puff() -> void:
 	tw.tween_callback(func() -> void:
 		_glow_target = 0.45
 		_ash.visible = true)
-	if last:
-		# aufgeraucht: Stummel in die Mulde legen
-		var butt := Transform3D(Basis(Vector3.UP, 0.9) * Basis(Vector3.FORWARD, 0.05), Vector3(0.012, 0.026, 0.01))
-		tw.tween_method(func(v: float) -> void: _cig.global_transform = at_mouth.interpolate_with(global_transform * butt, v),
-			0.0, 1.0, 0.55).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
-	else:
-		tw.tween_method(func(v: float) -> void: _cig.global_transform = at_mouth.interpolate_with(rest_global, v),
-			0.0, 1.0, 0.5).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
+	# zurück in die Kerbe – auch der aufgerauchte Stummel bleibt dort liegen
+	tw.tween_method(func(v: float) -> void: _cig.global_transform = at_mouth.interpolate_with(rest_global, v),
+		0.0, 1.0, 0.5).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
 	tw.tween_callback(func() -> void:
 		Sfx.play(&"exhale")
 		_exhale_cloud(cam)

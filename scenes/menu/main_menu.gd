@@ -55,6 +55,7 @@ func _ready() -> void:
 
 	# Auftritt: Kamera gleitet an den Tisch, Titel und Menü blenden ein
 	var seat := world.get_camera_pose()
+	Music.play_main() # Hauptthema ab dem Menü (läuft im Spiel weiter)
 	# Easter Egg: Schnapsglas oft genug anklicken → austrinken
 	var egg := ShotGlassEgg.new()
 	world.add_child(egg)

@@ -23,6 +23,11 @@ var _single_light := false
 var _dim := 1.0
 var _dim_target := 1.0
 var _hover_area: Area3D
+## Kerzenton: blendet erst ein, wenn man eine Weile über den Flammen bleibt
+var _hovering := false
+var _hover_time := 0.0
+var _candle_sound: AudioStreamPlayer
+var _candle_level := 0.0 # 0..1
 
 
 func _init() -> void:
@@ -51,6 +56,7 @@ func _init() -> void:
 func _process(delta: float) -> void:
 	_t += delta
 	_dim = lerpf(_dim, _dim_target, minf(delta * 3.0, 1.0))
+	_update_candle_sound(delta)
 	for i in _candles.size():
 		var c: Dictionary = _candles[i]
 		var flame: MeshInstance3D = c.flame
@@ -99,17 +105,38 @@ func _add_hover_area() -> void:
 	_hover_area = Area3D.new()
 	_hover_area.input_ray_pickable = true
 	var shape := CollisionShape3D.new()
+	# nur die Kerzen selbst und knapp über den Flammen (nicht die ganze Schale)
 	var cyl := CylinderShape3D.new()
-	cyl.radius = 0.075
-	cyl.height = 0.16
+	cyl.radius = 0.052
+	cyl.height = 0.125
 	shape.shape = cyl
 	_hover_area.add_child(shape)
-	_hover_area.position = CANDLE_ORIGIN + Vector3(0, 0.08, 0)
+	_hover_area.position = CANDLE_ORIGIN + Vector3(0, 0.075, 0)
 	add_child(_hover_area)
 	_hover_area.mouse_entered.connect(func() -> void:
 		_dim_target = 0.35
-		Sfx.play(&"candle_flicker", randf_range(0.92, 1.08)))
-	_hover_area.mouse_exited.connect(func() -> void: _dim_target = 1.0)
+		_hovering = true)
+	_hover_area.mouse_exited.connect(func() -> void:
+		_dim_target = 1.0
+		_hovering = false)
+	_candle_sound = Sfx.make_loop(&"candle_loop")
+	add_child(_candle_sound)
+
+
+## Kurz drüberwischen bleibt (fast) still; wer verweilt, hört das Flackern langsam lauter werden.
+func _update_candle_sound(delta: float) -> void:
+	if _candle_sound == null:
+		return
+	_hover_time = _hover_time + delta if _hovering else 0.0
+	var target := clampf((_hover_time - 0.3) / 1.2, 0.0, 1.0) if _hovering else 0.0
+	var speed := 0.9 if target > _candle_level else 2.5
+	_candle_level = move_toward(_candle_level, target, delta * speed)
+	if _candle_level > 0.001:
+		if not _candle_sound.playing and DisplayServer.get_name() != "headless":
+			_candle_sound.play(randf() * 3.0)
+		_candle_sound.volume_db = float(Sfx.VOLUME[&"candle_loop"]) + linear_to_db(_candle_level)
+	elif _candle_sound.playing:
+		_candle_sound.stop()
 
 
 ## Ein Licht für den ganzen Kranz statt eines pro Kerze (vor oder nach set_lives aufrufen).

@@ -72,9 +72,7 @@ func _ready() -> void:
 		b.toggle_mode = true
 		b.custom_minimum_size = Vector2(128, 44)
 		var index := i
-		b.pressed.connect(func() -> void:
-			Sfx.play(&"ui_click")
-			_show_tab(index))
+		b.pressed.connect(func() -> void: _show_tab(index)) # Klickton kommt von UIKit.hover
 		UIKit.hover(b, 1.04)
 		row.add_child(b)
 		_tab_buttons.append(b)
@@ -82,9 +80,7 @@ func _ready() -> void:
 	back.text = "ZURÜCK"
 	back.theme_type_variation = &"PrimaryButton"
 	back.custom_minimum_size = Vector2(130, 44)
-	back.pressed.connect(func() -> void:
-		Sfx.play(&"ui_click", 0.85)
-		close())
+	back.pressed.connect(close)
 	UIKit.hover(back, 1.04)
 	row.add_child(back)
 

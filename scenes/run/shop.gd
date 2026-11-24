@@ -89,7 +89,7 @@ func _bought(btn: Button) -> void:
 	_update_header()
 	for w in _wares:
 		_apply_state(w)
-	Sfx.play(&"ui_click", 1.1)
+	Sfx.play(&"coins")
 	_render_owned()
 
 

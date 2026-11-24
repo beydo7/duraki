@@ -63,7 +63,7 @@ Dunkles Hinterzimmer, lila Nachtlicht, grüner Filz. **Kerzen = Leben** (erlösc
 ### UI-Stil „Plakat“ (aktuell, von Pascal gewählt)
 Russisches Konstruktivismus-Plakat, modern umgesetzt (Referenz-Gefühl: Balatro-Lesbarkeit,
 Persona-Dynamik). **Rot `#CE2628` / Schwarz `#120E0E` / Creme `#F0E4CC`**, Gold `#E8B446` als Akzent,
-Chips blau, Mult rot.
+Chips lila, Mult gold (bewusst nicht Balatro-Blau/Rot).
 - Schräge Flächen mit hartem Versatz-Schatten, keine runden „Web“-Panels.
 - Alle Texte auf Deutsch, **keine kyrillischen Zeilen mehr** (auf Leons Wunsch entfernt).
 - Schriften: **Russo One** (Titel, Zahlen), **Oswald** (Text, variable Stärke) – beide OFL.
@@ -157,22 +157,30 @@ Alle Effekte sind synthetisch erzeugt: `python tools/generate_sfx.py` → `asset
 Abspielen über Autoload `Sfx` (`Sfx.play(&"card_hover", pitch, db)`, Bus „SFX“). Vorhanden: Intro (passt
 zum Zeitplan in `studio_intro.gd`: Fallen, Aufprall, Ecken, HIT!, Glanz), Menükarten-Hover (Tonhöhe je
 Karte) und -Auswahl, Index-Hover und -Klick, Feuerzeug, Zug, Auspusten, Schnaps, Glas-Klirren,
-Flaschen-Klopfen, Einschenken, Kerzen-Flackern. Lautstärken zentral in `Sfx.VOLUME` (bewusst leise,
-Hover-Töne nur angedeutet). Musik fehlt noch.
+Flaschen-Klopfen, Einschenken, Kerzen-Flackern (als Schleife, blendet nur beim Verweilen ein),
+Karten im Duell (Austeilen, Legen, Nehmen, Fertig, Handkarten-Hover), Knöpfe, Münzen, Sieg/Niederlage.
+Lautstärken zentral in `Sfx.VOLUME` (bewusst leise, Hover-Töne nur angedeutet).
+**Musik**: Hauptthema `assets/music/main_theme.ogg` (≈ 2 min, D-Moll, 76 BPM, Balalaika-Zupfen,
+Celesta/Klarinette, nahtlose Schleife), erzeugt mit `python tools/generate_music.py`. Autoload `Music`
+startet es im Hauptmenü und lässt es weiterlaufen. Musik-Lautstärke Standard 20 % (`Settings.AUDIO_VERSION`
+setzt ältere Einstellungsdateien einmalig darauf).
 
 ### Index & Kleinigkeiten
 - **Index** (Hauptmenü-Karte ★ INDEX, `ui/index_menu.gd`): alle 36 Karten (Normal/Gold/Glas/Glück
   umschaltbar), alle Relikte, alle Boni, Items als Platzhalter – alles sofort sichtbar (zum Testen).
 - **Easter Egg Schnapsglas** (`scenes/menu/shot_glass.gd`): im Hauptmenü 5× aufs Glas klicken
-  (Ton wird höher) → austrinken, danach schwankt die Kamera, die Gestalt lacht. Leeres Glas klirrt
-  immer gleich. 5× auf die Whiskeyflasche klicken → sie schenkt nach, dann geht es von vorn.
+  (Ton wird höher) → austrinken (Glas und Kopf kippen gemeinsam), danach schwankt die Kamera, die
+  Gestalt lacht. Leeres Glas klirrt immer gleich. 5× auf die Whiskeyflasche → sie kippt, erst dann läuft
+  der Strahl, und schenkt nach. Reicht für 6 Gläser, dann ist die Flasche leer (klingt hohl).
 - **Whiskeyflasche** (`scenes/match/whiskey_bottle.gd`, ersetzt die grüne Flasche überall): eckig,
-  Bernsteinglas mit Füllstand, erfundene Marke „Hinterzimmer Whiskey · seit 1926“.
-- **Aschenbecher** (`scenes/match/ashtray.gd`): hinten links einer als Deko (ersetzt das alte Modell),
+  Bernsteinglas mit Füllstand, erfundene Marke „Hinterzimmer Whiskey · seit 1926“, Etikett zur Kamera,
+  offen – der Verschluss steht daneben.
+- **Aschenbecher** (`scenes/match/ashtray.gd`): hinten links der des Gegners (Filter zeigt zu ihm, Deko),
   im Duell zusätzlich dein eigener vorne links neben den Kerzen. Klick = anzünden, dann 5 Züge
-  (Zigarette zum Mund, brennt ab, Rauchwolke), danach qualmt der Stummel 12 s und geht aus.
+  (Zigarette zum Mund, brennt ab, Rauchwolke), danach qualmt der Stummel in der Kerbe 12 s und geht aus.
   Rauch aus Sprites (CPU-Partikel sind im Compatibility-Renderer unzuverlässig).
-- **Kerzen**: Maus über dem Kranz → Flammen und Licht werden dunkler, leises Flackern.
+- **Kerzen**: Maus über den Kerzen/Flammen → Flammen und Licht werden dunkler; das Flackern ist erst
+  nach kurzem Verweilen zu hören und wird langsam lauter.
 - **Händler** ohne Einblend-/Schwebe-Animationen; Waren werden nur beim Drüberfahren etwas größer.
 - Nach erfolgreicher Verteidigung bleiben die Karten 1,5 s liegen, der Gegner wartet, bis abgeräumt ist.
 

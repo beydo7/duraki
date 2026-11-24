@@ -61,6 +61,7 @@ func _ready() -> void:
 	score.suit_chip_bonus = Run.suit_chip_bonus
 	score.trump_mult_bonus = Run.trump_mult_bonus
 	score.gold_found.connect(func(amount: int, source: String) -> void:
+		Sfx.play(&"coins")
 		Run.add_gold(amount)
 		world.props.set_gold(Run.gold)
 		hud.toast("%s: +%d Gold" % [source, amount], MatchHUD.COLOR_GOLD))

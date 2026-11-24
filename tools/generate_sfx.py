@@ -17,11 +17,17 @@ Ausgabe in assets/sfx/ (16 Bit, mono, 44,1 kHz):
   exhale.wav       Rauch auspusten (gespitzte Lippen, weich)
   gulp.wav         Schnaps trinken (Schluck + Glas abstellen)
   candle_flicker.wav  Kerzen flackern (weiches Flattern, feines Knistern)
+  candle_loop.wav  dasselbe als nahtlose Schleife (blendet im Spiel beim Verweilen ein)
   clink.wav        Fingernagel ans Schnapsglas
   bottle_knock.wav Klopfen an die Whiskeyflasche
   pour.wav         Whiskey einschenken (Gluckern)
-  index_hover.wav  ganz leiser, heller Tick (Karten im Index/Händler)
   ui_click.wav     weicher Klick (Reiter, Kartenarten)
+  index_hover.wav  Karte kurz angehoben (Papier, Index/Händler)
+  card_hand_hover.wav  Handkarte unter der Maus (noch leiser, kürzer)
+  card_deal.wav / card_play.wav / card_take.wav / cards_discard.wav  Austeilen, Legen, Aufnehmen, Fertig
+  coins.wav        Münzen (Kaufen, Gold)
+  win.wav / lose.wav  Tisch gewonnen / verloren
+  button.wav       Knöpfe (Nehmen, Fertig, Weiter …)
 
 Die Lautstärke im Spiel regelt Sfx.VOLUME (scripts/autoload/sfx.gd).
 """
@@ -273,6 +279,25 @@ def candle_flicker():
     save("candle_flicker.wav", (flap * 1.2 + crack * 0.35) * shape, peak=0.45)
 
 
+def candle_loop():
+    """Nahtlose Schleife: Flattern + Knistern, Anfang und Ende überblendet."""
+    dur = 4.0
+    n = int(dur * SR)
+    fade = int(0.5 * SR)
+    r = np.random.RandomState(12)
+    total = n + fade
+    wob = np.interp(np.arange(total), np.linspace(0, total, 40), r.uniform(0.3, 1.0, 40))
+    wob *= 0.8 + 0.2 * np.sin(2 * np.pi * 9 * np.arange(total) / SR)
+    flap = lowpass(rng.uniform(-1, 1, total), 380) * wob
+    for _ in range(26):
+        i = r.randint(0, total - 300)
+        flap[i:i + 260] += highpass(noise(260 / SR), 2500) * env(260, 0.0002, 0.002) * r.uniform(0.15, 0.45)
+    out = flap[:n].copy()
+    ramp = np.linspace(0, 1, fade)
+    out[:fade] = flap[:fade] * ramp + flap[n:n + fade] * (1 - ramp)
+    save("candle_loop.wav", out, peak=0.45)
+
+
 def bottle_knock():
     dur = 0.4
     buf = np.zeros(int(dur * SR))
@@ -300,13 +325,97 @@ def pour():
     save("pour.wav", reverb(buf, 0.2, 0.1), peak=0.6)
 
 
+def card_slide(dur=0.09, lo=1200, hi=6500, tap=True):
+    """Karte gleitet über Karte/Filz: kurzes Papier-Rauschen mit weichem Anfang, dazu ein Tipp."""
+    n = int(dur * SR)
+    x = bandpass(noise(dur), lo, hi) * np.sin(np.linspace(0, np.pi, n)) ** 1.6
+    if tap:
+        t_n = int(0.02 * SR)
+        x[:t_n] += lowpass(noise(0.02), 1800) * env(t_n, 0.0005, 0.004) * 0.8
+    return x
+
+
 def index_hover():
-    dur = 0.12
-    buf = np.zeros(int(dur * SR))
-    place(buf, bandpass(noise(0.03), 3000, 9000) * env(int(0.03 * SR), 0.001, 0.006), 0.0, 0.25)
-    place(buf, chime(1976, 0.1), 0.002, 0.35)
-    place(buf, chime(2637, 0.08), 0.004, 0.12)
-    save("index_hover.wav", buf, peak=0.5)
+    """Karte kurz angehoben: Papierrascheln, kein Metall."""
+    save("index_hover.wav", card_slide(0.08, 1500, 7000), peak=0.5)
+
+
+def card_hand_hover():
+    """Handkarte unter der Maus: noch weicher und kürzer."""
+    save("card_hand_hover.wav", card_slide(0.06, 1200, 5500, tap=False), peak=0.45)
+
+
+def card_deal():
+    """Karte wird ausgeteilt: schneller Schnipp + Gleiten."""
+    buf = np.zeros(int(0.16 * SR))
+    place(buf, highpass(noise(0.012), 2500) * env(int(0.012 * SR), 0.0003, 0.003), 0.0, 0.6)
+    place(buf, card_slide(0.11, 900, 6000, tap=False), 0.008, 0.7)
+    save("card_deal.wav", buf, peak=0.6)
+
+
+def card_play():
+    """Karte landet auf dem Filz: dumpfer Klatsch."""
+    buf = np.zeros(int(0.22 * SR))
+    place(buf, card_slide(0.05, 1500, 7000, tap=False), 0.0, 0.4)
+    slap = lowpass(noise(0.08), 1400) * env(int(0.08 * SR), 0.0006, 0.018)
+    place(buf, slap, 0.03, 1.0)
+    place(buf, sine(np.geomspace(180, 90, int(0.1 * SR)), 0.1) * env(int(0.1 * SR), 0.001, 0.03), 0.03, 0.5)
+    save("card_play.wav", reverb(buf, 0.2, 0.08), peak=0.6)
+
+
+def card_take():
+    """Karten aufnehmen: mehrere Karten werden zusammengeschoben."""
+    buf = np.zeros(int(0.5 * SR))
+    for i in range(4):
+        place(buf, card_slide(0.09, 900, 5000, tap=False), i * 0.055, 0.6 - i * 0.08)
+    save("card_take.wav", buf, peak=0.55)
+
+
+def cards_discard():
+    """Fertig: Karten werden abgeräumt – Wischen + leises Aufsetzen."""
+    buf = np.zeros(int(0.6 * SR))
+    place(buf, card_slide(0.25, 700, 4500, tap=False), 0.0, 0.7)
+    place(buf, card_slide(0.2, 1000, 5000, tap=False), 0.08, 0.5)
+    place(buf, lowpass(noise(0.05), 900) * env(int(0.05 * SR), 0.001, 0.015), 0.3, 0.5)
+    save("cards_discard.wav", buf, peak=0.55)
+
+
+def coins():
+    """Münzen klimpern (Kaufen, Gold bekommen)."""
+    buf = np.zeros(int(0.7 * SR))
+    r = np.random.RandomState(9)
+    for i in range(6):
+        f = r.uniform(2600, 4200)
+        at, g = i * r.uniform(0.04, 0.07), r.uniform(0.3, 0.6)
+        place(buf, chime(f, 0.3), at, g * 0.7)
+        place(buf, chime(f * 1.37, 0.2), at, g * 0.3)
+    save("coins.wav", reverb(buf, 0.2, 0.1), peak=0.5)
+
+
+def win_sting():
+    """Tisch gewonnen: kurzes, warmes Aufatmen (Moll → Dur)."""
+    buf = np.zeros(int(1.8 * SR))
+    for i, f in enumerate((293.7, 349.2, 440.0, 587.3)):
+        place(buf, chime(f, 1.4), i * 0.09, 0.24)
+        place(buf, sine(f / 2, 1.2) * env(int(1.2 * SR), 0.05, 0.5), i * 0.09, 0.12)
+    place(buf, chime(739.99, 1.2), 0.42, 0.25)
+    save("win.wav", reverb(buf, 0.5, 0.25), peak=0.6)
+
+
+def lose_sting():
+    """Duell verloren: tiefer, absteigender Ton."""
+    buf = np.zeros(int(1.8 * SR))
+    tone = sine(np.geomspace(220, 110, int(1.5 * SR)), 1.5) * env(int(1.5 * SR), 0.02, 0.6)
+    place(buf, lowpass(tone + 0.4 * sine(np.geomspace(330, 155, int(1.5 * SR)), 1.5) * env(int(1.5 * SR), 0.02, 0.5), 1500), 0.0, 0.6)
+    save("lose.wav", reverb(buf, 0.5, 0.25), peak=0.55)
+
+
+def button():
+    """Knopf im HUD/Menü: weicher Holzklick."""
+    buf = np.zeros(int(0.12 * SR))
+    place(buf, clack(1100, 0.05), 0.0, 0.5)
+    place(buf, lowpass(noise(0.02), 2000) * env(int(0.02 * SR), 0.0005, 0.004), 0.0, 0.3)
+    save("button.wav", buf, peak=0.5)
 
 
 def ui_click():
@@ -341,6 +450,16 @@ def main():
     pour()
     index_hover()
     ui_click()
+    candle_loop()
+    card_hand_hover()
+    card_deal()
+    card_play()
+    card_take()
+    cards_discard()
+    coins()
+    win_sting()
+    lose_sting()
+    button()
     print("Sounds erzeugt in", OUT)
 
 
