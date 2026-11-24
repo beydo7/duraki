@@ -87,8 +87,10 @@ Ein Run = 3 normale Gegner + Boss, 3 Leben (Kerzen). Wer verliert, ist der Durak
 - **Abzeichen** (`Profile.badges`): pro Deck drei Plätze Leicht/Normal/Schwer im Deck-Menü; ein Run-Sieg
   mit dem Deck auf der Stufe füllt den Platz.
 - Händler verkauft keine Boni mehr (die bringen die Decks mit), nur Karten, Relikte, Items.
-- Glaskarten wie bei Balatro: eigener heller grau-blauer Glasgrund mit Lichtbändern, dunkle Linien
-  (`glass_version` in `tools/generate_cards.py`).
+- Glaskarten wie bei Balatro: bläulicher, durchscheinender Glasgrund (Alpha ~0,65) mit Lichtbändern,
+  dunkle deckende Linien (`glass_version` in `tools/generate_cards.py`, Shader mit ALPHA).
+- Glückskarten: grün getönter Grund + Klee-Ecken (Variante A, von Leon gewählt, `LUCKY_STYLE`).
+- Index ohne Boni-Reiter (Boni gehören zu den Decks); Relikte/Items wachsen beim Drüberfahren.
 - Nachgeworfene Karte, die die Runde sofort beendet, landet erst sichtbar auf dem Tisch (`THROWN_PAUSE`).
 - Händler zeigt Relikte wie im Duell (freie Emojis, `UIKit.relic_icon`); Trumpf unten links mit dem
   Goldrahmen der Trumpfkarten.

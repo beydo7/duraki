@@ -220,7 +220,7 @@ func _card_offer(offer: Dictionary, deal: bool, delay: float) -> Control:
 	pic.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	if enh == Card.Enhancement.GLASS:
 		var under := ColorRect.new() # Glas auf dunklem Grund, wie im Spiel
-		under.color = Color(0.07, 0.08, 0.16)
+		under.color = Color(0.1, 0.16, 0.14)
 		under.position = pic.position + Vector2(4, 4)
 		under.size = CARD_SIZE - Vector2(8, 8)
 		under.rotation_degrees = -3.0

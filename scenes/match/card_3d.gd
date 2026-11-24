@@ -205,8 +205,9 @@ func _build() -> void:
 	var enh := card.enhancement if card != null else Card.Enhancement.NONE
 	var glass := enh == Card.Enhancement.GLASS
 	if glass:
-		var gm := _mat(Color(0.35, 0.5, 0.7), 0.05) # Glaskante, nicht durchsichtig (wirkte sonst weiß)
-		gm.metallic_specular = 1.0
+		var gm := _mat(Color(0.45, 0.62, 0.85, 0.35), 0.05) # Glaskörper durchscheinend bläulich
+		gm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		gm.metallic_specular = 0.8
 		body.material_override = gm
 	else:
 		body.material_override = _mat(COLOR_EDGE, 0.6)

@@ -74,10 +74,19 @@ static func relic_icon(emoji: String, box: float, font_size: int) -> Control:
 	for l: Label in [shadow, icon]:
 		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		l.size = Vector2(box, box)
 		l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		l.size = Vector2(box, box)
 		c.add_child(l)
-	shadow.position = Vector2(box, box) * 0.07
+	# immer mittig im Platz, auch wenn ein Container ihn größer macht
+	var fit := func() -> void:
+		var sz := c.size if c.size.x > 0.0 else Vector2(box, box)
+		icon.position = Vector2.ZERO
+		icon.size = sz
+		shadow.size = sz
+		shadow.position = Vector2(box, box) * 0.05
+		c.pivot_offset = sz * 0.5
+	c.resized.connect(fit)
+	fit.call()
 	return c
 
 

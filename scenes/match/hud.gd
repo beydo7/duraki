@@ -797,22 +797,24 @@ func add_known(card: Card) -> void:
 		add_child(_known)
 	if _known_cards.has(card):
 		return
-	var mini := PanelContainer.new()
-	var box := StyleBoxFlat.new()
-	box.bg_color = Color("1b1834")
-	box.border_color = Card3D.COLOR_TRUMP
-	box.set_border_width_all(2)
-	box.set_corner_radius_all(3)
-	box.shadow_color = Color(0, 0, 0, 0.6)
-	box.shadow_offset = Vector2(2, 3)
-	mini.add_theme_stylebox_override("panel", box)
+	# kleine Karte im Aussehen der echten Karte (Kartenbild), Größe wie bisher
+	var mini := TextureRect.new()
+	mini.texture = Card3D.face_texture(card)
+	mini.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	mini.stretch_mode = TextureRect.STRETCH_SCALE
 	mini.custom_minimum_size = Vector2(36, 50)
-	mini.tooltip_text = "Diese Karte hat er auf der Hand (Spiegel)."
+	mini.tooltip_text = "%s – diese Karte hat er auf der Hand (Spiegel)." % card
+	mini.mouse_filter = Control.MOUSE_FILTER_PASS
+	# Rang und Farbe groß drauf, damit man sie in der kleinen Größe lesen kann
 	var red := card.suit <= Card.Suit.DIAMONDS
-	var l := UIKit.poster_label(card.get_label(), UIKit.SYMBOL_FONT, 15, Color("e8685e") if red else Card3D.COLOR_TRUMP)
+	var l := UIKit.poster_label(card.get_label(), UIKit.SYMBOL_FONT, 15, Color("ff7a70") if red else Color("f3d58f"))
+	l.add_theme_color_override("font_outline_color", Color(0.04, 0.03, 0.08))
+	l.add_theme_constant_override("outline_size", 5)
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	mini.add_child(l)
+	l.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_known.add_child(mini)
 	_known_cards[card] = mini
 	mini.pivot_offset = Vector2(18, 25)

@@ -4,13 +4,12 @@ extends Control
 ## nie gesehen hat. Gedacht zum Kontrollieren und Testen beim Entwickeln.
 ##   KARTEN   alle 36 Karten, umschaltbar Normal / Gold / Glas / Glück (mit Effekt und Preis)
 ##   RELIKTE  alle Relikte aus data/relics/ mit Effekt
-##   BONI     alle Verbesserungen, die der Händler anbietet
 ##   ITEMS    Feuerzeug, Spiegel …
 ##     var menu := IndexMenu.new(); add_child(menu); menu.closed.connect(...)
 
 signal closed
 
-const TABS := ["KARTEN", "RELIKTE", "BONI", "ITEMS"]
+const TABS := ["KARTEN", "RELIKTE", "ITEMS"] # Boni stehen bei den Decks
 const CARD_SIZE := Vector2(80, 112)
 const ENH_COLORS := [UIKit.P_CREAM, UIKit.P_GOLD, Color(0.55, 0.82, 1.0), Color(0.42, 0.85, 0.5)]
 const ENH_LABELS := ["NORMAL", "GOLD", "GLAS", "GLÜCK"]
@@ -115,8 +114,7 @@ func _show_tab(index: int) -> void:
 	match index:
 		0: _content.add_child(_cards_tab())
 		1: _content.add_child(_relics_tab())
-		2: _content.add_child(_boni_tab())
-		3: _content.add_child(_items_tab())
+		2: _content.add_child(_items_tab())
 	_tab_buttons[index].grab_focus()
 
 
@@ -175,7 +173,7 @@ func _card_pic(c: Card) -> Control:
 		Card.RANK_NAMES[c.rank], Card.SUIT_SYMBOLS[c.suit], ScoreTracker.chip_value(c)]
 	if c.enhancement == Card.Enhancement.GLASS:
 		var felt := ColorRect.new() # Glas liegt auf dunklem Grund (wie im Spiel)
-		felt.color = Color(0.07, 0.08, 0.16)
+		felt.color = Color(0.1, 0.16, 0.14)
 		felt.size = CARD_SIZE
 		felt.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		holder.add_child(felt)
@@ -226,13 +224,6 @@ func _relic_details(r: RelicData) -> String:
 	return " · ".join(parts)
 
 
-func _boni_tab() -> Control:
-	var entries := []
-	for o in Run.upgrade_catalog():
-		entries.append([o.symbol, o.color, UIKit.P_CREAM, o.title, o.text, "Preis: %d G" % o.price])
-	return _medal_grid(entries, "Boni bringen die Decks mit (siehe DECKS). Sie gelten für den ganzen Run.")
-
-
 ## Raster aus Medaillons: [Symbol, Farbe, Ringfarbe, Name, Text, Zusatz]
 func _medal_grid(entries: Array, note: String) -> Control:
 	var box := VBoxContainer.new()
@@ -257,6 +248,11 @@ func _medal_grid(entries: Array, note: String) -> Control:
 			icon.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 			icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			cell.add_child(icon)
+			# Maus drüber: Symbol wird größer (wie im Duell)
+			cell.mouse_entered.connect(func() -> void:
+				icon.create_tween().tween_property(icon, "scale", Vector2.ONE * 1.25, 0.12).set_trans(Tween.TRANS_BACK))
+			cell.mouse_exited.connect(func() -> void:
+				icon.create_tween().tween_property(icon, "scale", Vector2.ONE, 0.12))
 		else:
 			var medal := Roundel.new()
 			medal.color = e[1]

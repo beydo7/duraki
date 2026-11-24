@@ -1,19 +1,17 @@
 shader_type spatial;
-render_mode blend_mix, cull_back;
+render_mode blend_mix, cull_back, depth_draw_always;
 
 #include "res://scenes/match/card_face.gdshaderinc"
 
-// Glaskarte: das Glasbild liegt auf dunklem Grund (wie in der Hand vor dunklem Hintergrund).
-// Vorher war sie fast ganz durchsichtig und wirkte auf dem hellen Filz einfach weiß.
-uniform vec3 base_color : source_color = vec3(0.07, 0.08, 0.16);
-
+// Glaskarte (Balatro-Stil): bläuliches, durchscheinendes Glas mit Lichtbändern; das
+// Bild bringt seine Durchsichtigkeit mit (Linien deckend, Glas ~2/3).
 void fragment() {
 	vec4 c = texture(tex, UV) * tint;
-	vec3 col = mix(base_color, c.rgb, c.a);
-	ALBEDO = col;
-	ROUGHNESS = 0.08;
-	SPECULAR = 0.9;
-	EMISSION = card_emission(col, UV, view_vec, TIME);
+	ALBEDO = c.rgb;
+	ALPHA = c.a;
+	ROUGHNESS = 0.06;
+	SPECULAR = 0.4; // weniger Glanz – sonst wirkt sie unter der Lampe weiß wie Metall
+	EMISSION = card_emission(c.rgb, UV, view_vec, TIME);
 	if (burn > 0.0) {
 		float edge = burn_mask(UV);
 		if (edge < 0.0) discard;

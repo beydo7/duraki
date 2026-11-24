@@ -622,25 +622,28 @@ def save(img, name):
 def glass_version(art, suit="s"):
     """Glaskarte wie bei Balatro: eigener heller, grau-blauer Glasgrund mit schrägen
     Lichtbändern; Linien und Symbole werden dunkel (Schiefer, bei Herz/Karo gedecktes Rot).
-    Undurchsichtig – auf dem Filz soll sie nicht weiß verschwinden."""
+    Bläulich und durchscheinend (Alpha ~0,67), Linien deckend."""
     w, h = W // S, H // S
     yy, xx = np.mgrid[0:h, 0:w].astype(np.float32)
     a = np.zeros((h, w, 4), np.float32)
-    a[..., :3] = (176, 190, 194)
-    a[..., 3] = 255
+    a[..., :3] = (62, 110, 178)   # bläuliches Glas
+    a[..., 3] = 165               # durchscheinend: der Filz schimmert durch
     # schräge helle Bänder (breit, schmal, breit) wie Lichtreflexe auf Glas
     for offset, width, strength in ((0.12, 0.09, 0.55), (0.36, 0.035, 0.45), (0.62, 0.11, 0.5), (0.9, 0.04, 0.4)):
         d = (xx / w * 0.9 + yy / h * 0.75) - offset * 1.65
         band = (np.abs(d) < width).astype(np.float32) * strength
-        a[..., :3] = a[..., :3] * (1 - band[..., None]) + np.array((228, 236, 238)) * band[..., None]
+        a[..., :3] = a[..., :3] * (1 - band[..., None]) + np.array((150, 196, 240)) * band[..., None]
+        a[..., 3] = np.maximum(a[..., 3], 170 + band * 120)
     # dunkler Rand und feine helle Innenkante
     edge = np.minimum.reduce([xx, yy, w - 1 - xx, h - 1 - yy])
-    a[..., :3] = np.where((edge < 0.018 * w)[..., None], np.array((70, 88, 92)), a[..., :3])
+    rim = edge < 0.018 * w
+    a[..., :3] = np.where(rim[..., None], np.array((48, 74, 104)), a[..., :3])
     inner = (edge >= 0.018 * w) & (edge < 0.026 * w)
-    a[..., :3] = np.where(inner[..., None], np.array((236, 242, 243)), a[..., :3])
+    a[..., :3] = np.where(inner[..., None], np.array((214, 234, 250)), a[..., :3])
+    a[..., 3] = np.where(rim | inner, 255, a[..., 3])
     glass = Image.fromarray(a.clip(0, 255).astype(np.uint8), "RGBA")
     small = np.array(art.resize((w, h), Image.LANCZOS)).astype(np.float32)
-    ink = np.array((150, 64, 66) if suit in ("h", "d") else (52, 70, 74), np.float32)
+    ink = np.array((150, 52, 62) if suit in ("h", "d") else (26, 44, 70), np.float32)
     lines = np.zeros_like(small)
     lines[..., :3] = ink
     # helle Linien (Gold, Koralle) voll dunkel, dunkle Flächen (z. B. Bildfelder) nur zart getönt
@@ -721,10 +724,38 @@ def clover(size, color, stem=True):
     return tile.resize((size, size), Image.LANCZOS)
 
 
-def lucky_version(bg, art):
+LUCKY_STYLE = "A"  # von Leon gewählt: grün getönter Grund
+
+
+def _green_tint(img, amount):
+    """Hintergrund Richtung Flaschengrün ziehen (amount 0..1)."""
+    a = np.array(img).astype(np.float32)
+    green = np.array((18, 62, 40), np.float32)
+    lum = a[..., :3].mean(axis=2, keepdims=True) / 40.0
+    a[..., :3] = a[..., :3] * (1 - amount) + green * np.clip(lum, 0.4, 1.6) * amount
+    return Image.fromarray(a.clip(0, 255).astype(np.uint8), "RGBA")
+
+
+def _green_lines(art, amount):
+    """Gold-Linien des Kartenbilds Richtung Grün verschieben (Symbole bleiben)."""
+    a = np.array(art).astype(np.float32)
+    r, g, b = a[..., 0], a[..., 1], a[..., 2]
+    goldish = (r > 150) & (g > 110) & (b < 140) & (np.abs(r - g) < 70)
+    target = np.array(CLOVER, np.float32)
+    a[goldish, :3] = a[goldish, :3] * (1 - amount) + target * amount
+    return Image.fromarray(a.clip(0, 255).astype(np.uint8), "RGBA")
+
+
+def lucky_version(bg, art, style=None):
     """Klee-Ecken: Kartenbild bleibt, Kleeblätter in den beiden freien Ecken,
-    grüne Innenlinie und kleine Kleeblätter oben/unten am Rahmen."""
+    grüne Innenlinie und kleine Kleeblätter oben/unten am Rahmen.
+    style A: grün getönter Grund · B: grüne Linien · C: beides, dezent."""
+    style = style or LUCKY_STYLE
+    if style in ("A", "C"):
+        bg = _green_tint(bg, 0.45 if style == "A" else 0.3)
     art = art.copy()
+    if style in ("B", "C"):
+        art = _green_lines(art, 0.75 if style == "B" else 0.5)
     big = clover(int(0.22 * W), CLOVER)
     put(art, big, (W - 0.13 * W, 0.16 * W))
     put(art, big, (0.13 * W, H - 0.16 * W), rotate=True)
