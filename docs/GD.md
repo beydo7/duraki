@@ -87,6 +87,11 @@ Chips blau, Mult rot.
   `show_banner`, `set_actions`, `ask_choice`, `close_choice`, `show_result`, sowie
   `take_button` / `pass_button` / `continue_button`.
 
+**Studio-Intro** (`scenes/intro/studio_intro.tscn`, Hauptszene): ~3 s, Logo „Hitbox Hooligans“ als
+Spielmodul – fällt, knallt auf (roter Plakat-Keil, Wackeln), Hitbox-Ecken schnappen zu, Stempel „HIT!“,
+„ПРЕДСТАВЛЯЕТ · PRÄSENTIERT“, dann Hauptmenü. Komplett im Code gezeichnet, jede Eingabe überspringt,
+headless (Tests) direkt ins Menü.
+
 Menüs (Hauptmenü in 3D mit Karten auf dem Tisch, Weg, Händler, Pause, Optionen, Decks, Run-Ende)
 nutzen dasselbe Theme; Hauptmenü, Weg und Händler haben den roten Keil hinter dem Titel.
 
