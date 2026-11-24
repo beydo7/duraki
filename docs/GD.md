@@ -19,7 +19,7 @@ Ein Run = 3 normale Gegner + Boss, 3 Leben (Kerzen). Wer verliert, ist der Durak
 
 - 36 Karten (6 bis Ass), Trumpf, 1 gegen 1, Hand 6.
 - Angreifen, Nachlegen (passende Ränge, auch mehrere auf einmal, nie mehr ungeschlagene Karten als
-  der Verteidiger auf der Hand hat, höchstens 6), Schlagen, Nehmen, Bito.
+  der Verteidiger auf der Hand hat, höchstens 6), Schlagen, Nehmen, Fertig (klassisch „Bito“).
 - **Schieben ist Grundregel:** solange noch nichts geschlagen ist, darf der Verteidiger eine Karte
   gleichen Rangs dazulegen und den Angriff weitergeben (nur wenn der andere genug Karten hat).
   Kann die Karte auch schlagen, fragt das Spiel „Schlagen oder Schieben?“.
@@ -34,7 +34,7 @@ Ein Run = 3 normale Gegner + Boss, 3 Leben (Kerzen). Wer verliert, ist der Durak
 `scripts/core/score_tracker.gd`
 - Jede eigene Karte bringt Chips (nach Rang), jede Verteidigung +1 Mult, jede nachgelegte
   Angriffskarte ab der zweiten +1 Mult, jeder gespielte Trumpf +1 Mult.
-- Rundenende: Bito/abgewehrter Angriff → Chips × Mult; Gegner muss nehmen → × 2 („Volltreffer“);
+- Rundenende: Fertig/abgewehrter Angriff → Chips × Mult; Gegner muss nehmen → × 2 („Volltreffer“);
   du musst nehmen → 0.
 - Ist der Gegner am Ende der Durak: +15 pro Karte auf seiner Hand.
 - Punkteziele: 300 / 380 / 450 / 550 (Boss), danach × 1,25. Ziel erreicht → Tisch gewonnen,
@@ -80,7 +80,7 @@ Chips blau, Mult rot.
 - rechts oben schwarzer Balken: Foto, „GEGNER“/„ENDGEGNER“ + Name, Tisch x/y, Handkarten
 - darunter Relikte als Briefmarken (Tooltip)
 - rechts unten Zug-Plakette (Farbe je Zustand: Angriff creme, Verteidigung rot, Warten schwarz,
-  Nachwerfen gold) mit Etikett „SCHIEBEN MÖGLICH“, darunter Knöpfe NEHMEN [E] / BITO [LEER]
+  Nachwerfen gold) mit Etikett „SCHIEBEN MÖGLICH“, darunter Knöpfe NEHMEN [E] / FERTIG [LEER]
 - Mitte: kurze Schrägbanner; Ergebnis als rotes (Sieg) bzw. schwarzes (Durak) Plakat
 - `match.gd` nutzt nur die öffentliche API: `setup`, `set_turn`, `set_danger`, `set_opponent_cards`,
   `set_thinking`, `say`, `set_run_info`, `set_bout`, `set_relics`, `set_score`, `bout_scored`, `toast`,
@@ -120,7 +120,8 @@ zwei Ebenen: Karten = Spielwelt, HUD = Plakat darüber.
 - **Goldkarte** „Blattgold“ (`assets/cards/gold/`): ganze Karte vergoldet mit Craquelé und Glanzband,
   Linien dunkel eingraviert, Herz/Karo tiefrot. Effekt: **+3 Gold**, wenn gespielt (Preis 6 G).
 - **Glückskarte** „Klee-Ecken“ (`assets/cards/lucky/`): normales Kartenbild, vierblättrige Kleeblätter
-  in den freien Ecken, grüne Innenlinie. Effekt: **+1 Gold**, wenn gespielt (Preis 4 G).
+  in den freien Ecken, grüne Innenlinie. Effekt: **1 zu 3 Chance auf +5 Mult** in dieser Runde,
+  also mehr Punkte (Preis 5 G).
 - **Glaskarte** (`assets/cards/glass/`): unverändert durchscheinend. Effekt: doppelte Chips (Preis 5 G).
 - Erzeugen: `python tools/generate_cards.py special` (nur Gold + Glück). `Card3D.face_texture()`
   wählt den Ordner nach `card.enhancement`.
@@ -136,7 +137,7 @@ zwei Ebenen: Karten = Spielwelt, HUD = Plakat darüber.
   Austeilen (Bogen, Drehung, Federn), Ausspielen (hoher Bogen, Wumms, Staubring, kurzes Wackeln
   der Kamera – bei Trumpf stärker mit Goldblitz), Schlagen (Angriffskarte wird geschubst),
   Schieben (Wirbel um die Hochachse + rote Tempo-Streifen im HUD), Nehmen (hoch und zurück in die
-  Hand), Bito (Stempel „BITO“ im HUD, Karten drehen sich zum Ablagestapel).
+  Hand), Fertig (Stempel „FERTIG“ im HUD, verteidigte Karten bleiben 1,5 s liegen, Karten drehen sich zum Ablagestapel).
 - Kamerawackeln nur, wenn „Kamera-Schwenk“ in den Optionen an ist; alle Zeiten folgen der
   Einstellung „Kartenanimationen“.
 - Prüfen: `tests/screenshot.tscn -- film` nimmt eine Bildfolge in Zeitlupe auf.
@@ -151,9 +152,27 @@ Porträts per `art/blender/render_portraits.py`.
 - Gegner halten die Karten als Fächer zwischen beiden Händen; Arme mit Ellbogen (Zwei-Knochen-IK
   in `opponent_figure.gd`). `OpponentData.eye_glow = false` bei Figuren mit echten Augen.
 
+### Sound
+Alle Effekte sind synthetisch erzeugt: `python tools/generate_sfx.py` → `assets/sfx/*.wav`.
+Abspielen über Autoload `Sfx` (`Sfx.play(&"card_hover", pitch, db)`, Bus „SFX“). Vorhanden: Intro (passt
+zum Zeitplan in `studio_intro.gd`: Fallen, Aufprall, Ecken, HIT!, Glanz), Menükarten-Hover (Tonhöhe je
+Karte) und -Auswahl, Feuerzeug, Zug, Ausatmen, Schnaps, Glas-Klirren, Kerzen dimmen. Musik fehlt noch.
+
+### Index & Kleinigkeiten
+- **Index** (Hauptmenü-Karte ★ INDEX, `ui/index_menu.gd`): alle 36 Karten (Normal/Gold/Glas/Glück
+  umschaltbar), alle Relikte, alle Boni, Items als Platzhalter – alles sofort sichtbar (zum Testen).
+- **Easter Egg Schnapsglas** (`scenes/menu/shot_glass.gd`): im Hauptmenü 5× aufs Glas klicken →
+  austrinken, danach schwankt die Kamera, die Gestalt lacht. Glas bleibt leer.
+- **Aschenbecher** (`scenes/match/ashtray.gd`, ersetzt das alte Modell überall): Messing mit Asche,
+  altem Stummel und Zigarette in der Kerbe. Im Duell: Klick = anzünden, dann 5 Züge (Zigarette zum
+  Mund, brennt ab, Rauchwolke), danach qualmt der Stummel 12 s in der Mulde und geht aus.
+  Rauch aus Sprites (CPU-Partikel sind im Compatibility-Renderer unzuverlässig).
+- **Kerzen**: Maus über dem Kranz → Flammen und Licht werden dunkler.
+- Nach erfolgreicher Verteidigung bleiben die Karten 1,5 s liegen, der Gegner wartet, bis abgeräumt ist.
+
 ## 6. Optionen
 Grafik (Anzeigemodus, Fenstergröße, VSync, FPS-Limit, Kantenglättung, Renderauflösung, Schatten,
-Glow, Helligkeit), Audio (Gesamt/Musik/Effekte, stumm im Hintergrund – Sounds fehlen noch),
+Glow, Helligkeit), Audio (Gesamt/Musik/Effekte, stumm im Hintergrund),
 Allgemein (Bedenkzeit der Gegner, Kartenanimationen, Meldungen, Kamera-Schwenk, UI-Größe).
 `user://settings.cfg`, Autoload `Settings`. Esc = Pause.
 
@@ -171,7 +190,7 @@ Allgemein (Bedenkzeit der Gegner, Kartenanimationen, Meldungen, Kamera-Schwenk, 
 2. Restliche Gegner in HD (Rezept `docs/CHARAKTERE.md`): als Nächstes Gaukler + Knochenmann,
    dann Hexe + Riese, danach die Krähe auf den neuen Stand bringen. Fertig: Bandit, Sumpfmann, Wölfin.
 3. Lila Lampen-Scheiben im Raum sind Platzhalter → echte Lampen.
-4. Sound & Musik (Busse „Music“ und „SFX“ existieren schon).
+4. Musik (Bus „Music“ existiert, Effekte siehe „Sound“) und Sounds für Karten im Duell.
 5. Die 3D-Menükarten im Hauptmenü an den Okkult-Gold-Stil der Karten anpassen.
 
 ## 9. Zusammenarbeit

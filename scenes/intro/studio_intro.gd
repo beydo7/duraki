@@ -43,6 +43,7 @@ var _slammed := false
 var _hit := false
 var _body: FontVariation
 var _body_bold: FontVariation
+var _sound: AudioStreamPlayer
 
 
 func _ready() -> void:
@@ -62,6 +63,8 @@ func _ready() -> void:
 	mat.shader.code = GRAIN_SHADER
 	grain.material = mat
 	add_child(grain)
+	# Ton läuft synchron zum Zeitplan (siehe tools/generate_sfx.py)
+	_sound = Sfx.play(&"intro")
 
 
 func _process(delta: float) -> void:
@@ -93,6 +96,8 @@ func _finish() -> void:
 	if _leaving:
 		return
 	_leaving = true
+	if _t < T_END:
+		Sfx.fade_out(_sound, 0.3) # übersprungen: Ton nicht mitten im Menü weiterlaufen lassen
 	Fade.change_scene(NEXT_SCENE)
 
 

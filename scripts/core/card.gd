@@ -20,7 +20,7 @@ const ENHANCEMENT_TEXT := [
 	"",
 	"+3 Gold, wenn du sie spielst.",
 	"Doppelte Chips, wenn du sie spielst.",
-	"+1 Gold, wenn du sie spielst.",
+	"1 zu 3: +5 Mult, wenn du sie spielst.",
 ]
 const ENHANCEMENT_TAGS := ["", "GOLD", "GLAS", "GLÜCK"]
 

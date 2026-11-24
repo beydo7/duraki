@@ -264,7 +264,7 @@ func finish_take() -> bool:
 func pass_bout() -> bool:
 	if not can_pass():
 		return false
-	message.emit("Bito – die Karten gehen weg.")
+	message.emit("Fertig – die Karten gehen weg.")
 	var cleared := table_cards()
 	discard_pile.append_array(cleared)
 	cards_discarded.emit(cleared.size())

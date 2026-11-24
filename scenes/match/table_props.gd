@@ -19,6 +19,10 @@ var _gold: StandardMaterial3D
 var _coin_mesh: CylinderMesh
 ## Nur ein gemeinsames Licht pro Kerzenkranz (spart Leistung, z. B. im Shop-Hintergrund)
 var _single_light := false
+## Maus über den Kerzen → sie werden dunkler (1 = normal, ~0.35 = gedimmt)
+var _dim := 1.0
+var _dim_target := 1.0
+var _hover_area: Area3D
 
 
 func _init() -> void:
@@ -46,6 +50,7 @@ func _init() -> void:
 
 func _process(delta: float) -> void:
 	_t += delta
+	_dim = lerpf(_dim, _dim_target, minf(delta * 3.0, 1.0))
 	for i in _candles.size():
 		var c: Dictionary = _candles[i]
 		var flame: MeshInstance3D = c.flame
@@ -56,13 +61,13 @@ func _process(delta: float) -> void:
 			light.visible = false
 			continue
 		var flicker := 0.82 + 0.1 * sin(_t * 11.0 + i * 2.3) + 0.08 * sin(_t * 23.0 + i)
-		flame.scale = Vector3(1.0, 0.9 + 0.2 * flicker, 1.0) * life
+		flame.scale = Vector3(1.0, 0.9 + 0.2 * flicker, 1.0) * life * lerpf(0.45, 1.0, _dim)
 		flame.position.x = sin(_t * 3.0 + i) * 0.0012
 		if _single_light:
 			light.visible = i == 0
-			light.light_energy = 0.32 * flicker * life * minf(_candles.size(), 4)
+			light.light_energy = 0.32 * flicker * life * minf(_candles.size(), 4) * lerpf(0.3, 1.0, _dim)
 		else:
-			light.light_energy = 0.32 * flicker * life
+			light.light_energy = 0.32 * flicker * life * lerpf(0.3, 1.0, _dim)
 
 
 ## Kerzen für die Leben aufstellen (einmal beim Aufbau).
@@ -84,6 +89,27 @@ func set_lives(count: int) -> void:
 		var r := 0.0 if count == 1 else 0.042
 		var pos := CANDLE_ORIGIN + Vector3(cos(a) * r, 0.008, sin(a) * r)
 		_candles.append(_candle(pos, 0.07 + 0.02 * ((i * 7) % 3) / 2.0))
+	_add_hover_area()
+
+
+## Fläche über dem Kerzenkranz: Maus drüber → Kerzen werden dunkler.
+func _add_hover_area() -> void:
+	if _hover_area != null:
+		return
+	_hover_area = Area3D.new()
+	_hover_area.input_ray_pickable = true
+	var shape := CollisionShape3D.new()
+	var cyl := CylinderShape3D.new()
+	cyl.radius = 0.075
+	cyl.height = 0.16
+	shape.shape = cyl
+	_hover_area.add_child(shape)
+	_hover_area.position = CANDLE_ORIGIN + Vector3(0, 0.08, 0)
+	add_child(_hover_area)
+	_hover_area.mouse_entered.connect(func() -> void:
+		_dim_target = 0.35
+		Sfx.play(&"candle_dim", 1.0, -8.0))
+	_hover_area.mouse_exited.connect(func() -> void: _dim_target = 1.0)
 
 
 ## Ein Licht für den ganzen Kranz statt eines pro Kerze (vor oder nach set_lives aufrufen).

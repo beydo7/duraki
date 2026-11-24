@@ -29,6 +29,8 @@ var score: ScoreTracker
 var world: TableWorld
 var _ai_pending := false
 var _thinking := false
+## Bis zu diesem Zeitpunkt (Sekunden) wartet der Gegner, damit man den Tisch noch sieht
+var _hold_until := 0.0
 var _think_style := 0
 var hud: MatchHUD
 var _was_my_turn := false
@@ -62,6 +64,8 @@ func _ready() -> void:
 		Run.add_gold(amount)
 		world.props.set_gold(Run.gold)
 		hud.toast("%s: +%d Gold" % [source, amount], MatchHUD.COLOR_GOLD))
+	score.lucky_hit.connect(func(extra: int) -> void:
+		hud.toast("Glück! +%d Mult" % extra, MatchHUD.COLOR_GOLD))
 	score.attach(duel) # vor den UI-Signalen verbinden, damit zuerst gewertet wird
 	score.changed.connect(_render_score)
 	score.bout_scored.connect(func(points: int, text: String) -> void: hud.bout_scored(points, text))
@@ -96,7 +100,10 @@ func _ready() -> void:
 		else:
 			world.figure.recoil()
 			hud.show_banner("WEITERGESCHOBEN"))
-	duel.cards_discarded.connect(func(_count: int) -> void: hud.stamp("BITO"))
+	duel.cards_discarded.connect(func(_count: int) -> void:
+		hud.stamp("FERTIG")
+		# verteidigte Karten bleiben liegen und werden dann abgeräumt; so lange wartet der Gegner
+		_hold_until = _now() + TableWorld.DISCARD_DELAY + 0.6)
 	duel.take_declared.connect(func(who: int) -> void:
 		if who == DurakMatch.OPPONENT and duel.taking:
 			hud.toast("%s nimmt – du darfst passende Karten nachwerfen." % opponent.display_name, MatchHUD.COLOR_GOLD))
@@ -174,6 +181,9 @@ func _run_ai_turn() -> void:
 	var wait := randf_range(delay.x, delay.y) * Settings.ai_delay_factor()
 	if duel.defender() == DurakMatch.OPPONENT:
 		wait = maxf(wait, 0.9) # Zeit, um noch Karten dazuzuwerfen
+	elif not duel.attack_cards.is_empty() and not duel.defense_cards.has(null):
+		wait = maxf(wait, 1.2) # du hast alles geschlagen: deine Karte erst mal liegen lassen
+	wait = maxf(wait, _hold_until - _now()) # Tisch wird noch abgeräumt
 	await get_tree().create_timer(wait, false).timeout
 	if _thinking:
 		_thinking = false
@@ -205,6 +215,10 @@ func _on_player_card(card: Card) -> void:
 	else:
 		# als Angreifer jederzeit (auch während der Gegner noch überlegt)
 		duel.attack(card)
+
+
+func _now() -> float:
+	return Time.get_ticks_msec() / 1000.0
 
 
 ## Der Gegner wirft manchmal direkt eine zweite (dritte …) Karte gleichen Rangs.
@@ -341,4 +355,4 @@ func _turn_info(my_turn: bool, defending: bool) -> Array:
 		return [MatchHUD.Turn.DEFEND, "VERTEIDIGE DICH", "Höher in gleicher Farbe oder Trumpf – sonst nehmen."]
 	if duel.attack_cards.is_empty():
 		return [MatchHUD.Turn.ATTACK, "DEIN ANGRIFF", "Lege eine Karte – gleiche Ränge auch mehrere."]
-	return [MatchHUD.Turn.ATTACK, "NACHLEGEN ODER BITO", "Passende Ränge nachlegen oder die Runde beenden."]
+	return [MatchHUD.Turn.ATTACK, "NACHLEGEN ODER FERTIG", "Passende Ränge nachlegen oder die Runde beenden."]

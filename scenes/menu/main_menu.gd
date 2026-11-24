@@ -31,15 +31,17 @@ func _ready() -> void:
 		["SPIELEN", "Neuer Run", "♠", Color("ecc87c"), _start_run],
 		["DECKS", "Karten wählen", "♥", Color("f2625c"), _open_decks],
 		["OPTIONEN", "Bild · Ton · Spiel", "♦", Color("f2625c"), _open_options],
+		["INDEX", "Alles im Spiel", "★", Color("ecc87c"), _open_index],
 		["BEENDEN", "Aufstehen und gehen", "♣", Color("ecc87c"), _quit],
 	]
 	for i in specs.size():
 		var s: Array = specs[i]
 		var card := MenuCard3D.new().setup(s[0], s[1], s[2], s[3])
-		var f := i - 1.5
-		var x := f * 0.19
+		var f := i - (specs.size() - 1) * 0.5
+		var x := f * 0.175
 		card.transform = Transform3D(Basis.from_euler(Vector3(0, -f * 0.09, 0)), Vector3(x, TableWorld.TABLE_Y + 0.002, CARD_Z + absf(f) * 0.03))
 		world.add_child(card)
+		card.chosen.connect(func() -> void: Sfx.play(&"card_select"))
 		card.chosen.connect(s[4])
 		card.hovered_changed.connect(func(c: MenuCard3D, on: bool) -> void:
 			if on:
@@ -53,6 +55,10 @@ func _ready() -> void:
 
 	# Auftritt: Kamera gleitet an den Tisch, Titel und Menü blenden ein
 	var seat := world.get_camera_pose()
+	# Easter Egg: Schnapsglas oft genug anklicken → austrinken
+	var egg := ShotGlassEgg.new()
+	world.add_child(egg)
+	egg.setup(world, func() -> Transform3D: return seat)
 	world.set_camera_pose(CAM_START)
 	var tw := create_tween()
 	tw.tween_method(func(v: float) -> void:
@@ -60,7 +66,7 @@ func _ready() -> void:
 		0.0, 1.0, 2.4).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	UIKit.appear(%TitleBlock, 0.5, Vector2(-30, 0), 0.8)
 	UIKit.appear(%Hint, 1.4, Vector2(0, 8), 0.6)
-	_focus(0)
+	_focus(0, true)
 
 
 func _process(delta: float) -> void:
@@ -70,9 +76,12 @@ func _process(delta: float) -> void:
 	%Title.self_modulate = Color(flicker, flicker, flicker)
 
 
-func _focus(index: int) -> void:
+func _focus(index: int, silent := false) -> void:
 	if index < 0 or index >= _cards.size():
 		return
+	if not silent and (index != _sel or not _cards[index].focused):
+		# leicht andere Tonhöhe je Karte, wie Töne auf einer Tonleiter
+		Sfx.play(&"card_hover", [0.94, 1.0, 1.06, 1.12, 1.19][index % 5], -3.0)
 	_sel = index
 	for i in _cards.size():
 		_cards[i].focused = i == index
@@ -87,6 +96,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event.is_action_pressed("ui_right") or event.is_action_pressed("ui_down"):
 		_focus(wrapi(_sel + 1, 0, _cards.size()))
 	elif event.is_action_pressed("ui_accept"):
+		Sfx.play(&"card_select")
 		_actions[_sel].call()
 	else:
 		return
@@ -120,6 +130,13 @@ func _open_decks() -> void:
 
 func _open_options() -> void:
 	var menu := OptionsMenu.new()
+	add_child(menu)
+	_sub_open = true
+	menu.closed.connect(func() -> void: _sub_open = false)
+
+
+func _open_index() -> void:
+	var menu := IndexMenu.new()
 	add_child(menu)
 	_sub_open = true
 	menu.closed.connect(func() -> void: _sub_open = false)

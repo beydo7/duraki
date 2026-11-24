@@ -34,7 +34,7 @@ const TABLE_FIELD_WIDTH := 0.96
 
 const TABLE_CARD_SCALE := 1.8
 const MOVE_TIME := 0.32
-const DISCARD_DELAY := 0.8
+const DISCARD_DELAY := 1.5
 const DEAL_STAGGER := 0.07
 const HOVER_LIFT := Vector3(0, 0.035, -0.02)
 
@@ -45,6 +45,8 @@ static var hand_layout := "fan"
 var camera: Camera3D
 var figure: OpponentFigure
 var props: TableProps
+## Aschenbecher mit Zigarette (im Duell anklickbar)
+var ashtray: Ashtray
 ## Kamera schwenkt leicht mit der Maus (aus im Menü-Hintergrund möglich).
 var sway_strength := 1.0
 
@@ -76,6 +78,9 @@ func _ready() -> void:
 func build_room(opponent: OpponentData, markings := true) -> void:
 	_build_environment()
 	_build_models()
+	ashtray = Ashtray.new()
+	add_child(ashtray)
+	ashtray.hide_model_parts(self)
 	if markings:
 		_build_markings()
 	_build_lights()
@@ -104,6 +109,7 @@ func _on_settings_changed() -> void:
 
 func build(opponent: OpponentData) -> void:
 	build_room(opponent)
+	ashtray.interactive = true
 	props = TableProps.new()
 	add_child(props)
 	_deck_pile = _pile_mesh()
@@ -216,7 +222,7 @@ func sync(duel: DurakMatch, playable: Array[Card]) -> void:
 	if new_count > 0:
 		_deal_queue_until = deal_start + new_count * DEAL_STAGGER
 
-	# Karten, die nirgends mehr sind → Ablagestapel (Bito: umdrehen, wegwirbeln)
+	# Karten, die nirgends mehr sind → Ablagestapel (Fertig: umdrehen, wegwirbeln)
 	var discard_i := 0
 	for card: Card in _cards.keys():
 		if targets.has(card):

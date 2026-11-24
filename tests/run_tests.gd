@@ -172,6 +172,7 @@ func test_enhancements() -> void:
 	gold_rng.seed = 11
 	gold_duel.start(gold_rng)
 	var gold_tracker := ScoreTracker.new(999)
+	gold_tracker.lucky_chance = 1.0 # Glück erzwingen
 	gold_tracker.attach(gold_duel)
 	var found_gold := []
 	gold_tracker.gold_found.connect(func(amount: int, _src: String) -> void: found_gold.append(amount))
@@ -183,7 +184,10 @@ func test_enhancements() -> void:
 	gold_duel.player_hand.assign([g1, g2, Card.new(Card.Suit.SPADES, 7)])
 	gold_duel.attack(g1)
 	gold_duel.attack(g2)
-	check(found_gold == [3, 1], "Goldkarte +3 Gold, Glückskarte +1 Gold (bekommen: %s)" % [found_gold])
+	check(found_gold == [3], "Goldkarte +3 Gold, Glückskarte kein Gold (bekommen: %s)" % [found_gold])
+	# Mult: Start 1, +1 fürs Nachlegen der zweiten 9, +5 Glück
+	check(gold_tracker.mult == 1 + 1 + ScoreTracker.LUCKY_MULT + (1 if g2.suit == gold_duel.trump_suit else 0) + (1 if g1.suit == gold_duel.trump_suit else 0),
+		"Glückskarte mit Glück: +5 Mult (Mult %d)" % gold_tracker.mult)
 	# Verbesserungen landen beim Mischen auf der richtigen Karte
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 5

@@ -9,6 +9,6 @@ id = &"zar"
 display_name = "Zaren-Deck"
 effect_text = "Trümpfe bringen +1 Mult."
 back = ExtResource("2_back")
-sort_order = 9
+sort_order = 10
 price_souls = 40
 trump_mult_bonus = 1

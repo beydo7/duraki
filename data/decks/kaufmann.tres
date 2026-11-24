@@ -9,6 +9,6 @@ id = &"kaufmann"
 display_name = "Kaufmanns-Deck"
 effect_text = "Zinsen bis +2 höher."
 back = ExtResource("2_back")
-sort_order = 10
+sort_order = 9
 price_souls = 25
 interest_max_bonus = 2

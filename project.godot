@@ -25,6 +25,7 @@ Profile="*res://scripts/autoload/profile.gd"
 Run="*res://scripts/autoload/run_state.gd"
 Pause="*res://scripts/autoload/pause_menu.gd"
 Fade="*res://scripts/autoload/fade.gd"
+Sfx="*res://scripts/autoload/sfx.gd"
 
 [display]
 

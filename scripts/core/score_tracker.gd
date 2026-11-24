@@ -19,8 +19,10 @@ extends RefCounted
 signal changed
 signal bout_scored(points: int, text: String)
 signal target_reached
-## Eine Glückskarte wurde gespielt.
+## Eine Goldkarte wurde gespielt.
 signal gold_found(amount: int, source: String)
+## Eine Glückskarte hat getroffen (Zufall): zusätzliches Mult für diese Runde.
+signal lucky_hit(extra_mult: int)
 
 const CHIP_VALUES := {
 	6: 6, 7: 7, 8: 8, 9: 9, 10: 10,
@@ -29,6 +31,9 @@ const CHIP_VALUES := {
 }
 const HIT_MULTIPLIER := 2
 const DURAK_BONUS_PER_CARD := 15
+## Glückskarte: Chance und Bonus
+const LUCKY_CHANCE := 1.0 / 3.0
+const LUCKY_MULT := 5
 
 var target := 0
 var total := 0
@@ -40,6 +45,9 @@ var last_text := ""
 var suit_chip_bonus := {}
 ## Zusätzliches Mult für jeden gespielten Trumpf.
 var trump_mult_bonus := 0
+## Zufall für Glückskarten (Tests setzen lucky_chance auf 0 oder 1)
+var rng := RandomNumberGenerator.new()
+var lucky_chance := LUCKY_CHANCE
 
 var _duel: DurakMatch
 var _me := DurakMatch.PLAYER
@@ -51,6 +59,7 @@ func _init(p_target: int, p_base_mult := 1) -> void:
 	target = p_target
 	base_mult = maxi(1, p_base_mult)
 	mult = base_mult
+	rng.randomize()
 
 
 func attach(duel: DurakMatch, me := DurakMatch.PLAYER) -> void:
@@ -95,7 +104,9 @@ func _on_card_played(who: int, card: Card, as_attack: bool) -> void:
 		Card.Enhancement.GOLD:
 			gold_found.emit(3, "Goldkarte")
 		Card.Enhancement.LUCKY:
-			gold_found.emit(1, "Glückskarte")
+			if rng.randf() < lucky_chance:
+				mult += LUCKY_MULT
+				lucky_hit.emit(LUCKY_MULT)
 	if as_attack:
 		if _duel.attack_cards.size() > 1:
 			mult += 1 # Nachlegen

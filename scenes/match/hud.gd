@@ -393,7 +393,7 @@ func _build_turn_and_actions() -> void:
 	_anchor(_actions, Vector2(1, 1), Vector2(-14 - 250, -18 - 112), Vector2(250, 112))
 	add_child(_actions)
 	take_button = _action_button("NEHMEN", "E", &"PrimaryButton")
-	pass_button = _action_button("BITO", "LEER", &"")
+	pass_button = _action_button("FERTIG", "LEER", &"")
 	_actions.add_child(take_button)
 	_actions.add_child(pass_button)
 	_refresh_padding(take_button)
@@ -740,7 +740,7 @@ func show_banner(text: String, color: Color = Color(1, 0.86, 0.5)) -> void:
 	tw.parallel().tween_property(_banner, "scale", Vector2(1.12, 0.8), 0.3)
 
 
-func set_actions(take_visible: bool, pass_visible: bool, pass_enabled: bool, pass_text := "BITO") -> void:
+func set_actions(take_visible: bool, pass_visible: bool, pass_enabled: bool, pass_text := "FERTIG") -> void:
 	_set_button(take_button, take_visible)
 	_set_button(pass_button, pass_visible)
 	pass_button.disabled = not pass_enabled
@@ -873,7 +873,7 @@ func speed_lines(up: bool) -> void:
 	tw.tween_callback(c.queue_free)
 
 
-## Roter Stempel über dem Spielfeld (z. B. „BITO“ beim Abwerfen).
+## Roter Stempel über dem Spielfeld (z. B. „FERTIG“ beim Abwerfen).
 func stamp(text: String, sub := "") -> void:
 	var s := _slab(Color(0, 0, 0, 0), [Vector2(0, 0.04), Vector2(1, 0), Vector2(0.99, 1), Vector2(0.01, 0.96)], 0.0, Vector4(26, 6, 26, 8))
 	s.outline_color = RED

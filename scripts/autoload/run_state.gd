@@ -253,7 +253,7 @@ func _card_offer() -> Dictionary:
 	var label := "%s%s" % [Card.RANK_NAMES[rank], Card.SUIT_SYMBOLS[suit]]
 	var colors := [Color.WHITE, Color(0.78, 0.58, 0.1), Color(0.25, 0.55, 0.8), Color(0.2, 0.6, 0.3)]
 	var key := "%d:%d" % [suit, rank]
-	var prices := [0, 6, 5, 4] # Gold (+3 Gold), Glas (doppelte Chips), Glück (+1 Gold)
+	var prices := [0, 6, 5, 5] # Gold (+3 Gold), Glas (doppelte Chips), Glück (1 zu 3: +5 Mult)
 	var offer := _offer("KARTE", "%s %s" % [Card.ENHANCEMENT_NAMES[enh], label], Card.ENHANCEMENT_TEXT[enh],
 		prices[enh], label, colors[enh], func() -> void: card_enhancements[key] = enh)
 	# für die Anzeige im Shop (echtes Kartenbild)
@@ -261,6 +261,19 @@ func _card_offer() -> Dictionary:
 	offer.rank = rank
 	offer.enhancement = enh
 	return offer
+
+
+## Alle Relikte (für den Index).
+func all_relics() -> Array[RelicData]:
+	var list: Array[RelicData] = []
+	for r in _load_all(RELIC_DIR):
+		list.append(r as RelicData)
+	return list
+
+
+## Alle Boni, die der Händler anbieten kann (für den Index; Kaufen wirkt hier nicht).
+func upgrade_catalog() -> Array[Dictionary]:
+	return _upgrade_pool()
 
 
 func _upgrade_pool() -> Array[Dictionary]:
