@@ -102,7 +102,7 @@ func _ready() -> void:
 			if attack:
 				_maybe_throw_more())
 	duel.cards_taken.connect(func(who: int, count: int) -> void:
-		_hold_until = maxf(_hold_until, _now() + 1.4) # aufnehmen, dann nachziehen
+		_hold_until = maxf(_hold_until, _now() + 2.4) # nachgeworfene Karte zeigen, aufnehmen, dann nachziehen
 		if who == DurakMatch.OPPONENT:
 			world.figure.recoil()
 			_maybe_say(LINES_TAKES, 0.45)
@@ -397,6 +397,12 @@ func _use_item(i: int) -> void:
 				if duel.opponent_hand.has(card):
 					world.revealed[card] = true
 					hud.toast("Spiegel: %s hat %s auf der Hand." % [opponent.display_name, card], MatchHUD.COLOR_GOLD)
+					_render()
+					# kurz zeigen, dann dreht er sie wieder um – klein über ihm bleibt sie sichtbar
+					await get_tree().create_timer(2.6, false).timeout
+					world.revealed.erase(card)
+					if duel.opponent_hand.has(card):
+						hud.add_known(card)
 					_render())
 
 
@@ -413,7 +419,35 @@ func _input(event: InputEvent) -> void:
 		_cancel_burn()
 
 
+var _dev: DevMenu
+
+
+## Entwicklermenü (F8): Karten, Items, Relikte zum Testen. Gegner wartet so lange.
+func _open_dev_menu() -> void:
+	if _dev != null:
+		return
+	_dev = DevMenu.new()
+	_dev.match_node = self
+	add_child(_dev)
+	var was_held := coach_hold
+	coach_hold = true
+	_dev.closed.connect(func() -> void:
+		_dev = null
+		coach_hold = was_held
+		refresh_after_dev())
+
+
+func refresh_after_dev() -> void:
+	hud.set_relics(Run.relics, Run.items)
+	world.props.set_gold(Run.gold)
+	_render()
+
+
 func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_F8 and duel != null:
+		get_viewport().set_input_as_handled()
+		_open_dev_menu()
+		return
 	if not (event is InputEventKey and event.pressed and not event.echo) or duel == null or duel.is_over:
 		return
 	var key := (event as InputEventKey).keycode
@@ -448,6 +482,10 @@ func _render() -> void:
 			_burning = -1 # Ziel ist weg (Runde vorbei): Feuerzeug bleibt erhalten
 	_playable = playable
 	world.sync(duel, playable)
+	world.set_burn_targets(playable if _burning >= 0 else [])
+	for k: Card in hud.known_cards():
+		if not duel.opponent_hand.has(k):
+			hud.remove_known(k) # gespielt: kleine Karte über ihm platzt weg
 
 	if duel.taking:
 		hud.set_actions(false, not defending, not defending, "FERTIG")

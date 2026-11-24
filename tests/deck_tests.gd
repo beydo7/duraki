@@ -74,5 +74,11 @@ func _ready() -> void:
 	check(is_equal_approx(Run.souls_factor(), 1.5), "Ohne Hinweise: Seelen ×1,5")
 	check(Profile.on_run_finished(false, 2, Run.souls_factor()) == 9, "2 Tische ohne Hinweise = 9 Seelen")
 	Settings._values["general/hints"] = true
+	# Abzeichen
+	check(not Profile.has_badge(&"crow", 2), "noch kein Abzeichen")
+	Profile.on_run_finished(true, 4, 1.0, &"crow", 2)
+	check(Profile.has_badge(&"crow", 2) and not Profile.has_badge(&"crow", 1), "Sieg auf Schwer → Abzeichen Schwer")
+	Profile.on_run_finished(false, 2, 1.0, &"crow", 1)
+	check(not Profile.has_badge(&"crow", 1), "Niederlage gibt kein Abzeichen")
 	print("\n%d Checks, %d Fehler" % [_checks, _fail])
 	get_tree().quit(1 if _fail > 0 else 0)

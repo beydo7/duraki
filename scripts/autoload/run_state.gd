@@ -285,10 +285,7 @@ func make_shop_offers() -> Array[Dictionary]:
 		var io := _offer("ITEM", it.name, it.text, it.price, it.emoji, Color.BLACK, func() -> void: add_item(id))
 		io.emoji = true
 		offers.append(io)
-	var upgrades := _upgrade_pool()
-	_shuffle(upgrades)
-	for u in upgrades.slice(0, 2):
-		offers.append(u)
+	# Boni (Farb-Schliff, Trumpf-Kenner …) gibt es nicht mehr beim Händler – die bringen die Decks mit
 	return offers
 
 
@@ -418,7 +415,8 @@ func abandon() -> void:
 
 func _end_run(won: bool) -> void:
 	won_run = won
-	last_souls = Profile.on_run_finished(won, mini(floor_index, encounters.size()), souls_factor())
+	last_souls = Profile.on_run_finished(won, mini(floor_index, encounters.size()), souls_factor(),
+		deck.id if deck != null else Profile.DEFAULT_DECK, difficulty)
 	changed.emit()
 	goto(SCENE_RUN_END)
 

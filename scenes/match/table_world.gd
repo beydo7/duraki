@@ -26,6 +26,10 @@ const NO_SHADOW := ["Gluehbirne", "Lampenschirm", "Lampenschirm_Innen", "Lampenf
 const TABLE_Y := 0.80
 const TABLE_SIZE := Vector2(1.6, 1.2) # x, z
 
+## so lange bleibt eine nachgeworfene Karte liegen, bevor alles aufgenommen wird
+const THROWN_PAUSE := 0.9
+## Flugzeit des Spiegels hinter dem Gegner (langsam, damit man ihn sieht)
+const MIRROR_TIME := 4.2
 const DECK_POS := Vector3(-0.60, TABLE_Y, -0.10)
 const DISCARD_POS := Vector3(0.62, TABLE_Y, -0.12)
 const PLAYER_HAND_POS := Vector3(0.0, 1.0, 0.5)
@@ -226,6 +230,17 @@ func sync(duel: DurakMatch, playable: Array[Card]) -> void:
 			break
 	var new_count := 0
 	var take_i := 0
+	# Nachgeworfene Karte, die die Runde sofort beendet (Gegner nimmt alles): direkt von einer
+	# Hand in die andere. Sie soll erst sichtbar auf dem Tisch landen, dann wird alles genommen.
+	var thrown: Array[Card] = []
+	for c: Card in targets:
+		var pz: String = _zone.get(c, "")
+		var nz: String = targets[c][2]
+		if pz in ["hand", "opp"] and nz in ["hand", "opp"] and pz != nz:
+			thrown.append(c)
+	var take_wait := (MOVE_TIME + THROWN_PAUSE) if not thrown.is_empty() else 0.0
+	if take_wait > 0.0:
+		deal_start = maxf(deal_start, now + take_wait + 0.9)
 
 	for card: Card in targets:
 		var xf: Transform3D = targets[card][0]
@@ -254,8 +269,24 @@ func sync(duel: DurakMatch, playable: Array[Card]) -> void:
 			style = "whirl" if card == _transfer_card else "play"
 		elif prev in ["table_a", "table_d"] and zone in ["hand", "opp"]:
 			style = "take"
-			delay = take_i * 0.06
+			delay = take_wait + take_i * 0.06
 			take_i += 1
+		elif thrown.has(card):
+			_zone[card] = zone
+			node.in_hand = zone == "hand"
+			node.set_state(false)
+			_base[node] = xf
+			var slot := _last_attacks.size() + thrown.find(card)
+			var txf := _table_xf(slot, _last_attacks.size() + thrown.size(), false, card)
+			var tw0 := _move(node, txf, 0.0, MOVE_TIME, "play")
+			var final_xf := xf
+			var i_take := take_i
+			take_i += 1
+			tw0.finished.connect(func() -> void:
+				_on_landed(node, "play", card.suit == duel.trump_suit, null)
+				if is_instance_valid(node) and _cards.get(card) == node:
+					_move(node, final_xf, THROWN_PAUSE + i_take * 0.06, MOVE_TIME, "take"))
+			continue
 		elif prev == "trump" and zone in ["hand", "opp"]:
 			style = "deal"
 		_zone[card] = zone
@@ -411,6 +442,12 @@ func _impact(pos: Vector3, strong: bool) -> void:
 
 # --- Items ------------------------------------------------------------------------------
 
+## Feuerzeug gezückt: diese Gegnerkarten bekommen einen leuchtenden Rahmen (leer = aus).
+func set_burn_targets(cards: Array) -> void:
+	for c: Card in _cards:
+		(_cards[c] as Card3D).set_target(cards.has(c))
+
+
 ## Feuerzeug: Karte auf dem Tisch verbrennt (Flammen, Glut, Knistern) und löst sich auf.
 ## Vor dem nächsten sync aufrufen – die Karte wird nicht mehr abgeräumt.
 func burn(card: Card) -> void:
@@ -521,7 +558,7 @@ func mirror_flight(on_reveal: Callable) -> void:
 			on_reveal.call()
 		glow.light_energy = move_toward(glow.light_energy, 0.4, 0.08)
 		glass_mat.emission_energy_multiplier = move_toward(glass_mat.emission_energy_multiplier, 0.25, 0.1),
-		0.0, 1.0, 2.6).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+		0.0, 1.0, MIRROR_TIME).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	tw.tween_callback(mirror.queue_free)
 
 
@@ -805,7 +842,7 @@ func _pile_mesh() -> MeshInstance3D:
 	# Pivot unten: Mesh um halbe Dicke anheben
 	var top := MeshInstance3D.new()
 	var quad := QuadMesh.new()
-	quad.size = Vector2(Card3D.WIDTH - 0.012, Card3D.HEIGHT - 0.012)
+	quad.size = Vector2(Card3D.WIDTH - 0.001, Card3D.HEIGHT - 0.001) # Rückseite deckt den ganzen Stapel
 	top.mesh = quad
 	var back := _mat(Color.WHITE, 0.7)
 	back.albedo_texture = Card3D.back_texture()

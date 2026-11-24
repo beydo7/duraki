@@ -285,10 +285,10 @@ func _relic_offer(offer: Dictionary, deal: bool, delay: float) -> Control:
 
 func _relic_texts(parts: Array, offer: Dictionary, is_relic: bool) -> Control:
 	var box: VBoxContainer = parts[2]
-	var kind_text := "RELIKT" if is_relic else ("ITEM" if offer.kind == "ITEM" else "BONUS")
-	var kind := _label(kind_text, 10, UIKit.P_GOLD if is_relic else Color(1, 0.8, 0.76), false)
-	kind.add_theme_font_override("font", UIKit.body_font(700, 3))
-	box.add_child(kind)
+	if offer.kind == "BONUS":
+		var kind := _label("BONUS", 10, Color(1, 0.8, 0.76), false)
+		kind.add_theme_font_override("font", UIKit.body_font(700, 3))
+		box.add_child(kind)
 	box.add_child(_label(offer.title, 14, UIKit.P_CREAM, true))
 	var text := _label(offer.text, 12, Color(UIKit.P_CREAM, 0.72), false)
 	text.size_flags_vertical = Control.SIZE_EXPAND_FILL

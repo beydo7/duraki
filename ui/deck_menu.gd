@@ -18,6 +18,7 @@ var _current: DeckData
 ## Angeklicktes Deck bleibt in der Anzeige stehen (Drüberfahren ändert dann nichts mehr)
 var _locked: DeckData
 var _panel: PanelContainer
+var _badges: HBoxContainer
 
 
 func _ready() -> void:
@@ -72,6 +73,13 @@ func _ready() -> void:
 	detail.add_child(_detail_text)
 	_detail_unlock = _l("", &"InkType", 15, true)
 	detail.add_child(_detail_unlock)
+	# Abzeichen: je Schwierigkeit eins, wenn man mit diesem Deck einen Run gewonnen hat
+	var badge_head := _l("ABZEICHEN", &"InkLabel", 13)
+	badge_head.add_theme_color_override("font_color", UIKit.INK_SOFT)
+	detail.add_child(badge_head)
+	_badges = HBoxContainer.new()
+	_badges.add_theme_constant_override("separation", 12)
+	detail.add_child(_badges)
 	var spacer := Control.new()
 	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	detail.add_child(spacer)
@@ -167,6 +175,7 @@ func _show(d: DeckData) -> void:
 	_detail_text.text = d.effect_text if not d.effect_text.is_empty() else "Keine Besonderheiten."
 	_detail_unlock.text = "Freigeschaltet" if unlocked else "Freischalten: " + d.unlock_text()
 	_detail_unlock.add_theme_color_override("font_color", UIKit.INK_SOFT if unlocked else UIKit.INK_RED)
+	_show_badges(d)
 	_action.disabled = false
 	_action.theme_type_variation = &"PrimaryButton"
 	if unlocked and Profile.selected == d.id:
@@ -180,6 +189,46 @@ func _show(d: DeckData) -> void:
 	else:
 		_action.text = "GESPERRT"
 		_action.disabled = true
+
+
+const BADGE_COLORS := [Color("8fd18a"), Color("ecc87c"), Color("f2625c")]
+
+
+func _show_badges(d: DeckData) -> void:
+	for c in _badges.get_children():
+		c.queue_free()
+	for level in 3:
+		var got := Profile.has_badge(d.id, level)
+		var name: String = Settings.DIFFICULTY_NAMES[level]
+		var slot := Control.new()
+		slot.custom_minimum_size = Vector2(58, 72)
+		slot.mouse_filter = Control.MOUSE_FILTER_STOP
+		slot.tooltip_text = ("%s gewonnen!" if got else "Gewinne einen Run auf %s mit diesem Deck.") % name
+		var col: Color = BADGE_COLORS[level]
+		slot.draw.connect(func() -> void:
+			var c := Vector2(29, 26)
+			if got:
+				slot.draw_circle(c + Vector2(2, 3), 24.0, Color(0, 0, 0, 0.5), true, -1.0, true)
+				slot.draw_circle(c, 24.0, col, true, -1.0, true)
+				slot.draw_arc(c, 19.0, 0, TAU, 40, Color(UIKit.P_BLACK, 0.6), 2.0, true)
+			else:
+				slot.draw_circle(c, 24.0, Color(0, 0, 0, 0.35), true, -1.0, true)
+				for k in 16: # gestrichelter Rand = noch leer
+					slot.draw_arc(c, 24.0, k * TAU / 16.0, k * TAU / 16.0 + TAU / 32.0, 4, Color(UIKit.P_CREAM, 0.35), 1.5, true))
+		var star := UIKit.poster_label("★" if got else "", UIKit.SYMBOL_FONT, 22, UIKit.P_BLACK)
+		star.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		star.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		star.position = Vector2(5, 2)
+		star.size = Vector2(48, 48)
+		star.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		slot.add_child(star)
+		var cap := UIKit.poster_label(name.to_upper(), UIKit.body_font(700, 2), 11, col if got else UIKit.INK_SOFT)
+		cap.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		cap.position = Vector2(0, 54)
+		cap.size = Vector2(58, 16)
+		cap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		slot.add_child(cap)
+		_badges.add_child(slot)
 
 
 func _on_action() -> void:

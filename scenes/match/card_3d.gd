@@ -114,6 +114,21 @@ func set_state(p_playable: bool) -> void:
 	_update_look()
 
 
+## Feuerzeug-Ziel: leuchtend orangefarbener, pulsierender Rahmen um die Karte.
+var _target_frame: Node3D
+var _target_mat: StandardMaterial3D
+
+
+func set_target(on: bool) -> void:
+	if on and _target_frame == null:
+		_target_mat = StandardMaterial3D.new()
+		_target_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		_target_mat.albedo_color = Color(1.0, 0.5, 0.12)
+		_target_frame = _add_frame(0.007, THICKNESS * 0.5 + 0.0012, _target_mat)
+	if _target_frame != null:
+		_target_frame.visible = on
+
+
 ## Feuerzeug: Karte verbrennt von unten nach oben und löst sich auf, dann verschwindet sie.
 func burn_away(time := 1.1) -> Tween:
 	playable = false
@@ -171,6 +186,9 @@ func _process(delta: float) -> void:
 		_body.rotation = Vector3(_tilt.x + sway.x + _wob * 0.12, _skew if in_hand else 0.0, _tilt.y + sway.y)
 		# beim Wackeln etwas anheben, damit keine Kante in den Tisch taucht
 		_body.position = Vector3(_off.x, _hop + absf(sin(_wob * 0.12)) * HEIGHT * 0.5, _off.z - _lift)
+	if _target_frame != null and _target_frame.visible:
+		var p := 0.6 + 0.4 * sin(_t * 7.0)
+		_target_mat.albedo_color = Color(1.0, 0.35 + 0.3 * p, 0.08) * (0.8 + 0.5 * p)
 	if _face_mat != null:
 		_face_mat.set_shader_parameter("shine", _shine)
 		_face_mat.set_shader_parameter("shine_uv", _hover_uv)

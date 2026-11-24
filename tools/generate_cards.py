@@ -619,27 +619,34 @@ def save(img, name):
     img.save(os.path.join(OUT, name + ".png"), optimize=True)
 
 
-def glass_version(art):
-    """Durchscheinendes Glas: Hintergrund fast klar mit Frost am Rand und Lichtbändern,
-    die Goldlinien bleiben kräftig."""
+def glass_version(art, suit="s"):
+    """Glaskarte wie bei Balatro: eigener heller, grau-blauer Glasgrund mit schrägen
+    Lichtbändern; Linien und Symbole werden dunkel (Schiefer, bei Herz/Karo gedecktes Rot).
+    Undurchsichtig – auf dem Filz soll sie nicht weiß verschwinden."""
     w, h = W // S, H // S
+    yy, xx = np.mgrid[0:h, 0:w].astype(np.float32)
     a = np.zeros((h, w, 4), np.float32)
-    a[..., :3] = (190, 215, 250)
-    a[..., 3] = 0.16
-    yy, xx = np.mgrid[0:h, 0:w]
-    edge = np.minimum.reduce([xx, yy, w - 1 - xx, h - 1 - yy]).astype(np.float32)
-    frost = np.clip(1.0 - edge / (0.06 * w), 0, 1)
-    a[..., 3] = np.maximum(a[..., 3], 0.5 * frost)
-    for offset, width, strength in ((0.18, 0.05, 0.45), (0.30, 0.018, 0.35), (0.78, 0.03, 0.25)):
-        dd = (xx / w + yy / h * 0.6) - offset * 1.6
-        band = np.clip(1 - np.abs(dd) / width, 0, 1) ** 2 * strength
-        a[..., :3] = a[..., :3] * (1 - band[..., None]) + 255 * band[..., None]
-        a[..., 3] = np.maximum(a[..., 3], band * 0.8)
-    a[..., 3] *= 255
+    a[..., :3] = (176, 190, 194)
+    a[..., 3] = 255
+    # schräge helle Bänder (breit, schmal, breit) wie Lichtreflexe auf Glas
+    for offset, width, strength in ((0.12, 0.09, 0.55), (0.36, 0.035, 0.45), (0.62, 0.11, 0.5), (0.9, 0.04, 0.4)):
+        d = (xx / w * 0.9 + yy / h * 0.75) - offset * 1.65
+        band = (np.abs(d) < width).astype(np.float32) * strength
+        a[..., :3] = a[..., :3] * (1 - band[..., None]) + np.array((228, 236, 238)) * band[..., None]
+    # dunkler Rand und feine helle Innenkante
+    edge = np.minimum.reduce([xx, yy, w - 1 - xx, h - 1 - yy])
+    a[..., :3] = np.where((edge < 0.018 * w)[..., None], np.array((70, 88, 92)), a[..., :3])
+    inner = (edge >= 0.018 * w) & (edge < 0.026 * w)
+    a[..., :3] = np.where(inner[..., None], np.array((236, 242, 243)), a[..., :3])
     glass = Image.fromarray(a.clip(0, 255).astype(np.uint8), "RGBA")
-    small = art.resize((w, h), Image.LANCZOS)
-    glass.alpha_composite(glow(small, 3, 0.7))
-    glass.alpha_composite(small)
+    small = np.array(art.resize((w, h), Image.LANCZOS)).astype(np.float32)
+    ink = np.array((150, 64, 66) if suit in ("h", "d") else (52, 70, 74), np.float32)
+    lines = np.zeros_like(small)
+    lines[..., :3] = ink
+    # helle Linien (Gold, Koralle) voll dunkel, dunkle Flächen (z. B. Bildfelder) nur zart getönt
+    lum = small[..., :3] @ np.array((0.299, 0.587, 0.114), np.float32)
+    lines[..., 3] = small[..., 3] * np.clip(lum / 150.0, 0.18, 1.0)
+    glass.alpha_composite(Image.fromarray(lines.clip(0, 255).astype(np.uint8), "RGBA"))
     return glass
 
 
@@ -742,7 +749,7 @@ def blank_card():
 def save_card(bg, art, name):
     save(compose(bg, art), name)
     os.makedirs(os.path.join(OUT, "glass"), exist_ok=True)
-    glass_version(art).save(os.path.join(OUT, "glass", name + ".png"), optimize=True)
+    glass_version(art, name[0]).save(os.path.join(OUT, "glass", name + ".png"), optimize=True)
 
 
 def save_special(bg, art, name, seed):

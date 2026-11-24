@@ -78,7 +78,18 @@ Ein Run = 3 normale Gegner + Boss, 3 Leben (Kerzen). Wer verliert, ist der Durak
     → er muss neu angreifen; seine Verteidigungskarte → er muss neu schlagen oder nehmen
     (`DurakMatch.burnable_cards/burn`). Rechtsklick/Esc bricht ab, das Feuerzeug bleibt.
   - 🪞 **Spiegel** (5 G): schwebt hinter dem Gegner vorbei (`TableWorld.mirror_flight`, `mirror.wav`) und
-    deckt eine zufällige Karte seiner Hand auf; sie ragt offen aus seinem Fächer (`TableWorld.revealed`).
+    deckt eine zufällige Karte seiner Hand auf; sie ragt 2,6 s offen aus seinem Fächer (`TableWorld.revealed`),
+    dann dreht er sie um und sie bleibt klein über ihm sichtbar (`MatchHUD.add_known`), bis er sie spielt
+    (platzt dann weg).
+  - Feuerzeug gezückt: verbrennbare Gegnerkarten bekommen einen pulsierenden orangen Rahmen.
+- **Entwicklermenü** (F8 im Duell, `ui/dev_menu.gd`): beliebige Karte mit Verbesserung auf die Hand,
+  Items, Relikte, +10 Gold. Der Gegner wartet, solange es offen ist.
+- **Abzeichen** (`Profile.badges`): pro Deck drei Plätze Leicht/Normal/Schwer im Deck-Menü; ein Run-Sieg
+  mit dem Deck auf der Stufe füllt den Platz.
+- Händler verkauft keine Boni mehr (die bringen die Decks mit), nur Karten, Relikte, Items.
+- Glaskarten wie bei Balatro: eigener heller grau-blauer Glasgrund mit Lichtbändern, dunkle Linien
+  (`glass_version` in `tools/generate_cards.py`).
+- Nachgeworfene Karte, die die Runde sofort beendet, landet erst sichtbar auf dem Tisch (`THROWN_PAUSE`).
 - Händler zeigt Relikte wie im Duell (freie Emojis, `UIKit.relic_icon`); Trumpf unten links mit dem
   Goldrahmen der Trumpfkarten.
 - **Reihenfolge**: erst wird abgeräumt bzw. aufgenommen, dann nachgezogen (Gegner wartet so lange).

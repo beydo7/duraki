@@ -463,14 +463,14 @@ def burn():
 
 def mirror():
     """Spiegel: Luftzug beim Vorbeischweben und ein weicher, gläserner Schimmer in der Mitte."""
-    dur = 2.6
+    dur = 4.2  # = TableWorld.MIRROR_TIME
     n = int(dur * SR)
     buf = np.zeros(n)
     place(buf, soft(noise(dur), 200, 1800, order=2) * np.sin(np.linspace(0, np.pi, n)) ** 2, 0.0, 0.35)
     for f, d in ((1318.5, 0.0), (1760.0, 0.05), (2217.5, 0.1), (2637.0, 0.16)):
         m = int(1.2 * SR)
         tone = sine(f, 1.2) * env(m, 0.01, 0.35) * 0.25
-        place(buf, tone, 1.25 + d, 1.0)
+        place(buf, tone, 2.05 + d, 1.0)
     save("mirror.wav", reverb(buf, 0.4, 0.15), peak=0.5)
 
 

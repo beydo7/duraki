@@ -1,0 +1,182 @@
+class_name DevMenu
+extends Control
+## Entwicklermenü (F8 im Duell): beliebige Karte (Farbe, Rang, Verbesserung) auf die Hand
+## nehmen, Items und Relikte holen, Gold dazu. Zum Testen von Karten und Items.
+##     var m := DevMenu.new(); m.match_node = self; add_child(m)
+
+signal closed
+
+var match_node: Node # match.gd
+
+var _suit := Card.Suit.SPADES
+var _rank := 14
+var _enh := Card.Enhancement.NONE
+var _status: Label
+var _groups := {}
+
+
+func _ready() -> void:
+	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	mouse_filter = Control.MOUSE_FILTER_STOP
+	var dim := ColorRect.new()
+	dim.color = Color(0, 0, 0, 0.6)
+	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(dim)
+	var center := CenterContainer.new()
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(center)
+	var panel := PanelContainer.new()
+	var box := StyleBoxFlat.new()
+	box.bg_color = Color(UIKit.P_BLACK, 0.97)
+	box.border_color = UIKit.P_GOLD
+	box.set_border_width_all(2)
+	box.set_content_margin_all(22)
+	panel.add_theme_stylebox_override("panel", box)
+	panel.custom_minimum_size = Vector2(760, 0)
+	center.add_child(panel)
+	var root := VBoxContainer.new()
+	root.add_theme_constant_override("separation", 10)
+	panel.add_child(root)
+
+	var head := HBoxContainer.new()
+	root.add_child(head)
+	var title := UIKit.poster_label("ENTWICKLERMENÜ", UIKit.display_font(2), 28, UIKit.P_GOLD)
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	head.add_child(title)
+	head.add_child(UIKit.poster_label("F8 / Esc schließt", UIKit.body_font(500), 14, UIKit.MUTED))
+
+	root.add_child(_head("KARTE AUF DIE HAND"))
+	root.add_child(_choice_row("suit", Card.SUIT_SYMBOLS, [0, 1, 2, 3], func(v: int) -> void: _suit = v, _suit))
+	var ranks: Array = []
+	var rank_names: Array = []
+	for r in range(Card.MIN_RANK, Card.MAX_RANK + 1):
+		ranks.append(r)
+		rank_names.append(Card.RANK_NAMES[r])
+	root.add_child(_choice_row("rank", rank_names, ranks, func(v: int) -> void: _rank = v, _rank))
+	root.add_child(_choice_row("enh", ["Normal", "Gold", "Glas", "Glück"], [0, 1, 2, 3], func(v: int) -> void: _enh = v, _enh))
+	var give := _button("KARTE NEHMEN", _give_card, true)
+	root.add_child(give)
+
+	root.add_child(_head("ITEMS"))
+	var items := HBoxContainer.new()
+	items.add_theme_constant_override("separation", 8)
+	root.add_child(items)
+	for id: StringName in Run.ITEMS:
+		var it: Dictionary = Run.ITEMS[id]
+		items.add_child(_button("%s %s" % [it.emoji, it.name], func() -> void: _give_item(id)))
+	items.add_child(_button("Items leeren", func() -> void:
+		Run.items.clear()
+		_refresh("Items geleert.")))
+
+	root.add_child(_head("RELIKTE & GOLD"))
+	var relics := HFlowContainer.new()
+	relics.add_theme_constant_override("h_separation", 8)
+	relics.add_theme_constant_override("v_separation", 8)
+	root.add_child(relics)
+	for r in Run.all_relics():
+		relics.add_child(_button("%s %s" % [r.icon(), r.display_name], func() -> void:
+			if Run.relics.any(func(o: RelicData) -> bool: return o.id == r.id):
+				_refresh("%s hast du schon." % r.display_name)
+				return
+			Run.add_relic(r)
+			_refresh("%s erhalten." % r.display_name)))
+	relics.add_child(_button("+10 Gold", func() -> void:
+		Run.add_gold(10)
+		_refresh("+10 Gold.")))
+
+	_status = UIKit.poster_label("", UIKit.body_font(500), 15, UIKit.P_CREAM)
+	root.add_child(_status)
+	root.add_child(_button("SCHLIESSEN", close))
+	UIKit.appear(panel, 0.0, Vector2(0, 20), 0.25)
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("ui_cancel") or (event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_F8):
+		get_viewport().set_input_as_handled()
+		close()
+
+
+func close() -> void:
+	closed.emit()
+	queue_free()
+
+
+## Gewählte Karte auf die Hand: aus Stapel/Ablage/Gegnerhand holen, sonst neu erzeugen.
+func _give_card() -> void:
+	var duel: DurakMatch = match_node.duel
+	if duel == null or duel.is_over:
+		_refresh("Kein laufendes Duell.")
+		return
+	var card: Card = null
+	for list: Array in [duel.deck.cards, duel.discard_pile, duel.opponent_hand]:
+		for c: Card in list:
+			if c.suit == _suit and c.rank == _rank:
+				card = c
+				list.erase(c)
+				break
+		if card != null:
+			break
+	if card == null:
+		for c: Card in duel.player_hand:
+			if c.suit == _suit and c.rank == _rank:
+				card = c
+		if card != null:
+			card.enhancement = _enh
+			duel.changed.emit()
+			_refresh("%s hast du schon – Verbesserung gesetzt." % card)
+			return
+		card = Card.new(_suit, _rank) # liegt auf dem Tisch: Kopie
+	card.enhancement = _enh
+	duel.player_hand.append(card)
+	DurakRules.sort_hand(duel.player_hand, duel.trump_suit)
+	duel.changed.emit()
+	_refresh("%s auf die Hand genommen." % card)
+
+
+func _give_item(id: StringName) -> void:
+	if not Run.has_item_slot():
+		Run.items.remove_at(0) # ältestes ersetzen
+	Run.add_item(id)
+	_refresh("%s erhalten." % Run.ITEMS[id].name)
+
+
+func _refresh(text: String) -> void:
+	_status.text = text
+	if match_node != null and match_node.has_method("refresh_after_dev"):
+		match_node.refresh_after_dev()
+
+
+# --- Bausteine -----------------------------------------------------------------------
+
+func _head(text: String) -> Label:
+	return UIKit.poster_label(text, UIKit.body_font(700, 3), 13, UIKit.P_GOLD)
+
+
+func _choice_row(key: String, names: Array, values: Array, on_pick: Callable, current: int) -> Control:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 6)
+	var group := ButtonGroup.new()
+	_groups[key] = group
+	for i in names.size():
+		var b := Button.new()
+		b.text = str(names[i])
+		b.toggle_mode = true
+		b.button_group = group
+		b.custom_minimum_size = Vector2(52, 40)
+		b.focus_mode = Control.FOCUS_NONE
+		b.button_pressed = values[i] == current
+		var v: int = values[i]
+		b.pressed.connect(func() -> void: on_pick.call(v))
+		row.add_child(b)
+	return row
+
+
+func _button(text: String, cb: Callable, primary := false) -> Button:
+	var b := Button.new()
+	b.text = text
+	b.custom_minimum_size = Vector2(0, 40)
+	b.focus_mode = Control.FOCUS_NONE
+	if primary:
+		b.theme_type_variation = &"PrimaryButton"
+	b.pressed.connect(cb)
+	return b

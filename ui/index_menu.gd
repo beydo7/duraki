@@ -5,7 +5,7 @@ extends Control
 ##   KARTEN   alle 36 Karten, umschaltbar Normal / Gold / Glas / Glück (mit Effekt und Preis)
 ##   RELIKTE  alle Relikte aus data/relics/ mit Effekt
 ##   BONI     alle Verbesserungen, die der Händler anbietet
-##   ITEMS    Platzhalter („Coming soon“)
+##   ITEMS    Feuerzeug, Spiegel …
 ##     var menu := IndexMenu.new(); add_child(menu); menu.closed.connect(...)
 
 signal closed
@@ -210,7 +210,7 @@ func _relics_tab() -> Control:
 		var r: RelicData = relics[i]
 		entries.append([r.icon(), colors[i % colors.size()], UIKit.P_GOLD,
 			r.display_name, r.description, _relic_details(r)])
-	return _medal_grid(entries, "Relikte gibt es beim Händler (7–10 G) und als Belohnung. Neue Relikte: data/relics/")
+	return _medal_grid(entries, "Relikte gibt es beim Händler (7–10 G). Sie wirken den ganzen Run. Neue Relikte: data/relics/")
 
 
 func _relic_details(r: RelicData) -> String:
@@ -230,7 +230,7 @@ func _boni_tab() -> Control:
 	var entries := []
 	for o in Run.upgrade_catalog():
 		entries.append([o.symbol, o.color, UIKit.P_CREAM, o.title, o.text, "Preis: %d G" % o.price])
-	return _medal_grid(entries, "Boni bietet der Händler an (je Besuch zwei zufällige). Sie gelten für den ganzen Run.")
+	return _medal_grid(entries, "Boni bringen die Decks mit (siehe DECKS). Sie gelten für den ganzen Run.")
 
 
 ## Raster aus Medaillons: [Symbol, Farbe, Ringfarbe, Name, Text, Zusatz]
@@ -250,18 +250,25 @@ func _medal_grid(entries: Array, note: String) -> Control:
 		cell.add_theme_constant_override("separation", 12)
 		cell.mouse_filter = Control.MOUSE_FILTER_PASS
 		cell.mouse_entered.connect(func() -> void: Sfx.play(&"index_hover", randf_range(0.9, 1.0)))
-		var medal := Roundel.new()
-		medal.color = e[1]
-		medal.ring_color = e[2]
-		medal.custom_minimum_size = Vector2(72, 72)
-		medal.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 		var is_emoji := String(e[0]).unicode_at(0) >= 0x1F000
-		var sym := UIKit.poster_label(e[0], UIKit.emoji_font() if is_emoji else UIKit.SYMBOL_FONT, 28, UIKit.P_CREAM)
-		sym.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		sym.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		sym.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-		medal.add_child(sym)
-		cell.add_child(medal)
+		if is_emoji:
+			# Relikte und Items wie im Spiel: freies Emoji mit Schatten
+			var icon := UIKit.relic_icon(e[0], 72, 46)
+			icon.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+			icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			cell.add_child(icon)
+		else:
+			var medal := Roundel.new()
+			medal.color = e[1]
+			medal.ring_color = e[2]
+			medal.custom_minimum_size = Vector2(72, 72)
+			medal.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+			var sym := UIKit.poster_label(e[0], UIKit.SYMBOL_FONT, 28, UIKit.P_CREAM)
+			sym.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			sym.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+			sym.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+			medal.add_child(sym)
+			cell.add_child(medal)
 		var col := VBoxContainer.new()
 		col.add_theme_constant_override("separation", 2)
 		col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -281,7 +288,7 @@ func _medal_grid(entries: Array, note: String) -> Control:
 
 func _items_tab() -> Control:
 	var entries := []
-	for i in 4:
-		entries.append(["?", UIKit.P_GOLD.darkened(0.15), Color(0.45, 0.32, 0.08), "Item %d" % (i + 1),
-			"Noch nicht im Spiel.", "COMING SOON"])
-	return _medal_grid(entries, "Items (einmalig einsetzbare Gegenstände) kommen noch. Hier erscheinen sie, sobald es sie gibt.")
+	for id: StringName in Run.ITEMS:
+		var it: Dictionary = Run.ITEMS[id]
+		entries.append([it.emoji, Color.BLACK, Color.BLACK, it.name, it.text, "Preis: %d G · einmal einsetzbar" % it.price])
+	return _medal_grid(entries, "Items kauft man beim Händler (höchstens %d gleichzeitig) und setzt sie im Duell oben rechts ein." % Run.ITEM_SLOTS)

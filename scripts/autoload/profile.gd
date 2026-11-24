@@ -16,6 +16,8 @@ const SOULS_RUN_WIN := 10
 
 var souls := 0
 var unlocked: Array[StringName] = []
+## Abzeichen: Deck-id → gewonnene Schwierigkeiten (0 Leicht, 1 Normal, 2 Schwer)
+var badges := {}
 var selected: StringName = DEFAULT_DECK
 var runs_played := 0
 var runs_won := 0
@@ -93,7 +95,22 @@ func on_opponent_defeated(opponent: OpponentData) -> void:
 
 ## Ende eines Runs: Seelen gutschreiben, Statistik, ggf. Decks freischalten.
 ## Gibt die erhaltenen Seelen zurück.
-func on_run_finished(won: bool, tables_won: int, factor := 1.0) -> int:
+## Hat man mit diesem Deck schon auf Stufe `level` gewonnen?
+func has_badge(deck_id: StringName, level: int) -> bool:
+	return (badges.get(String(deck_id), []) as Array).has(level)
+
+
+func _give_badge(deck_id: StringName, level: int) -> void:
+	if deck_id == &"" or has_badge(deck_id, level):
+		return
+	var list: Array = badges.get(String(deck_id), [])
+	list.append(level)
+	badges[String(deck_id)] = list
+
+
+func on_run_finished(won: bool, tables_won: int, factor := 1.0, deck_id: StringName = &"", level := -1) -> int:
+	if won and level >= 0:
+		_give_badge(deck_id, level)
 	var gained := int(roundf((tables_won * SOULS_PER_TABLE + (SOULS_RUN_WIN if won else 0)) * factor))
 	souls += gained
 	runs_played += 1
@@ -150,6 +167,7 @@ func load_profile() -> void:
 	unlocked.clear()
 	for id in cfg.get_value("profile", "unlocked", PackedStringArray()):
 		unlocked.append(StringName(id))
+	badges = cfg.get_value("profile", "badges", {})
 
 
 func save_profile() -> void:
@@ -162,6 +180,7 @@ func save_profile() -> void:
 	for id in unlocked:
 		ids.append(String(id))
 	cfg.set_value("profile", "unlocked", ids)
+	cfg.set_value("profile", "badges", badges)
 	cfg.set_value("stats", "runs_played", runs_played)
 	cfg.set_value("stats", "runs_won", runs_won)
 	cfg.set_value("stats", "best_floor", best_floor)
@@ -173,5 +192,6 @@ func reset_for_tests() -> void:
 	_no_save = true
 	souls = 0
 	unlocked.clear()
+	badges.clear()
 	selected = DEFAULT_DECK
 	pending_unlocks.clear()

@@ -716,6 +716,9 @@ func set_bout(attack_count: int, limit: int, can_transfer: bool) -> void:
 ## Plätze für Items (einsetzbar/verbrauchbar) – kommen später, bis dahin leere Fassungen.
 signal item_pressed(index: int)
 const RELIC_SIZE := 46.0
+## Item-Kreis: groß genug, dass das Emoji ganz hineinpasst
+const ITEM_BOX := 50.0
+const ITEM_R := 23.0
 var _relic_nodes := {} # id → Control
 
 
@@ -728,12 +731,12 @@ func set_relics(relics: Array, items: Array = []) -> void:
 	for i in Run.ITEM_SLOTS:
 		if i < items.size():
 			var it: Dictionary = Run.ITEMS[items[i]]
-			var item := UIKit.relic_icon(it.emoji, 40, 28)
+			var item := UIKit.relic_icon(it.emoji, ITEM_BOX, 26)
 			item.mouse_filter = Control.MOUSE_FILTER_STOP
 			item.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 			item.draw.connect(func() -> void:
-				item.draw_circle(item.size * 0.5, 19.0, Color(0, 0, 0, 0.5), true, -1.0, true)
-				item.draw_arc(item.size * 0.5, 19.0, 0, TAU, 32, Color(PGOLD, 0.7), 1.5, true))
+				item.draw_circle(item.size * 0.5, ITEM_R, Color(0, 0, 0, 0.5), true, -1.0, true)
+				item.draw_arc(item.size * 0.5, ITEM_R, 0, TAU, 40, Color(PGOLD, 0.7), 1.5, true))
 			_hover_info(item, String(it.name).to_upper() + " · KLICKEN", it.text, true)
 			var idx := i
 			item.gui_input.connect(func(e: InputEvent) -> void:
@@ -742,12 +745,12 @@ func set_relics(relics: Array, items: Array = []) -> void:
 			_relics.add_child(item)
 			continue
 		var slot := Control.new()
-		slot.custom_minimum_size = Vector2(36, RELIC_SIZE)
+		slot.custom_minimum_size = Vector2(ITEM_BOX, RELIC_SIZE)
 		slot.mouse_filter = Control.MOUSE_FILTER_STOP
 		slot.draw.connect(func() -> void:
 			var c := slot.size * 0.5
-			slot.draw_circle(c, 14.0, Color(0, 0, 0, 0.45), true, -1.0, true)
-			slot.draw_arc(c, 14.0, 0, TAU, 32, Color(CREAM, 0.3), 1.5, true))
+			slot.draw_circle(c, ITEM_R, Color(0, 0, 0, 0.45), true, -1.0, true)
+			slot.draw_arc(c, ITEM_R, 0, TAU, 40, Color(CREAM, 0.3), 1.5, true))
 		_hover_info(slot, "FREIER ITEM-PLATZ", "Items wie Feuerzeug und Spiegel gibt es beim Händler.")
 		_relics.add_child(slot)
 	if not relics.is_empty():
@@ -775,6 +778,64 @@ func _hover_info(c: Control, title: String, body: String, grow := false) -> void
 		hide_info(true)
 		if grow:
 			c.create_tween().tween_property(c, "scale", Vector2.ONE, 0.12))
+
+
+# --- Verratene Gegnerkarten (Spiegel) -------------------------------------------------
+
+var _known: HBoxContainer
+var _known_cards := {} # Card → Control
+
+
+## Kleine Karte über dem Gegner: diese Karte hat er (noch) auf der Hand.
+func add_known(card: Card) -> void:
+	if _known == null:
+		_known = HBoxContainer.new()
+		_known.alignment = BoxContainer.ALIGNMENT_CENTER
+		_known.add_theme_constant_override("separation", 8)
+		_known.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_anchor(_known, Vector2(0.5, 0), Vector2(-160, 10), Vector2(320, 56))
+		add_child(_known)
+	if _known_cards.has(card):
+		return
+	var mini := PanelContainer.new()
+	var box := StyleBoxFlat.new()
+	box.bg_color = Color("1b1834")
+	box.border_color = Card3D.COLOR_TRUMP
+	box.set_border_width_all(2)
+	box.set_corner_radius_all(3)
+	box.shadow_color = Color(0, 0, 0, 0.6)
+	box.shadow_offset = Vector2(2, 3)
+	mini.add_theme_stylebox_override("panel", box)
+	mini.custom_minimum_size = Vector2(36, 50)
+	mini.tooltip_text = "Diese Karte hat er auf der Hand (Spiegel)."
+	var red := card.suit <= Card.Suit.DIAMONDS
+	var l := UIKit.poster_label(card.get_label(), UIKit.SYMBOL_FONT, 15, Color("e8685e") if red else Card3D.COLOR_TRUMP)
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	mini.add_child(l)
+	_known.add_child(mini)
+	_known_cards[card] = mini
+	mini.pivot_offset = Vector2(18, 25)
+	mini.scale = Vector2(0.2, 0.2)
+	mini.create_tween().tween_property(mini, "scale", Vector2.ONE, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+
+
+## Karte hat er gespielt (oder nicht mehr auf der Hand): wegplatzen lassen.
+func remove_known(card: Card) -> void:
+	var mini: Control = _known_cards.get(card)
+	if mini == null:
+		return
+	_known_cards.erase(card)
+	mini.pivot_offset = mini.size * 0.5
+	var tw := mini.create_tween().set_parallel()
+	tw.tween_property(mini, "scale", Vector2.ONE * 1.6, 0.35).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.tween_property(mini, "rotation_degrees", 18.0, 0.35)
+	tw.tween_property(mini, "modulate", Color(1.8, 1.4, 0.6, 0.0), 0.35)
+	tw.chain().tween_callback(mini.queue_free)
+
+
+func known_cards() -> Array:
+	return _known_cards.keys()
 
 
 ## Relikt hat gewirkt: kurz hüpfen und aufleuchten.
