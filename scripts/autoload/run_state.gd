@@ -69,6 +69,9 @@ var encounters: Array[OpponentData] = []
 var relics: Array[RelicData] = []
 ## Items im Besitz (ids aus ITEMS)
 var items: Array[StringName] = []
+## Zigarettenschachtel: eine pro Run (Profile.PACK_SIZE Stück), gilt über alle Duelle des Runs
+var cigarettes_taken := 0
+var cigarettes_smoked := 0
 var last_gold_reward := 0
 var last_interest := 0
 var won_run := false
@@ -145,6 +148,8 @@ func _reset(p_seed: int) -> void:
 	floor_index = 0
 	relics.clear()
 	items.clear()
+	cigarettes_taken = 0
+	cigarettes_smoked = 0
 	won_run = false
 	card_enhancements.clear()
 	suit_chip_bonus.clear()

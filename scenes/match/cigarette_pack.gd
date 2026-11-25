@@ -5,6 +5,7 @@ extends Node3D
 ##   2. Klick → drei Zigaretten rutschen halb heraus
 ##   3. Klick → eine Zigarette wandert in den Aschenbecher (dort anklicken = anzünden, rauchen)
 ## Ist sie aufgeraucht, holt der nächste Klick die nächste aus der Schachtel.
+## Pro Run gibt es eine Schachtel mit 6 Zigaretten (zweimal 3), danach ist sie leer.
 
 const W := 0.056 # Breite
 const H := 0.086 # Höhe
@@ -17,7 +18,9 @@ enum Step { CLOSED, OPEN, OUT }
 
 var ashtray: Ashtray
 var step := Step.CLOSED
-var left := Profile.PACK_SIZE # Zigaretten in der Schachtel
+## Zigaretten noch in der Schachtel: eine Schachtel (6 Stück) pro Run, also zweimal 3
+var left: int:
+	get: return maxi(Profile.PACK_SIZE - Run.cigarettes_taken, 0)
 var _busy := false
 var _lid: Node3D
 var _cigs: Array[Node3D] = []
@@ -143,7 +146,7 @@ func _take() -> void:
 	if pick == null:
 		_slide_out()
 		return
-	left -= 1
+	Run.cigarettes_taken += 1
 	# Zigarette liegt in der Schachtel senkrecht (Filter oben); der Aschenbecher erwartet
 	# „Glut bei x = 0, Filter bei +x“ – also die Lage hier entsprechend drehen
 	var from := pick.global_transform * Transform3D(Basis(Vector3.FORWARD, -PI / 2.0), Vector3(0, -CIG_LEN * 0.5, 0))

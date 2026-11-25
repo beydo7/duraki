@@ -85,8 +85,7 @@ Ein Run = 3 normale Gegner + Boss, 3 Leben (Kerzen). Wer verliert, ist der Durak
 - **Erfolge** (`Profile.ACHIEVEMENTS`, gespeichert in profile.cfg, Index-Reiter ERFOLGE): Lehrling,
   Erster Sieg, Weitergeschoben, Brandstifter, Volltreffer (100+ Punkte in einer Runde), Sammler
   (5 Relikte), Riesentöter (Boss), Durchgezogen (Run gewonnen), Eiskalt (Run auf Schwer) und die
-  geheimen Raucher (eine Zigarette zu Ende), Kettenraucher (20 = eine Schachtel, zählt über alle
-  Duelle) und Alkoholiker (Whiskeyflasche im Hauptmenü leer getrunken). Geheime zeigen ein „?“ und
+  geheimen Raucher (eine Zigarette zu Ende), Kettenraucher (6 Zigaretten in einem Run = die ganze Schachtel) und Alkoholiker (Whiskeyflasche im Hauptmenü leer getrunken). Geheime zeigen ein „?“ und
   eine zensierte Aufgabe, bis sie erreicht sind. Meldung oben in der Mitte (Autoload `Pause`).
   Belohnungen: noch offen (Leon entscheidet).
 - **Der Weg** zeigt den Raum scharf wie im Duell (`RoomBackdrop.blur = 0`, MSAA 4×).
@@ -284,7 +283,8 @@ setzt ältere Einstellungsdateien einmalig darauf).
 - **Zigarettenschachtel** (`scenes/match/cigarette_pack.gd`, eigene Marke „DURAKI“, rot-weiß, kein
   echtes Markenlogo) rechts neben deinem Aschenbecher: 1. Klick Deckel auf, 2. Klick drei Zigaretten
   rutschen halb raus, 3. Klick eine wandert in den Aschenbecher (der startet im Duell leer). Ist sie
-  aufgeraucht, holt der nächste Klick sofort die nächste – alle drei lassen sich rauchen, die Stummel
+  aufgeraucht, holt der nächste Klick sofort die nächste – alle drei lassen sich rauchen. Pro Run
+  gibt es nur eine Schachtel mit 6 Zigaretten (zweimal 3, `Run.cigarettes_taken`), die Stummel
   bleiben in der Mulde liegen (`Ashtray.STUB_SPOTS`). Vorne und hinten ein rotes Dreieck, das vom
   Deckel nach unten zeigt (eigenes Design), darin ein Stern.
 - **Aschenbecher** (`scenes/match/ashtray.gd`): hinten links der des Gegners (Filter zeigt zu ihm, Deko),

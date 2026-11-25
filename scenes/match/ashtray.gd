@@ -334,7 +334,8 @@ func _puff() -> void:
 		_exhale_cloud(cam)
 		_trail = true
 		if last:
-			Profile.add_cigarette() # Erfolge Raucher / Kettenraucher
+			Run.cigarettes_smoked += 1
+			Profile.add_cigarette(Run.cigarettes_smoked) # Erfolge Raucher / Kettenraucher
 			state = State.BUTT
 			_smoulder_left = SMOULDER_TIME
 			_ash.visible = false

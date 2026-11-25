@@ -22,10 +22,11 @@ const ACHIEVEMENTS := {
 	&"run_win": ["👑", "Durchgezogen", "Gewinne einen ganzen Run.", false],
 	&"hard_win": ["💀", "Eiskalt", "Gewinne einen Run auf Schwer.", false],
 	&"smoker": ["🚬", "Raucher", "Rauche eine Zigarette zu Ende.", true],
-	&"chain_smoker": ["📦", "Kettenraucher", "Rauche eine ganze Schachtel (20 Zigaretten).", true],
+	&"chain_smoker": ["📦", "Kettenraucher", "Rauche in einem Run die ganze Schachtel (6 Zigaretten).", true],
 	&"alcoholic": ["🥃", "Alkoholiker", "Trink die Whiskeyflasche leer.", true],
 }
-const PACK_SIZE := 20
+## Zigaretten pro Schachtel (pro Run eine Schachtel: zweimal 3 Stück)
+const PACK_SIZE := 6
 
 const PATH := "user://profile.cfg"
 const DECK_DIR := "res://data/decks/"
@@ -207,12 +208,12 @@ func unlock_achievement(id: StringName) -> void:
 	achievement_unlocked.emit(id)
 
 
-## Eine Zigarette zu Ende geraucht (Aschenbecher).
-func add_cigarette() -> void:
+## Eine Zigarette zu Ende geraucht (Aschenbecher). `in_run`: so viele schon in diesem Run.
+func add_cigarette(in_run: int) -> void:
 	cigarettes_smoked += 1
 	save_profile()
 	unlock_achievement(&"smoker")
-	if cigarettes_smoked >= PACK_SIZE:
+	if in_run >= PACK_SIZE:
 		unlock_achievement(&"chain_smoker")
 
 
