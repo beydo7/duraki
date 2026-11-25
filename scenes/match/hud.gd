@@ -728,6 +728,8 @@ const RELIC_SIZE := 46.0
 const ITEM_BOX := 50.0
 const ITEM_R := 23.0
 var _relic_nodes := {} # id → Control
+## Item-Kreise in der Reihenfolge von Run.items (für set_item_usable)
+var _item_nodes: Array[Control] = []
 
 
 ## Relikte wie in Slay the Spire: frei stehende Symbole ohne Rahmen, mit Schatten.
@@ -737,6 +739,7 @@ func set_relics(relics: Array, items: Array = []) -> void:
 		_relics.remove_child(c)
 		c.queue_free()
 	_relic_nodes.clear()
+	_item_nodes.clear()
 	var row := _relic_row()
 	for i in Run.ITEM_SLOTS:
 		if i < items.size():
@@ -750,9 +753,11 @@ func set_relics(relics: Array, items: Array = []) -> void:
 			_hover_info(item, String(it.name).to_upper() + " · KLICKEN", it.text, true)
 			var idx := i
 			item.gui_input.connect(func(e: InputEvent) -> void:
-				if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
+				if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT \
+						and item.get_meta("usable", true):
 					item_pressed.emit(idx))
 			row.add_child(item)
+			_item_nodes.append(item)
 			continue
 		var slot := Control.new()
 		slot.custom_minimum_size = Vector2(ITEM_BOX, RELIC_SIZE)
@@ -777,6 +782,19 @@ func set_relics(relics: Array, items: Array = []) -> void:
 		row.add_child(box)
 		_relic_nodes[r.id] = box
 	_place_think.call_deferred()
+
+
+## Item gerade einsetzbar? Nein → ausgegraut und nicht klickbar (z. B. Magnet bei leerem
+## Ablagestapel).
+func set_item_usable(index: int, usable: bool) -> void:
+	if index < 0 or index >= _item_nodes.size():
+		return
+	var item := _item_nodes[index]
+	if item.get_meta("usable", true) == usable:
+		return
+	item.set_meta("usable", usable)
+	item.modulate = Color.WHITE if usable else Color(0.45, 0.45, 0.45, 0.6)
+	item.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND if usable else Control.CURSOR_ARROW
 
 
 func _relic_row() -> HBoxContainer:
