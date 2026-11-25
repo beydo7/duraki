@@ -1,6 +1,6 @@
 # DURAKI
 
-Kartenspiel-Roguelike auf Basis von Schiebe-Durak. Nachts in einem verrauchten Hinterzimmer sitzt du am grünen Filz und spielst nacheinander gegen unheimliche Gestalten: den Banditen, den Sumpfmann, die Krähe, die Wölfin, den Gaukler, den Knochenmann, die Hexe und am Ende den Riesen. Punkte gibt es wie bei Balatro (Chips × Mult), beim Händler kaufst du Relikte und verbesserte Karten, die die Regeln zu deinen Gunsten verbiegen. Wer verliert, ist der Durak.
+Kartenspiel-Roguelike auf Basis von Schiebe-Durak. Nachts in einem verrauchten Hinterzimmer sitzt du am grünen Filz und spielst nacheinander gegen unheimliche Gestalten: den Banditen, den Sumpfmann, die Krähe, die Wölfin, den Gaukler, den Knochenmann, die Hexe und am Ende den Riesen. Punkte gibt es wie bei Balatro (Chips × Mult), beim Händler kaufst du Relikte, Items und verbesserte Karten, die die Regeln zu deinen Gunsten verbiegen. Wer verliert, ist der Durak.
 
 Gebaut mit [Godot 4.7.2](https://godotengine.org) (GDScript, GL Compatibility), 3D-Modelle aus [Blender](https://www.blender.org). Sprache im Projekt: Deutsch.
 
@@ -28,13 +28,19 @@ Die Schriften (Russo One, Oswald, Cinzel Decorative u. a.) liegen in `assets/fon
 
 ## Was schon drin ist
 
-- **Schiebe-Durak 1 gegen 1:** 36 Karten, Trumpf, Angreifen, Nachlegen, Schlagen, Nehmen, Fertig (Bito), **Schieben** und **Nachwerfen** beim Aufnehmen.
+- **Schiebe-Durak 1 gegen 1:** 36 Karten, Trumpf, Angreifen (auch links neben die anderen), Nachlegen, Schlagen (Ziel frei wählbar, auch per Ziehen), Nehmen, Fertig (Bito), **Schieben** und **Nachwerfen** beim Aufnehmen.
 - **Wertung wie Balatro:** Chips × Mult pro Runde, Volltreffer × 2, Durak-Bonus, Punkteziel pro Tisch.
-- **Run:** 3 Gegner + Boss, 3 Leben (Kerzen auf dem Tisch), Gold, Händler nach jedem Sieg mit Relikten, Karten-Verbesserungen (Gold, Glas, Glück) und Zinsen.
-- **Decks:** 12 Kartenrücken mit kleinem Spieleffekt, freizuschalten über besiegte Gegner oder mit Seelen.
-- **3D-Duell** in Ich-Perspektive. Die Gegner halten ihre Karten als Fächer in den Händen, denken, reagieren und spielen mit Animationen aus.
-- **Stil „Plakat“** für HUD und Menüs (russischer Konstruktivismus, Rot / Schwarz / Creme) und Kartenblatt **„Okkult-Gold“** mit Animationen (Austeilen, Hover-Kippen, Wirbel beim Schieben, Stempel „FERTIG“, Folienglanz).
-- **Optionen:** Grafik, Audio, Allgemein; Esc-Pause im Spiel.
+- **Run:** 3 Gegner + Boss, Leben (Kerzen auf dem Tisch), Gold, Zinsen, Händler nach jedem Sieg. Schwierigkeit **Leicht / Normal / Schwer**, Hinweise an/aus.
+- **Relikte (12):** u. a. Ass im Ärmel, Glücksmünze, Med-Kit, Wodka, Gezinkter Würfel, Böser Blick, Matrjoschka, Wolfszahn, Sparstrumpf, Wirbel, Hufeisen. Stehen im Duell oben rechts als Symbole und blitzen auf, wenn sie wirken.
+- **Items (8, höchstens 2, einmal einsetzbar):** Feuerzeug, Spiegel, Magnet, Runde Schnaps, Kartentausch, Maske, Falle, Bestechung – jeweils mit eigener Animation am Tisch.
+- **Karten-Verbesserungen:** Gold, Glas, Glück. Auf Karten steht nie ein Schriftzug, man erkennt sie am Bild. Kartenfarben: Herz rot, Karo orange, Kreuz grau, Pik schwarz.
+- **Decks:** 12 Kartenrücken mit kleinem Spieleffekt, freizuschalten über besiegte Gegner oder mit Seelen; pro Deck drei Abzeichen (Leicht/Normal/Schwer).
+- **Tutorial:** geführte Übungsrunde gegen den Gaukler, erklärt auch Relikte, Items und den Händler.
+- **Index:** alle Karten, Relikte, Items und **Erfolge** (12, davon 3 geheim).
+- **3D-Duell** in Ich-Perspektive. Die Gegner halten ihre Karten als Fächer in den Händen, denken, reagieren und spielen mit Animationen aus. Am Tisch: Kerzen, Aschenbecher mit Zigarettenschachtel „DURAKI“, Whiskeyflasche.
+- **Stil „Plakat“** für HUD und Menüs (russischer Konstruktivismus, Rot / Schwarz / Creme) und Kartenblatt **„Okkult-Gold“** mit Animationen.
+- **Optionen:** Grafik (u. a. Nachschärfen, Kantenglättung), Audio, Allgemein; Esc-Pause im Spiel.
+- **Entwicklermenü (F8):** jede Karte, Items, Relikte, Gold, alles freischalten – im Duell und in den Menüs.
 
 Alles Weitere zu Regeln, Wertung, Stil und offenen Punkten: [`docs/GD.md`](docs/GD.md).
 
@@ -52,7 +58,7 @@ Alles Weitere zu Regeln, Wertung, Stil und offenen Punkten: [`docs/GD.md`](docs/
 | `data/` | Gegner, Relikte und Decks als `.tres` (im Inspektor bearbeitbar, neue werden automatisch geladen) |
 | `assets/` | Kartenbilder, Schriften, Porträts, 3D-Modelle (`.glb`, nicht direkt bearbeiten) |
 | `art/blender/` | Blender-Quellen (`.blend`) und Build-Skripte der Modelle |
-| `tools/` | `generate_cards.py` erzeugt alle Kartenbilder (Python + Pillow + numpy) |
+| `tools/` | `generate_cards.py` (alle Kartenbilder), `generate_sfx.py` (Soundeffekte), `generate_icons.py` (eigene Item-Symbole) – Python + Pillow + numpy |
 | `tests/` | Regeltests, Autoplay, Klicktest, Screenshots |
 | `docs/GD.md` | Game-Design-Dokument und aktueller Stand |
 | `docs/CHARAKTERE.md` | Wie die HD-Gegner in Blender gebaut werden |
@@ -62,15 +68,16 @@ Alles Weitere zu Regeln, Wertung, Stil und offenen Punkten: [`docs/GD.md`](docs/
 ## Tests
 
 ```bash
-godot --headless --path . -s res://tests/run_tests.gd     # Regeltests + KI-gegen-KI-Partien
-godot --headless --path . res://tests/deck_tests.tscn     # Decks und Seelen
-godot --headless --path . res://tests/autoplay.tscn       # 5 komplette Runs durch alle Szenen
+godot --headless --path . -s res://tests/run_tests.gd     # Regeln, Items, Relikte, KI (73 Checks)
+godot --headless --path . res://tests/deck_tests.tscn     # Decks, Seelen, Schwierigkeit, Abzeichen (46 Checks)
+godot --headless --path . res://tests/tutorial_test.tscn  # Tutorial einmal komplett durchspielen
+godot --headless --path . res://tests/autoplay.tscn       # komplette Runs durch alle Szenen (DURAKI_DIFF, DURAKI_RUNS)
 
 # brauchen ein echtes Fenster (kein --headless):
 godot --path . res://tests/click_test.tscn                # klickt eine Handkarte an
 godot --path . res://tests/screenshot.tscn -- opp=wolf    # Duell-Screenshot gegen einen bestimmten Gegner
 godot --path . res://tests/screenshot.tscn -- opp=wolf close   # Nahaufnahme des Gegners
-godot --path . res://tests/ui_shots.tscn                  # Menü, Weg, Händler, Ende
+godot --path . res://tests/ui_shots.tscn                  # Menü, Optionen, Decks, Erfolge, Weg, Händler, Ende
 ```
 
 Weitere Screenshot-Optionen: `boss`, `many`, `enh`, `result`, `transfer`, `bito`, `film`. Bilder landen in `user://shots` (oder `-- out=<ordner>`).
