@@ -61,31 +61,44 @@ Nicht-menschliche Figuren (Krähe, Wölfin, Sumpfmann) bekommen Hände/Körperba
 MPFB-Basis; Köpfe werden eigens modelliert (Schädel-Grundform, dann Details), Knochenmann aus
 einem anatomischen Schädel.
 
-## 5. Stand (25.11.2026, spät)
+## 5. Stand (25.11.2026, nachts): alle acht Figuren überarbeitet und im Projekt
 
-Fertig, in Godot getestet und **ins Projekt übernommen** (Modelle, .blend, Texturen, Porträts):
+Alle acht stehen auf der anatomischen MPFB-Basis (Oberkörper, Schultern, Arme; Hände außer beim
+Knochenmann), haben die neue Armbauweise (`dk.sleeve`) und neue Porträts. In Godot getestet.
 
-| Figur | Skript | Neu |
-|---|---|---|
-| Bandit | `dk_bandit.py` | Gesicht/Hände/Oberkörper aus MPFB, Schalen-Fell (Mütze, Kragen, Stulpen), Strick, Mantel |
-| Hexe | `dk_witch.py` | altes Gesicht mit Hakennase und spitzem Kinn, Kopftuch auf dem Schädel geformt, Tuch und Kleid auf echten Schultern, Zahnkette, Laterne |
-| Riese | `dk_giant.py` | massiger Körper mit echter Anatomie, graue Haut, genähte Narben, Eisenring am Hals, nackte Arme mit Schellen |
-| Gaukler | `dk_jester.py` | Maske/Kappe/Krause aus `hd_jester.py` bleiben, neu: Oberkörper im Rautenwams, Bauschärmel mit Rüschen, echte Hände |
+| Figur | Skript | Kopf | Neu am Körper |
+|---|---|---|---|
+| Bandit | `dk_bandit.py` | neu (MPFB-Gesicht, echte Augen) | Schalen-Fell an Mütze/Kragen/Stulpen, Strick, Mantel |
+| Hexe | `dk_witch.py` | neu (MPFB-Gesicht) | Kopftuch, Tuch und Kleid, Zahnkette, Laterne |
+| Riese | `dk_giant.py` | neu (MPFB-Gesicht) | nackter Körper, Nähte, Eisenring, Schellen |
+| Gaukler | `dk_jester.py` | Maske/Kappe/Krause aus `hd_jester.py` | Rautenwams, Bauschärmel mit Rüschen, Hände |
+| Knochenmann | `dk_bone_man.py` | Schädel/Zylinder/Kerze aus `hd_bone_man.py` | Gehrock auf Schultern, rotes Revers, Stehkragen, Brustkorb in der Öffnung; Knochenhände alt |
+| Wölfin | `dk_wolf.py` | Wolfskopf/Kapuze aus `hd_wolf.py` | Mieder, Schalen-Fell an Brust und Hals, Umhang, befellte Hände mit Krallen |
+| Krähe | `dk_crow.py` | Rabenkopf aus `hd_crow.py` | Mantel, Federkragen auf der neuen Form, gefiederter Hals, Ketten/Fibeln, Krallenhände |
+| Sumpfmann | `dk_swamp_man.py` | Schlammkopf aus `hd_swamp_man.py` | massiger Schlammkörper, Moospolster als Schalen, Pilze, Schlammhände |
 
-Arme (alle vier): `dk.sleeve` – Ober-/Unterarm mit runden Gelenkenden, unregelmäßige Stauchfalten,
-Stulpe/Futter/Schelle/Rüsche am Handgelenk; das Handgelenk sitzt genau am Ärmelende.
+Die alten `hd_<id>.py` bleiben im Repo, weil vier Figuren ihre Köpfe (und Materialien) daraus holen.
 
-Noch alter Stand: **Knochenmann, Wölfin, Krähe, Sumpfmann** (`hd_*.py`). Für sie müssen die Köpfe
-eigens modelliert und die Kleidung (Umhang, Federkragen, Moos) auf den neuen Körper umgebaut werden.
+Noch nicht gemacht (ehrliche Liste):
+- **Köpfe von Knochenmann, Wölfin, Krähe, Sumpfmann sind die alten** – nur Körper, Arme, Hände,
+  Kleidung sind neu. Eigens modellierte Köpfe (anatomischer Schädel, Wolfskopf mit Schalen-Fell)
+  wären der nächste Qualitätsschritt.
+- Bandit: Narbe / Riss im Tuch (Pascal entscheidet). Hexe: Haare steif. Gaukler: Rauten am Wams
+  verzerrt. Wölfin: Pfotenfell wirkt borstig. Sumpfmann: Körper wirkt im Spiel heller als der Kopf.
+- `build_models.py` läuft mit den `dk_*`-Figuren nur in einem Blender mit Fenster (MPFB braucht
+  den 3D-View-Kontext); im Hintergrundmodus schlägt es fehl.
+- Dateigrößen: Wölfin 37 MB (Schalen-Fell), übrige 15–30 MB.
 
-Offen / Ideen: Narbe und Riss im Tuch beim Banditen (Pascal fragen), Haare der Hexe weicher,
-Rauten am Gaukler-Wams entzerren, `build_models.py` läuft mit den `dk_*`-Figuren nur in einem
-Blender mit Fenster (MPFB braucht den 3D-View-Kontext).
+Zum Ansehen in Blender (Pascals PC): `charakter_overhaul\blend\alle_acht.blend` (alle acht
+nebeneinander) bzw. je Figur `art/blender/opponents/<id>.blend`. Hilfsskripte im Arbeitsordner:
+`werkbank.py` (bauen + Spielvorschau + Ansicht ausrichten), `analyse.py` (Studio-Bilder),
+`aufstellung.py` (Sammelszene).
 
 ## 6. Bedienung
 
 ```python
-import dk_bandit; dk_bandit.build()          # baut die Figur in der aktuellen Szene
-hd.export_character(r"...\bandit.glb")       # Export wie bisher
-import analyse; analyse.shoot("", r"...\renders\neu", "bandit", open_file=False)   # 4 Studio-Ansichten
+import werkbank; werkbank.run("bandit")      # bauen, Spielvorschau, Ansicht ausrichten
+hd.export_character(r"...\\bandit.glb")       # Export wie bisher
+import analyse; analyse.shoot("", r"...\\renders\\neu", "bandit", open_file=False)   # 4 Studio-Ansichten
 ```
+Lange Bauten (Wölfin ~2 min) mit `werkbank.many([...])` im Hintergrund starten.

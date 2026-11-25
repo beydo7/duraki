@@ -2,14 +2,14 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bddxb1hwbkes5"
+uid="uid://da2bwxp70pm4j"
 path.s3tc="res://.godot/imported/crow_plumage_color.png-c56cce00fd975b3451a774593888ac3e.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
 }
 generator_parameters={
-"md5": "2af932ee54a9a2045067ab59442bc671"
+"md5": "f99de6286920895ae22380969ece635c"
 }
 
 [deps]

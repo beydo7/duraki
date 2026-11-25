@@ -2,14 +2,14 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://b1belf0ndjuq8"
+uid="uid://53edtynwbgpl"
 path.s3tc="res://.godot/imported/crow_plume_color.png-87cafacb6526971bb9ed30f7198d927c.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
 }
 generator_parameters={
-"md5": "69c804db4498d61f169c62249549b324"
+"md5": "9aab759c22d952251d4a46b727021dcd"
 }
 
 [deps]

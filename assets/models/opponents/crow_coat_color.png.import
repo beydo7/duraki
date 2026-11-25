@@ -2,14 +2,14 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://yk2nxaxnivgg"
+uid="uid://klu3xfhowshs"
 path.s3tc="res://.godot/imported/crow_coat_color.png-7337a25e8c5b70f4c317fc2822444d4f.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
 }
 generator_parameters={
-"md5": "f69bd4d71bd92d314d448f26803e6f0f"
+"md5": "f7b50c08e63f1fe77ca3f5cc477906f8"
 }
 
 [deps]

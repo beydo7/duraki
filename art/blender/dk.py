@@ -299,7 +299,7 @@ class Figure:
         return to_object("Body_Skin", bm, mat, tb)
 
     def hands(self, skin, scale=1.3, stub=0.06, roll=72.0, pitch=-0.45, subdiv=1, height=0.9, front=0.22,
-              corner=0.055, grip_fwd=0.08, grip_up=0.055):
+              corner=0.055, grip_fwd=0.08, grip_up=0.055, claws=None, uv_tile=None):
         """Hand_L/Hand_R. Das Spiel lässt den Unterarm 5 cm hinter dem Hand-Ursprung enden und
         hängt den Kartenfächer 3 cm davor / 3,5 cm darüber auf. Deshalb liegt hier das Handgelenk
         genau am Ärmelende, und die Hand wird ums Handgelenk so gedreht, dass die Lücke zwischen
@@ -324,8 +324,26 @@ class Figure:
             gx = math.sqrt(max(g.length_squared - grip_fwd ** 2 - grip_up ** 2, 0.0004))
             Q = g.rotation_difference(Vector((-side * gx, -grip_fwd, grip_up))).to_matrix()
             wrist = Vector((0, 0.05, 0))
-            transform(bm, lambda p: Q @ place0(p) + wrist)
+            xf = lambda p: Q @ place0(p) + wrist
+            transform(bm, xf)
+            if uv_tile:
+                geo.box_uv(bm, uv_tile)
             h = to_object(name, bm, skin, None, G(side * (corner + gx), height, front))
+            if claws:  # (Länge am Menschen in m, Material): gebogene Krallen an allen Fingerspitzen
+                L, cmat = claws
+                cl = []
+                for fi in range(1, 6):
+                    b = pb[f"finger{fi}-3{sfx}"]
+                    d = (b.tail - b.head).normalized()
+                    tip = b.tail
+                    r = 0.0052 if fi > 1 else 0.006
+                    c = geo.tube([tip - d * 0.006, tip + d * L * 0.55 - back * L * 0.12,
+                                  tip + d * L - back * L * 0.42], [r, r * 0.62, 0.0004], seg=8)
+                    for v in c.verts:
+                        v.co = xf(v.co)
+                    cl.append(c)
+                co = geo.to_object(name + "_Claws", geo.merge(*cl), cmat, smooth=True, sharp_angle=None)
+                co.parent = h
             out.append(h)
         return out
 
@@ -472,7 +490,8 @@ def tex_fur_shells(name, root, tip, shells=16, size=256, clumps=900, radius=5.5,
     return imgs
 
 
-def shell_fur(base_ob, name, mat_name, imgs, length=0.045, lean=(0.0, 0.0, -0.35), parent=None, uneven=0.3):
+def shell_fur(base_ob, name, mat_name, imgs, length=0.045, lean=(0.0, 0.0, -0.35), parent=None, uneven=0.3,
+              child=False):
     """Fell aus Schalen: Kopien der Grundform, nach außen versetzt, jede mit dünneren Büscheln.
     Das Objekt heißt `*_Fur` (Godot: kein Schattenwurf, wenig Glanz)."""
     from mathutils import noise
@@ -506,8 +525,11 @@ def shell_fur(base_ob, name, mat_name, imgs, length=0.045, lean=(0.0, 0.0, -0.35
         p.use_smooth = True
     ob = bpy.data.objects.new(name, me)
     bpy.context.scene.collection.objects.link(ob)
-    ob.parent = parent if parent is not None else base_ob.parent
-    ob.matrix_basis = base_ob.matrix_basis.copy()
+    if child:  # hängt an der Grundform (z. B. Fell auf der Hand, bewegt sich mit)
+        ob.parent = base_ob
+    else:
+        ob.parent = parent if parent is not None else base_ob.parent
+        ob.matrix_basis = base_ob.matrix_basis.copy()
     return ob
 
 
@@ -784,3 +806,81 @@ def cyl_uv(bm, u_rep: float, v_scale: float) -> None:
             us = [u + u_rep if u < 0 else u for u in us]
         for l, u in zip(f.loops, us):
             l[uv].uv = (u, l.vert.co.z * v_scale)
+
+
+# --- Kleidung auf dem Körper ---------------------------------------------------------------
+
+def part_of(ob, name, mat, keep, grow=0.0, tile=None, parent=None):
+    """Teil eines Meshes (Flächen, für die keep(Mittelpunkt, Normale) gilt) als neues Objekt."""
+    bm = bmesh.new()
+    bm.from_mesh(ob.data)
+    bm.normal_update()
+    keep_faces(bm, lambda f: keep(f.calc_center_median(), f.normal))
+    if grow:
+        inflate(bm, grow, 1)
+    if tile:
+        geo.box_uv(bm, tile)
+    return to_object(name, bm, mat, parent if parent is not None else ob.parent)
+
+
+def open_coat(skin_ob, name, mat, nc, grow=0.035, open_w=None, neck_r=0.2, bottom=None, tile=0.3,
+              thickness=-0.012, smooth=3):
+    """Mantel/Umhang: aufgeblasener Oberkörper, vorn offen (open_w(z) = halbe Öffnungsbreite),
+    Halsausschnitt, glatte Schnittkanten. → (Objekt, BVH-Baum der Außenseite)"""
+    bm = bmesh.new()
+    bm.from_mesh(skin_ob.data)
+    inflate(bm, grow, smooth)
+
+    def keep(f):
+        c = f.calc_center_median()
+        if bottom is not None and c.z < bottom(c):
+            return False
+        if open_w is not None and c.y < nc.y + 0.02 and abs(c.x) < open_w(c.z):
+            return False
+        return not (c.z > nc.z - 0.03 and math.hypot(c.x, c.y - nc.y) < neck_r)
+    keep_faces(bm, keep)
+    smooth_boundary(bm)
+    geo.box_uv(bm, tile)
+    ob = to_object(name, bm, mat, skin_ob.parent)
+    tree = bvh(ob)
+    if thickness:
+        ob.modifiers.new("Dicke", "SOLIDIFY").thickness = thickness
+    return ob, tree
+
+
+def old_head(fig, alt, rnd, m, y_off=-0.03, build="build_head"):
+    """Kopf aus einem hd_*-Skript auf die neue Figur setzen (Head-Empty auf die alte Höhe)."""
+    nc = to_torso(fig.mrig.pose.bones["neck01"].head)
+    fig.rig.head.location = Vector((0, nc.y + y_off, alt.HEAD_Y))
+    getattr(alt, build)(fig.rig, m, rnd)
+    alt.scale_head(fig.rig, alt.HEAD_SCALE)
+    return nc
+
+
+def show(shading="MATERIAL"):
+    """Ansicht im laufenden Blender auf die Figur richten (zum Zuschauen)."""
+    for win in bpy.context.window_manager.windows:
+        for area in win.screen.areas:
+            if area.type == "VIEW_3D":
+                sp = area.spaces.active
+                sp.shading.type = shading
+                r3d = sp.region_3d
+                r3d.view_perspective = "PERSP"
+                r3d.view_location = Vector((0, 0.3, 1.05))
+                r3d.view_distance = 2.6
+                from mathutils import Euler
+                r3d.view_rotation = Euler((math.radians(78), 0, math.radians(18))).to_quaternion()
+
+
+def brighten(mat, factor: float) -> None:
+    """Farbtextur eines Materials aufhellen/abdunkeln (Godot zeigt dunkle Alpha-Materialien fast schwarz)."""
+    for n in mat.node_tree.nodes:
+        if n.type == "TEX_IMAGE" and n.image is not None and n.image.colorspace_settings.name != "Non-Color":
+            w, h = n.image.size
+            a = np.empty(w * h * 4, dtype=np.float32)
+            n.image.pixels.foreach_get(a)
+            a = a.reshape(-1, 4)
+            a[:, :3] = np.clip(a[:, :3] * factor, 0, 1)
+            n.image.pixels.foreach_set(a.ravel())
+            n.image.pack()
+            return
