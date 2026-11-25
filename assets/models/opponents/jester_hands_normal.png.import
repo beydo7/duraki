@@ -2,20 +2,20 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://pajksxw4rrnm"
-path.s3tc="res://.godot/imported/bone_man_cloth_brown_normal.png-6b8dabe26b142422d5f30e4a41d47f20.s3tc.ctex"
+uid="uid://bqenkjv3my4dp"
+path.s3tc="res://.godot/imported/jester_hands_normal.png-a11e8cd7d3971416c144e09174473366.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
 }
 generator_parameters={
-"md5": "a0f5528dec3a1dd369ad0c4bff57bf95"
+"md5": "4f170afb6cf5ef9a4cda053b7ed47204"
 }
 
 [deps]
 
-source_file="res://assets/models/opponents/bone_man_cloth_brown_normal.png"
-dest_files=["res://.godot/imported/bone_man_cloth_brown_normal.png-6b8dabe26b142422d5f30e4a41d47f20.s3tc.ctex"]
+source_file="res://assets/models/opponents/jester_hands_normal.png"
+dest_files=["res://.godot/imported/jester_hands_normal.png-a11e8cd7d3971416c144e09174473366.s3tc.ctex"]
 
 [params]
 

@@ -2,20 +2,20 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://ji3s36q6fi3j"
-path.s3tc="res://.godot/imported/bone_man_cloth_brown_color.png-9f2a82e7aca9f7c7b25893670229e7fb.s3tc.ctex"
+uid="uid://b34r74351t3pk"
+path.s3tc="res://.godot/imported/bone_man_coat_color.png-3009fd2626d3db755c86f90f7e9f0d14.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
 }
 generator_parameters={
-"md5": "9819b30fc2b954aba13f2642f243a42e"
+"md5": "39bf44999064cc72bf1d82e816a623f2"
 }
 
 [deps]
 
-source_file="res://assets/models/opponents/bone_man_cloth_brown_color.png"
-dest_files=["res://.godot/imported/bone_man_cloth_brown_color.png-9f2a82e7aca9f7c7b25893670229e7fb.s3tc.ctex"]
+source_file="res://assets/models/opponents/bone_man_coat_color.png"
+dest_files=["res://.godot/imported/bone_man_coat_color.png-3009fd2626d3db755c86f90f7e9f0d14.s3tc.ctex"]
 
 [params]
 

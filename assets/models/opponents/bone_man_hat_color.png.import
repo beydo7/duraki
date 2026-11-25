@@ -2,20 +2,20 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://c55yo2po4pnpk"
-path.s3tc="res://.godot/imported/jester_metal_normal.png-99bcded31b69b03cc32e12b69232d9cc.s3tc.ctex"
+uid="uid://dm51nfnyso5r8"
+path.s3tc="res://.godot/imported/bone_man_hat_color.png-14d30adb13b0a83de166675afc0597c3.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
 }
 generator_parameters={
-"md5": "6b5cf1bf7df2df44367f0a5462061509"
+"md5": "7178744d8846b42a1773dc0267882267"
 }
 
 [deps]
 
-source_file="res://assets/models/opponents/jester_metal_normal.png"
-dest_files=["res://.godot/imported/jester_metal_normal.png-99bcded31b69b03cc32e12b69232d9cc.s3tc.ctex"]
+source_file="res://assets/models/opponents/bone_man_hat_color.png"
+dest_files=["res://.godot/imported/bone_man_hat_color.png-14d30adb13b0a83de166675afc0597c3.s3tc.ctex"]
 
 [params]
 

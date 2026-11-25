@@ -2,20 +2,20 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dh57p72r17hrq"
-path.s3tc="res://.godot/imported/jester_skin_pale_color.png-3ce8c33b4dd4c6caa3e584da1e7f097b.s3tc.ctex"
+uid="uid://ban8lb7d06sck"
+path.s3tc="res://.godot/imported/jester_cloth_gold_color.png-f1c145476253464e5318872878992667.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
 }
 generator_parameters={
-"md5": "328b3423e9ad7360d9197d3865efe943"
+"md5": "707e48dec96f2a08b989ec5e28e82579"
 }
 
 [deps]
 
-source_file="res://assets/models/opponents/jester_skin_pale_color.png"
-dest_files=["res://.godot/imported/jester_skin_pale_color.png-3ce8c33b4dd4c6caa3e584da1e7f097b.s3tc.ctex"]
+source_file="res://assets/models/opponents/jester_cloth_gold_color.png"
+dest_files=["res://.godot/imported/jester_cloth_gold_color.png-f1c145476253464e5318872878992667.s3tc.ctex"]
 
 [params]
 

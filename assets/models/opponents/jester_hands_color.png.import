@@ -2,20 +2,20 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dq81pyva6pw61"
-path.s3tc="res://.godot/imported/jester_metal_color.png-766512f139d3627b2e6053876019ff13.s3tc.ctex"
+uid="uid://cnxu0nd2honm6"
+path.s3tc="res://.godot/imported/jester_hands_color.png-d63248a8d90f03bbf959aef9edcb7f7f.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
 }
 generator_parameters={
-"md5": "b8fc89c1fe6ad80953084b749f7de0cc"
+"md5": "6ea91ff8a6a8ac913055b260f732576d"
 }
 
 [deps]
 
-source_file="res://assets/models/opponents/jester_metal_color.png"
-dest_files=["res://.godot/imported/jester_metal_color.png-766512f139d3627b2e6053876019ff13.s3tc.ctex"]
+source_file="res://assets/models/opponents/jester_hands_color.png"
+dest_files=["res://.godot/imported/jester_hands_color.png-d63248a8d90f03bbf959aef9edcb7f7f.s3tc.ctex"]
 
 [params]
 

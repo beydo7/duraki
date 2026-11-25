@@ -1028,8 +1028,8 @@ CHARACTERS = {
     "swamp_man": _hd("hd_swamp_man"),
     "crow": _hd("hd_crow"),
     "wolf": _hd("hd_wolf"),
-    "jester": jester,
-    "bone_man": bone_man,
+    "jester": _hd("hd_jester"),
+    "bone_man": _hd("hd_bone_man"),
     "witch": witch,
     "giant": giant,
 }

@@ -250,7 +250,8 @@ zwei Ebenen: Karten = Spielwelt, HUD = Plakat darüber.
 ### Gegner / 3D-Modelle
 Modelle aus Blender (Skripte in `art/blender/`), Vorlage ist das Konzeptblatt „Am Spieltisch“.
 HD-Versionen auf aktuellem Stand: **Bandit** (`hd_bandit.py`), **Sumpfmann** (`hd_swamp_man.py`),
-**Wölfin** (`hd_wolf.py`). Die **Krähe** (`hd_crow.py`) ist HD, aber noch vom alten Stand (steifer
+**Wölfin** (`hd_wolf.py`), **Gaukler** (`hd_jester.py`), **Knochenmann** (`hd_bone_man.py`, Kerze auf
+dem Hut mit flackerndem Licht über den Marker `FlameLight`). Die **Krähe** (`hd_crow.py`) ist HD, aber noch vom alten Stand (steifer
 Ärmel, kein Kartenfächer in den Händen). Wie die Figuren gebaut werden: **`docs/CHARAKTERE.md`**.
 Exporte als glb in `assets/models/opponents/`, .blend-Dateien in `art/blender/opponents/`,
 Porträts per `art/blender/render_portraits.py`.
@@ -318,8 +319,9 @@ Run: Schwierigkeit, Hinweise, Tutorial im Hauptmenü anzeigen).
 
 ## 8. Offene Punkte / nächste Schritte
 1. Juice ausbauen: rollende Zahlen beim Punkten, Sounds zu den Kartenbewegungen.
-2. Restliche Gegner in HD (Rezept `docs/CHARAKTERE.md`): als Nächstes Gaukler + Knochenmann,
-   dann Hexe + Riese, danach die Krähe auf den neuen Stand bringen. Fertig: Bandit, Sumpfmann, Wölfin.
+2. Restliche Gegner in HD (Rezept `docs/CHARAKTERE.md`): als Nächstes Hexe + Riese,
+   danach die Krähe auf den neuen Stand bringen. Fertig: Bandit, Sumpfmann, Wölfin,
+   Gaukler, Knochenmann.
 3. Lila Lampen-Scheiben im Raum sind Platzhalter → echte Lampen.
 5. Die 3D-Menükarten im Hauptmenü an den Okkult-Gold-Stil der Karten anpassen.
 6. Belohnungen für die Erfolge festlegen (Leon überlegt noch).

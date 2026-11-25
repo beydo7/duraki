@@ -2,20 +2,20 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://c0d2baiwfurua"
-path.s3tc="res://.godot/imported/jester_cloth_purple_normal.png-b1093530ef0f65b54f0254edc36c8d0e.s3tc.ctex"
+uid="uid://cuor6kyulq76g"
+path.s3tc="res://.godot/imported/bone_man_lining_normal.png-33dd42cd2e1279bb50c14ebf06962b97.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
 }
 generator_parameters={
-"md5": "678e7fbd707cd7a9ad8a36561dd0e437"
+"md5": "74792d0818cf179c5b1c1a0ea1aae270"
 }
 
 [deps]
 
-source_file="res://assets/models/opponents/jester_cloth_purple_normal.png"
-dest_files=["res://.godot/imported/jester_cloth_purple_normal.png-b1093530ef0f65b54f0254edc36c8d0e.s3tc.ctex"]
+source_file="res://assets/models/opponents/bone_man_lining_normal.png"
+dest_files=["res://.godot/imported/bone_man_lining_normal.png-33dd42cd2e1279bb50c14ebf06962b97.s3tc.ctex"]
 
 [params]
 

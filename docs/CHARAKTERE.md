@@ -16,6 +16,7 @@ Hand_L, Hand_R                 Hände; Objekt-Position = Ruhelage der Hand (häl
 SleeveUpper, SleeveFore        Ober-/Unterarm, Länge 1 entlang lokal Z (-0.5 körpernah)
 Props (optional) + PropLight   Dinge auf dem Tisch
 Void*                          wird in Godot pechschwarz und unbeleuchtet (Augenhöhlen, Mäuler)
+FlameLight* (Empty, optional)  unter Torso/Head: Godot setzt dort ein flackerndes Kerzenlicht
 Preview_*                      nur Blender-Vorschau, wird nicht exportiert
 ```
 
