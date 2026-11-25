@@ -2,6 +2,7 @@ class_name TableProps
 extends Node3D
 ## Lebendige Gegenstände auf deiner Tischseite – das „diegetische“ HUD:
 ##   Kerzen   = deine Leben (verlierst du, erlischt eine mit Rauch)
+##   (Casino: grüne Bankerlampe statt Kerzen – Leben = kleine Lämpchen auf dem Messingfuß)
 ##   Münzen   = dein Gold (neue Münzen fallen klimpernd auf den Stapel)
 
 const CANDLE_ORIGIN := Vector3(-0.72, 0.80, 0.08)
@@ -24,6 +25,10 @@ var _chip_mesh: CylinderMesh
 var _chip_ring: TorusMesh
 var _chip_mats: Array[StandardMaterial3D] = []
 var _chip_white: StandardMaterial3D
+## Casino: grüne Bankerlampe statt Kerzen (vor set_lives setzen)
+var lamp_style := false
+const LAMP_ORIGIN := Vector3(-0.92, 0.80, -0.36)
+var _lamp: BankerLamp
 ## Nur ein gemeinsames Licht pro Kerzenkranz (spart Leistung, z. B. im Shop-Hintergrund)
 var _single_light := false
 ## Maus über den Kerzen → sie werden dunkler (1 = normal, ~0.35 = gedimmt)
@@ -85,6 +90,15 @@ func _process(delta: float) -> void:
 
 ## Kerzen für die Leben aufstellen (einmal beim Aufbau).
 func set_lives(count: int) -> void:
+	if lamp_style:
+		if _lamp != null:
+			_lamp.queue_free()
+		_lamp = BankerLamp.new()
+		_lamp.position = LAMP_ORIGIN
+		_lamp.rotation.y = 0.6 # schräg zur Tischmitte
+		add_child(_lamp)
+		_lamp.set_lives(count)
+		return
 	for c in _candles:
 		(c.root as Node3D).queue_free()
 	_candles.clear()
@@ -153,6 +167,9 @@ func use_single_light() -> void:
 
 ## Die letzte brennende Kerze erlischt (mit Rauchfaden).
 func snuff_candle() -> void:
+	if _lamp != null:
+		_lamp.lose_life()
+		return
 	for i in range(_candles.size() - 1, -1, -1):
 		var c: Dictionary = _candles[i]
 		if c.life > 0.0:

@@ -11,7 +11,9 @@ Schreibt nach assets/rooms/casino/:
   slot_pull.wav   Hebel ziehen (Ratsche + Klacken)
   slot_spin.wav   Walzen laufen und rasten nacheinander ein
   slot_win.wav    Gewinn: Glocke und klimpernde Münzen
-  roulette.wav    Kugel kreiselt, wird langsamer, fällt ins Fach
+  roulette.wav    Kugel rollt leise im Kessel und wird langsamer
+  roulette_land.wav  Kugel hüpft über die Stege und bleibt im Fach liegen
+  roulette_tick.wav  leiser Klick beim Anstupsen (Easter Egg: 5× klicken)
 """
 import math
 import os
@@ -243,19 +245,32 @@ def slot_win():
 
 
 def roulette_sound():
-    dur = 4.2
-    buf = np.zeros(int(dur * sx.SR))
-    # Kugel rollt im Kessel (Rauschen, wird leiser) und klackert über die Stege
-    roll = sx.lowpass(np.random.default_rng(9).normal(0, 1, int(3.4 * sx.SR)), 1800)
-    roll *= np.linspace(0.6, 0.15, len(roll)) * (0.7 + 0.3 * np.sin(2 * np.pi * 5 * sx.t(3.4)))
-    sx.place(buf, roll, 0.0, 0.35)
-    tt, gap = 2.6, 0.05
-    while tt < 3.9:
-        sx.place(buf, sx.clack(2400, 0.02), tt, 0.5)
-        tt += gap
-        gap *= 1.35
-    sx.place(buf, sx.clack(1600, 0.05), 3.95, 0.9)  # liegt im Fach
+    """Kugel rollt leise im Kessel und wird langsamer (weich, nicht schrill)."""
+    dur = 3.8
+    n = int(dur * sx.SR)
+    roll = sx.lowpass(np.random.default_rng(9).normal(0, 1, n), 1100)
+    tt = sx.t(dur)
+    # Rollgeräusch: kurz einblenden, dann langsam leiser; leichtes Pulsieren (Kugel kreist)
+    rate = np.linspace(4.5, 1.6, n)
+    pulse = 0.75 + 0.25 * np.sin(2 * np.pi * np.cumsum(rate) / sx.SR)
+    roll *= np.minimum(tt / 0.15, 1.0) * np.linspace(0.7, 0.0, n) ** 1.4 * pulse
+    return sx.reverb(sx.lowpass(roll, 1400), 0.18, 0.08)
+
+
+def roulette_land():
+    """Kugel hüpft über ein paar Stege und bleibt im Fach liegen (weiche Klicks)."""
+    buf = np.zeros(int(1.0 * sx.SR))
+    for at, v in ((0.0, 0.8), (0.16, 0.6), (0.3, 0.45), (0.41, 0.32), (0.5, 0.22)):
+        sx.place(buf, sx.lowpass(sx.clack(1300, 0.04), 2600), at, v)
+    sx.place(buf, sx.lowpass(sx.clack(900, 0.06), 2000), 0.62, 0.5)  # liegt im Fach
     return sx.reverb(buf, 0.2, 0.1)
+
+
+def roulette_tick():
+    """Leiser Holzklick, wenn man den Kessel nur anstupst."""
+    buf = np.zeros(int(0.25 * sx.SR))
+    sx.place(buf, sx.lowpass(sx.clack(800, 0.05), 2200), 0.0, 1.0)
+    return sx.reverb(buf, 0.12, 0.06)
 
 
 if __name__ == "__main__":
@@ -268,4 +283,6 @@ if __name__ == "__main__":
     save_wav("slot_pull.wav", slot_pull())
     save_wav("slot_spin.wav", slot_spin())
     save_wav("slot_win.wav", slot_win())
-    save_wav("roulette.wav", roulette_sound())
+    save_wav("roulette.wav", roulette_sound(), 0.6)
+    save_wav("roulette_land.wav", roulette_land(), 0.6)
+    save_wav("roulette_tick.wav", roulette_tick(), 0.5)

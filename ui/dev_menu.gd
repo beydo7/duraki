@@ -95,7 +95,7 @@ func _ready() -> void:
 	var rooms := HBoxContainer.new()
 	rooms.add_theme_constant_override("separation", 8)
 	root.add_child(rooms)
-	rooms.add_child(_button("NORMAL", func() -> void: _set_room(&"")))
+	rooms.add_child(_button("ZUFÄLLIG", func() -> void: _set_room(&"")))
 	for id: StringName in Rooms.NAMES:
 		rooms.add_child(_button(String(Rooms.NAMES[id]).to_upper(), func() -> void: _set_room(id)))
 

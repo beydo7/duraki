@@ -85,16 +85,25 @@ Ein Run = 3 normale Gegner + Boss, 3 Leben (Kerzen). Wer verliert, ist der Durak
 - **Erfolge** (`Profile.ACHIEVEMENTS`, gespeichert in profile.cfg, Index-Reiter ERFOLGE): Lehrling,
   Erster Sieg, Weitergeschoben, Brandstifter, Volltreffer (100+ Punkte in einer Runde), Sammler
   (5 Relikte), Riesentöter (Boss), Durchgezogen (Run gewonnen), Eiskalt (Run auf Schwer) und die
-  geheimen Raucher (eine Zigarette zu Ende), Kettenraucher (6 Zigaretten in einem Run = die ganze Schachtel) und Alkoholiker (Whiskeyflasche im Hauptmenü leer getrunken). Geheime zeigen ein „?“ und
+  geheimen Raucher (eine Zigarette zu Ende), Kettenraucher (6 Zigaretten in einem Run = die ganze Schachtel) und Alkoholiker (Whiskeyflasche im Hauptmenü leer getrunken), Alles auf Grün (Casino-Roulette landet auf der 0). Geheime zeigen ein „?“ und
   eine zensierte Aufgabe, bis sie erreicht sind. Meldung oben in der Mitte (Autoload `Pause`).
   Belohnungen: noch offen (Leon entscheidet).
-- **Räume** (`scenes/match/rooms/`, `Rooms.for_floor`): Tisch 1, 3 und Boss im Hinterzimmer, Tisch 2 im
-  **Alten Casino**. Das Casino ist ganz in Code gebaut (kein Blender): Damast-Tapete, Teppich, Vorhänge,
-  Kronleuchter, Neonschild „КАЗИНО“, zwei alte Spielautomaten mit großem Hebel (anklickbar: Walzen
-  drehen, selten 7-7-7), größerer abgerundeter Pokertisch, kleines Roulette (anklickbar), Würfel,
-  Cocktailglas, Pokerchips statt Goldmünzen (`TableProps.chip_style`) – kein Aschenbecher, keine
-  Zigaretten. Texturen und Geräusche: `tools/generate_casino.py` → `assets/rooms/casino/`.
-  F8-Menü: Raum für alle Tische erzwingen (`Rooms.forced`).
+- **Räume** (`scenes/match/rooms/`, `Rooms.for_floor`): Jeder Tisch spielt in einem zufälligen Raum
+  (Hinterzimmer oder **Altes Casino**), fest pro Run-Seed und Tisch, damit Weg und Duell denselben Raum
+  zeigen; eigener Zufallsgenerator, `Run.rng` bleibt unberührt. Das Tutorial spielt immer im Hinterzimmer.
+  Das Casino ist ganz in Code gebaut (kein Blender): Damast-Tapete, Teppich, Vorhänge, Kronleuchter,
+  Neonschild „CASINO“, zwei alte Spielautomaten mit „DURAKI“-Schild und großem Hebel (anklickbar: Walzen
+  drehen, selten 7-7-7), größerer abgerundeter Pokertisch, Würfel, Cocktailglas, Pokerchips statt
+  Goldmünzen (`TableProps.chip_style`), kein Aschenbecher, keine Zigaretten.
+  Statt der Kerzen steht eine **grüne Bankerlampe** (`BankerLamp`, `TableProps.lamp_style`): pro Leben
+  ein rotes Lämpchen auf dem Messingfuß; Leben weg → Lampe flackert, ein Lämpchen geht aus; beim letzten
+  geht die Lampe aus.
+  **Roulette** (Easter Egg, `MiniRoulette`): 1–4 Klicks stupsen den Kessel nur an, beim 5. Klick kurz
+  hintereinander wird gedreht. Das Fach wird vorher gleichverteilt gezogen (37 Fächer wie beim
+  europäischen Roulette, grüne 0 = 1/37), die Kugel rollt dorthin und hüpft über die letzten Stege.
+  Grün → geheimer Erfolg „Alles auf Grün“. Leise Geräusche (`roulette*.wav`, -14 dB).
+  Texturen und Geräusche: `tools/generate_casino.py` → `assets/rooms/casino/`.
+  F8-Menü: Raum für alle Tische erzwingen (`Rooms.forced`, „ZUFÄLLIG“ = normal).
 - **Der Weg** zeigt den Raum scharf wie im Duell (`RoomBackdrop.blur = 0`, MSAA 4×).
 - **Tutorial**: zeigt zum Start eine Glücksmünze und einen Spiegel und erklärt Relikte und Item-Plätze
   oben rechts. Nach dem Sieg öffnet sich der Händler mit 15 Gold und fünf Erklärschritten

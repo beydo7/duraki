@@ -167,6 +167,7 @@ func build(opponent: OpponentData) -> void:
 			s.interactive = true
 	props = TableProps.new()
 	props.chip_style = room_id == Rooms.CASINO # Pokerchips statt Goldmünzen
+	props.lamp_style = room_id == Rooms.CASINO # grüne Bankerlampe statt Kerzen
 	add_child(props)
 	_deck_pile = _pile_mesh()
 	_deck_pile.position = DECK_POS

@@ -105,7 +105,7 @@ func _build() -> void:
 	var plate := _box(Vector3(W * 0.78, 0.1, 0.01), Vector3(0, top + 0.06, D * 0.5 + 0.002), dark)
 	plate.name = "Schild"
 	var sign := Label3D.new()
-	sign.text = "ДЖЕКПОТ"
+	sign.text = "DURAKI"
 	sign.font = preload("res://assets/fonts/RussoOne-Regular.ttf")
 	sign.font_size = 64
 	sign.pixel_size = 0.00075

@@ -1,6 +1,6 @@
 class_name Rooms
 extends RefCounted
-## Welche Räume es gibt und an welchem Tisch welcher Raum dran ist.
+## Welche Räume es gibt und welcher Raum an einem Tisch dran ist (zufällig pro Tisch).
 ##
 ## Jeder Raum hat eigene Details (das Hinterzimmer: Aschenbecher, Zigaretten, Whiskey;
 ## das Casino: Roulette, Spielautomaten, Pokerchips). TableWorld fragt hier nach und
@@ -15,14 +15,22 @@ const NAMES := {
 	CASINO: "Altes Casino",
 }
 
-## Raum pro Tisch (0 = Tisch 1 … 3 = Boss). Tisch 2 spielt im Casino.
-const BY_FLOOR: Array[StringName] = [HINTERZIMMER, CASINO, HINTERZIMMER, HINTERZIMMER]
+## Alle Räume, aus denen für jeden Tisch zufällig gewählt wird
+const ALL: Array[StringName] = [HINTERZIMMER, CASINO]
 
 ## Zum Testen (Entwicklermenü): erzwingt einen Raum für alle Tische, leer = normal.
 static var forced: StringName = &""
 
 
+## Raum für einen Tisch: zufällig, aber pro Run und Tisch fest (gleicher Seed → gleicher
+## Raum), damit der Weg auf der Karte und das Duell denselben Raum zeigen. Benutzt einen
+## eigenen Zufallsgenerator, damit der Spielzufall (Run.rng) unverändert bleibt.
+## Das Tutorial spielt immer im Hinterzimmer (es erklärt Aschenbecher und Zigaretten).
 static func for_floor(floor_index: int) -> StringName:
 	if forced != &"":
 		return forced
-	return BY_FLOOR[clampi(floor_index, 0, BY_FLOOR.size() - 1)]
+	if Run.tutorial:
+		return HINTERZIMMER
+	var r := RandomNumberGenerator.new()
+	r.seed = hash([Run.seed_value, floor_index, "raum"])
+	return ALL[r.randi() % ALL.size()]

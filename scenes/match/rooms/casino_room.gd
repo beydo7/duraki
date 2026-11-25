@@ -292,7 +292,8 @@ func _stadium(size: Vector2, h: float, top: float, m: Material) -> void:
 func _build_on_table() -> void:
 	var y := TableWorld.TABLE_Y
 	roulette = MiniRoulette.new()
-	roulette.position = Vector3(TableWorld.PLAYER_ASHTRAY_POS.x, y, TableWorld.PLAYER_ASHTRAY_POS.z)
+	roulette.position = Vector3(TableWorld.PLAYER_ASHTRAY_POS.x + 0.02, y, TableWorld.PLAYER_ASHTRAY_POS.z - 0.08)
+	roulette.scale = Vector3.ONE * 1.45 # deutlich größer als der Aschenbecher
 	add_child(roulette)
 	# zwei Würfel rechts neben dem Ablagestapel
 	var die_mat := _mat(Color(0.95, 0.93, 0.88), 0.25)
@@ -363,7 +364,7 @@ func _build_sign() -> void:
 	var board := _box_in(self, Vector3(1.3, 0.38, 0.05), Vector3(0, y, BACK_Z + 0.03), _mat(Color(0.05, 0.02, 0.03), 0.6))
 	board.name = "Neonschild"
 	_sign_label = Label3D.new()
-	_sign_label.text = "КАЗИНО"
+	_sign_label.text = "CASINO"
 	_sign_label.font = preload("res://assets/fonts/RussoOne-Regular.ttf")
 	_sign_label.font_size = 160
 	_sign_label.pixel_size = 0.0016
