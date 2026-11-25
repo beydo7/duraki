@@ -19,7 +19,7 @@ const ACHIEVEMENTS := {
 	&"big_bout": ["💥", "Volltreffer", "Mach 100 Punkte oder mehr in einer einzigen Runde.", false],
 	&"relics5": ["🧺", "Sammler", "Besitze 5 Relikte gleichzeitig.", false],
 	&"boss": ["🗿", "Riesentöter", "Besiege einen Boss.", false],
-	&"run_win": ["👑", "Durchgezogen", "Gewinne einen ganzen Run.", false],
+	&"run_win": ["👑", "Durchgezogen", "Besiege alle drei Bosse eines Runs.", false],
 	&"hard_win": ["💀", "Eiskalt", "Gewinne einen Run auf Schwer.", false],
 	&"smoker": ["🚬", "Raucher", "Rauche eine Zigarette zu Ende.", true],
 	&"chain_smoker": ["📦", "Kettenraucher", "Rauche in einem Run die ganze Schachtel (6 Zigaretten).", true],
@@ -48,6 +48,12 @@ var best_floor := 0
 ## Erreichte Erfolge (ids) und Zähler dafür
 var achievements: Array[StringName] = []
 var cigarettes_smoked := 0
+## Bestenliste (vorerst nur lokal): die besten Endlos-Ergebnisse, höchste zuerst.
+## Je Eintrag {name, score, decks, deck, date}. Online-Vergleich mit Freunden kommt später.
+var endless_records: Array[Dictionary] = []
+const ENDLESS_RECORDS := 10
+## Name in der Bestenliste
+var player_name := "Du"
 ## Frisch freigeschaltete Decks, die noch nicht angezeigt wurden.
 var pending_unlocks: Array[DeckData] = []
 
@@ -158,6 +164,27 @@ func on_run_finished(won: bool, tables_won: int, factor := 1.0, deck_id: StringN
 	return gained
 
 
+## Endlos-Ergebnis in die (lokale) Bestenliste eintragen. Gibt den Platz zurück (1 = bester)
+## oder 0, wenn es nicht unter die besten ENDLESS_RECORDS kommt.
+func record_endless(score: int, decks: int, deck_name: String) -> int:
+	var entry := {"name": player_name, "score": score, "decks": decks, "deck": deck_name,
+		"date": Time.get_date_string_from_system()}
+	endless_records.append(entry)
+	endless_records.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		return int(a.score) > int(b.score))
+	var place := endless_records.find(entry) + 1
+	if endless_records.size() > ENDLESS_RECORDS:
+		endless_records.resize(ENDLESS_RECORDS)
+	save_profile()
+	changed.emit()
+	return place if place <= ENDLESS_RECORDS else 0
+
+
+## Bester Endlos-Wert (0, wenn noch keiner).
+func endless_best() -> int:
+	return int(endless_records[0].score) if not endless_records.is_empty() else 0
+
+
 ## Entwicklermenü: alle Decks freischalten und alle Abzeichen vergeben.
 func unlock_all() -> void:
 	for d in decks():
@@ -238,6 +265,8 @@ func load_profile() -> void:
 	for id in cfg.get_value("achievements", "done", PackedStringArray()):
 		achievements.append(StringName(id))
 	cigarettes_smoked = int(cfg.get_value("stats", "cigarettes", 0))
+	endless_records.assign(cfg.get_value("endless", "records", []))
+	player_name = String(cfg.get_value("profile", "name", "Du"))
 
 
 func save_profile() -> void:
@@ -259,6 +288,8 @@ func save_profile() -> void:
 	for id in achievements:
 		done.append(String(id))
 	cfg.set_value("achievements", "done", done)
+	cfg.set_value("endless", "records", endless_records)
+	cfg.set_value("profile", "name", player_name)
 	cfg.save(PATH)
 
 
@@ -272,3 +303,4 @@ func reset_for_tests() -> void:
 	cigarettes_smoked = 0
 	selected = DEFAULT_DECK
 	pending_unlocks.clear()
+	endless_records.clear()

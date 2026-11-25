@@ -91,6 +91,22 @@ func _ready() -> void:
 		Run.add_gold(10)
 		_refresh("+10 Gold.")))
 
+	root.add_child(_head("RUN ÜBERSPRINGEN (zum Testen)"))
+	var skip := HFlowContainer.new()
+	skip.add_theme_constant_override("h_separation", 8)
+	skip.add_theme_constant_override("v_separation", 8)
+	root.add_child(skip)
+	skip.add_child(_button("GEGNER ÜBERSPRINGEN", func() -> void: _skip(Run.dev_skip_opponent)))
+	skip.add_child(_button("ZUM BOSS DES AKTS", func() -> void: _skip(Run.dev_skip_to_boss)))
+	skip.add_child(_button("BOSS-HÄNDLER", func() -> void:
+		_skip(func() -> void:
+			Run.boss_shop = true
+			Run.boss_gift_open = true
+			Run.last_gold_reward = 0
+			Run.last_interest = 0
+			Run.open_shop())))
+	skip.add_child(_button("ENDLOS-MODUS STARTEN", func() -> void: _skip(Run.dev_start_endless)))
+
 	root.add_child(_head("RAUM (für alle Tische, bis zum Neustart)"))
 	var rooms := HBoxContainer.new()
 	rooms.add_theme_constant_override("separation", 8)
@@ -110,6 +126,15 @@ func _ready() -> void:
 	# Profil-Knopf und Rückmeldung nach oben holen, damit man sie ohne Scrollen sieht
 	root.move_child(_status, 1)
 	UIKit.appear(panel, 0.0, Vector2(0, 20), 0.25)
+
+
+## Sprung im Run (nur während eines Runs, nicht im Tutorial).
+func _skip(action: Callable) -> void:
+	if Run.encounters.is_empty() or Run.tutorial:
+		_refresh("Geht nur während eines Runs.")
+		return
+	close()
+	action.call()
 
 
 ## Raum erzwingen; im Duell wird der Tisch dafür neu aufgebaut.

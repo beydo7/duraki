@@ -33,8 +33,9 @@ func _ready() -> void:
 			_build_cards())
 
 	UIKit.poster_wedge(self, Vector2(640, 335), %TitleBlock, "BEYD & FLÖRRY")
-	_update_info()
-	Profile.changed.connect(_update_info)
+	%Hint.visible = false # Deck- und Seelen-Anzeige unten links gibt es nicht mehr
+	_build_leaderboard()
+	Profile.changed.connect(_build_leaderboard)
 
 	# Auftritt: Kamera gleitet an den Tisch, Titel und Menü blenden ein
 	var seat := world.get_camera_pose()
@@ -49,7 +50,6 @@ func _ready() -> void:
 		world.set_camera_pose(CAM_START.interpolate_with(seat, v)),
 		0.0, 1.0, 2.4).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	UIKit.appear(%TitleBlock, 0.5, Vector2(-30, 0), 0.8)
-	UIKit.appear(%Hint, 1.4, Vector2(0, 8), 0.6)
 	_focus(0, true)
 
 
@@ -154,9 +154,61 @@ func _begin_run(start: Callable = Run.start_new_run) -> void:
 	tw.tween_callback(func() -> void: start.call())
 
 
-func _update_info() -> void:
-	var d := Profile.selected_deck()
-	%Hint.text = "Deck: %s   ·   %d Seelen" % [d.display_name if d else "–", Profile.souls]
+## Bestenliste oben rechts: die besten Endlos-Ergebnisse. Vorerst nur die eigenen
+## (lokal gespeichert); der Vergleich mit Freunden kommt mit einem Online-Dienst später.
+var _board: Slab
+
+
+func _build_leaderboard() -> void:
+	if _board != null:
+		_board.queue_free()
+	_board = Slab.new()
+	_board.color = Color(0.07, 0.055, 0.055, 0.9)
+	_board.skew = -0.06
+	_board.margins = Vector4(22, 14, 22, 16)
+	_board.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_board.anchor_left = 1.0
+	_board.anchor_right = 1.0
+	_board.offset_left = -330.0
+	_board.offset_right = -40.0
+	_board.offset_top = 36.0
+	_board.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	add_child(_board)
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 2)
+	col.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_board.add_child(col)
+	var head := UIKit.poster_label("BESTENLISTE", UIKit.display_font(1), 22, UIKit.P_CREAM)
+	col.add_child(head)
+	col.add_child(UIKit.label("ENDLOS-MODUS · PUNKTE", 11, Color(1, 0.55, 0.5), &"HeaderLabel"))
+	var gap := Control.new()
+	gap.custom_minimum_size = Vector2(0, 6)
+	col.add_child(gap)
+	var records := Profile.endless_records
+	if records.is_empty():
+		var none := UIKit.label("Noch keine Einträge –\nschaff alle drei Bosse!", 15, UIKit.MUTED, &"TypeLabel")
+		col.add_child(none)
+	for i in mini(records.size(), 5):
+		var r: Dictionary = records[i]
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 10)
+		row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var place := UIKit.label("%d." % (i + 1), 18, Color(1, 0.84, 0.55) if i == 0 else UIKit.MUTED, &"BrushLabel")
+		place.custom_minimum_size = Vector2(26, 0)
+		row.add_child(place)
+		var who := UIKit.label(String(r.get("name", "Du")), 18, UIKit.CREAM, &"BrushLabel")
+		who.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		who.custom_minimum_size = Vector2(120, 0)
+		who.clip_text = true
+		row.add_child(who)
+		row.add_child(UIKit.label("%d" % int(r.get("score", 0)), 18, Color(1, 0.84, 0.55) if i == 0 else UIKit.CREAM, &"BrushLabel"))
+		row.tooltip_text = "%s · %d Decks · %s" % [r.get("deck", ""), int(r.get("decks", 0)), r.get("date", "")]
+		col.add_child(row)
+	var gap2 := Control.new()
+	gap2.custom_minimum_size = Vector2(0, 4)
+	col.add_child(gap2)
+	col.add_child(UIKit.label("Freunde: online kommt bald", 12, Color(UIKit.MUTED, 0.7), &"TypeLabel"))
+	UIKit.appear(_board, 1.2, Vector2(20, 0), 0.6)
 
 
 func _open_decks() -> void:

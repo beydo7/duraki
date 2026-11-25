@@ -40,7 +40,7 @@ func _ready() -> void:
 			Run.tutorial_shop = false
 			Run.goto(Run.SCENE_MENU) # Tutorial zu Ende
 		else:
-			Run.goto(Run.SCENE_MAP))
+			Run.leave_shop())
 	%RerollButton.pressed.connect(func() -> void:
 		if Run.reroll_shop():
 			_render(true))
@@ -52,6 +52,103 @@ func _ready() -> void:
 	if Run.tutorial_shop:
 		%ContinueButton.text = "TUTORIAL BEENDEN"
 		_start_tutorial()
+	elif Run.boss_shop:
+		_boss_header()
+		if Run.boss_gift_open:
+			_open_gift.call_deferred()
+	if Run.boss_shop and Run.floor_index >= Run.encounters.size():
+		%ContinueButton.text = "ZUM ENDLOS-MODUS"
+	if Run.endless:
+		$Head/Header.text = "ENDLOS · EINE KERZE WENIGER"
+
+
+# --- Händler nach dem Boss: Rabatt und Geschenk -----------------------------------------
+
+## Überschrift und rotes „-30 %“-Schild.
+func _boss_header() -> void:
+	$Head/Header.text = "NACH DEM BOSS · SONDERANGEBOT"
+	var tag := Slab.new()
+	tag.color = UIKit.P_RED
+	tag.skew = 0.12
+	tag.shadow_offset = Vector2(4, 5)
+	tag.margins = Vector4(18, 4, 18, 6)
+	tag.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tag.add_child(UIKit.poster_label("-%d %% AUF ALLES" % roundi(Run.BOSS_DISCOUNT * 100), UIKit.display_font(1), 26, UIKit.P_CREAM))
+	add_child(tag)
+	tag.position = Vector2(600, 74)
+	tag.rotation = -0.06
+	UIKit.pop(tag, 1.15)
+
+
+## Geschenk: 1 von 3 Relikten gratis wählen (vor dem Einkaufen).
+func _open_gift() -> void:
+	var choices := Run.boss_gift_choices()
+	if choices.is_empty():
+		Run.take_boss_gift(null)
+		return
+	var shade := ColorRect.new()
+	shade.color = Color(0, 0, 0, 0.72)
+	shade.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+	shade.mouse_filter = MOUSE_FILTER_STOP
+	add_child(shade)
+	var box := VBoxContainer.new()
+	box.set_anchors_and_offsets_preset(PRESET_CENTER)
+	box.grow_horizontal = GROW_DIRECTION_BOTH
+	box.grow_vertical = GROW_DIRECTION_BOTH
+	box.alignment = BoxContainer.ALIGNMENT_CENTER
+	box.add_theme_constant_override("separation", 18)
+	shade.add_child(box)
+	var head := UIKit.label("GESCHENK DES HÄNDLERS", 14, UIKit.MUTED, &"HeaderLabel")
+	head.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(head)
+	var title := UIKit.label("Such dir ein Relikt aus", 44, UIKit.CREAM, &"TitleLabel")
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(title)
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 22)
+	box.add_child(row)
+	for r in choices:
+		var card := Button.new()
+		card.custom_minimum_size = Vector2(230, 250)
+		card.focus_mode = Control.FOCUS_ALL
+		var inner := VBoxContainer.new()
+		inner.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+		inner.offset_left = 14
+		inner.offset_right = -14
+		inner.offset_top = 16
+		inner.offset_bottom = -14
+		inner.alignment = BoxContainer.ALIGNMENT_CENTER
+		inner.add_theme_constant_override("separation", 8)
+		inner.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		card.add_child(inner)
+		var icon_box := CenterContainer.new()
+		icon_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		icon_box.add_child(UIKit.relic_icon(r.visual(), 84, 60))
+		inner.add_child(icon_box)
+		var n := UIKit.label(r.display_name, 22, UIKit.CREAM, &"BrushLabel")
+		n.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		inner.add_child(n)
+		var d := UIKit.label(r.description, 14, UIKit.MUTED, &"TypeLabel")
+		d.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		d.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		d.custom_minimum_size = Vector2(200, 0)
+		inner.add_child(d)
+		for c in inner.get_children():
+			if c is Control:
+				(c as Control).mouse_filter = Control.MOUSE_FILTER_IGNORE
+		UIKit.hover(card, 1.05)
+		card.pressed.connect(func() -> void:
+			Sfx.play(&"coins")
+			Run.take_boss_gift(r)
+			_render_owned()
+			_render(false)
+			var tw := shade.create_tween()
+			tw.tween_property(shade, "modulate:a", 0.0, 0.25)
+			tw.tween_callback(shade.queue_free))
+		row.add_child(card)
+	UIKit.appear(box, 0.05, Vector2(0, 20), 0.5)
+	(row.get_child(0) as Button).grab_focus()
 
 
 ## Komplette Auslage neu aufbauen (Start und Neu-Mischen).
@@ -369,7 +466,26 @@ func _price(offer: Dictionary) -> Control:
 		tag.color = UIKit.P_RED_DARK
 		col = UIKit.P_CREAM
 	tag.add_child(UIKit.poster_label(text, UIKit.display_font(1), 18, col))
+	if offer.has("full_price") and not sold: # Rabatt: alter Preis durchgestrichen daneben
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
+		row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var old := UIKit.poster_label("%d" % offer.full_price, UIKit.display_font(1), 15, Color(UIKit.P_CREAM, 0.75))
+		old.add_child(_Strike.new())
+		row.add_child(old)
+		row.add_child(tag)
+		return row
 	return tag
+
+
+## roter Strich durch den alten Preis
+class _Strike extends Control:
+	func _ready() -> void:
+		set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+		mouse_filter = MOUSE_FILTER_IGNORE
+
+	func _draw() -> void:
+		draw_line(Vector2(-2, size.y * 0.62), Vector2(size.x + 2, size.y * 0.38), UIKit.P_RED, 2.5)
 
 
 # --- Tutorial: Händler erklären ---------------------------------------------------------

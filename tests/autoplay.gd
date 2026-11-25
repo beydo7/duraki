@@ -52,9 +52,10 @@ func _process(_delta: float) -> void:
 			scene.get_node("%ContinueButton").pressed.emit()
 		"RunEnd":
 			_runs_done += 1
-			print("Run %d: %s, Etage %d/%d, Gold %d, Relikte %d" % [
+			print("Run %d: %s, Etage %d/%d, Gold %d, Relikte %d%s" % [
 				_runs_done, "gewonnen" if Run.won_run else "verloren",
-				Run.floor_index, Run.encounters.size(), Run.gold, Run.relics.size()])
+				Run.floor_index, Run.encounters.size(), Run.gold, Run.relics.size(),
+				", Endlos %d Punkte in %d Decks" % [Run.endless_score, Run.endless_decks] if Run.endless else ""])
 			if _runs_done >= RUNS:
 				get_tree().quit()
 			else:

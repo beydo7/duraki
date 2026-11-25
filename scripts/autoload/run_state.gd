@@ -15,6 +15,15 @@ const RELIC_DIR := "res://data/relics/"
 const START_LIVES := 3
 const BASE_HAND_SIZE := 6
 const NORMAL_FIGHTS := 3 # danach folgt der Boss
+## Ein Run hat 3 Akte mit je 3 Gegnern und einem Boss (12 Tische). Nach jedem Boss kommt der
+## besondere Händler; nach dem 3. Boss beginnt der Endlos-Modus.
+const ACTS := 3
+const FIGHTS_PER_ACT := NORMAL_FIGHTS + 1
+## Punkteziele steigen pro Akt um diesen Faktor
+const ACT_GROWTH := 1.6
+## Händler nach einem Boss: so viel Rabatt auf alles, dazu ein Relikt geschenkt (1 von 3)
+const BOSS_DISCOUNT := 0.3
+const BOSS_GIFT_CHOICES := 3
 ## Zinsen nach jedem Sieg: +1 Gold pro 5 Gold, höchstens so viel.
 const INTEREST_PER := 5
 const INTEREST_MAX := 4 # Balance: weniger Gold-Überschuss (Boni gibt es nicht mehr zu kaufen)
@@ -99,6 +108,21 @@ const TUTORIAL_SHOP_GOLD := 15
 ## Seelen, die am Ende dieses Runs gutgeschrieben wurden
 var last_souls := 0
 
+## Händler nach einem Boss (Rabatt, Geschenk). `boss_gift_open`: Geschenk noch nicht gewählt.
+var boss_shop := false
+var boss_gift_open := false
+
+## Endlos-Modus (nach dem 3. Boss): kein Punkteziel, Punkte sammeln, bis die Leben weg sind.
+## Gegner Durak → neues Deck und neuer Gegner; eigenes Leben verloren → Händler, dann weiter.
+var endless := false
+var endless_score := 0
+var endless_decks := 0
+var endless_opponent: OpponentData
+## Punkte des letzten Duells (setzt die Duell-Szene vor on_match_finished)
+var last_duel_points := 0
+## Platz in der Bestenliste nach dem letzten Endlos-Run (0 = nicht drin)
+var last_endless_place := 0
+
 ## Aktuelle Shop-Auslage (siehe make_shop_offers) und Preis fürs Neu-Mischen.
 var shop_offers: Array[Dictionary] = []
 var reroll_price := REROLL_BASE_PRICE
@@ -158,6 +182,13 @@ func _reset(p_seed: int) -> void:
 	interest_max_bonus = 0
 	shop_offers.clear()
 	last_souls = 0
+	boss_shop = false
+	boss_gift_open = false
+	endless = false
+	endless_score = 0
+	endless_decks = 0
+	endless_opponent = null
+	last_duel_points = 0
 
 
 ## Effekte des gewählten Decks auf den neuen Run anwenden.
@@ -198,6 +229,8 @@ func deck_back() -> Texture2D:
 
 
 func current_opponent() -> OpponentData:
+	if endless:
+		return endless_opponent
 	if floor_index < encounters.size():
 		return encounters[floor_index]
 	return null
@@ -214,6 +247,8 @@ func player_hand_size() -> int:
 func score_target(floor_i := floor_index) -> int:
 	if tutorial:
 		return TUTORIAL_TARGET
+	if endless:
+		return 0 # kein Ziel
 	return int(roundf(_base_target(floor_i) * DIFF_TARGET[difficulty] / 10.0)) * 10
 
 
@@ -231,11 +266,30 @@ func _base_target(floor_i: int) -> int:
 	var opponent := encounters[floor_i] if floor_i < encounters.size() else null
 	if opponent != null and opponent.score_target > 0:
 		return opponent.score_target
-	var idx := SCORE_TARGETS.size() - 1 if opponent != null and opponent.is_boss else floor_i
-	if idx < SCORE_TARGETS.size():
-		return SCORE_TARGETS[idx]
-	var extra := idx - SCORE_TARGETS.size() + 1
-	return int(SCORE_TARGETS[-1] * pow(SCORE_TARGET_GROWTH, extra))
+	var pos := act_pos(floor_i)
+	var idx := SCORE_TARGETS.size() - 1 if opponent != null and opponent.is_boss else mini(pos, SCORE_TARGETS.size() - 1)
+	var base := SCORE_TARGETS[idx]
+	if pos >= SCORE_TARGETS.size(): # (falls ein Akt einmal mehr Tische hat)
+		base = int(SCORE_TARGETS[-1] * pow(SCORE_TARGET_GROWTH, pos - SCORE_TARGETS.size() + 1))
+	return int(base * pow(ACT_GROWTH, act_of(floor_i)))
+
+
+## Akt (0, 1, 2) eines Tisches und Platz im Akt (0–2 Gegner, 3 Boss).
+func act_of(floor_i := floor_index) -> int:
+	return floor_i / FIGHTS_PER_ACT
+
+
+func act_pos(floor_i := floor_index) -> int:
+	return floor_i % FIGHTS_PER_ACT
+
+
+## Tische (Indizes in `encounters`) des Akts, in dem `floor_i` liegt.
+func act_floors(floor_i := floor_index) -> Array[int]:
+	var first := act_of(floor_i) * FIGHTS_PER_ACT
+	var list: Array[int] = []
+	for i in range(first, mini(first + FIGHTS_PER_ACT, encounters.size())):
+		list.append(i)
+	return list
 
 
 ## Start-Mult pro Runde (1 + Boni aus Relikten und Deck).
@@ -263,19 +317,22 @@ func on_match_finished(loser: int) -> void:
 			return
 		goto(SCENE_MENU)
 		return
+	if endless:
+		_on_endless_finished(loser)
+		return
 	match loser:
 		DurakMatch.OPPONENT:
 			var opponent := current_opponent()
 			Profile.on_opponent_defeated(opponent)
-			last_gold_reward = opponent.gold_reward
-			for r in relics:
-				last_gold_reward += r.bonus_gold_per_win
-			var interest_cap := INTEREST_MAX + interest_max_bonus + (4 if has_relic(&"sock") else 0)
-			last_interest = mini(gold / INTEREST_PER, interest_cap)
-			gold += last_gold_reward + last_interest
+			_pay_win(opponent)
 			floor_index += 1
-			if floor_index >= encounters.size():
-				_end_run(true)
+			if opponent.is_boss:
+				# nach jedem Boss: besonderer Händler (nach dem 3. Boss geht es danach endlos weiter)
+				boss_shop = true
+				boss_gift_open = true
+				open_shop()
+			elif floor_index >= encounters.size():
+				start_endless()
 			else:
 				open_shop()
 		DurakMatch.PLAYER:
@@ -287,6 +344,110 @@ func on_match_finished(loser: int) -> void:
 				goto(SCENE_MAP)
 		_:
 			goto(SCENE_MAP) # Unentschieden: nochmal gegen denselben Gegner
+
+
+## Gold für einen Sieg (Belohnung des Gegners, Relikte, Zinsen).
+func _pay_win(opponent: OpponentData) -> void:
+	last_gold_reward = opponent.gold_reward
+	for r in relics:
+		last_gold_reward += r.bonus_gold_per_win
+	var interest_cap := INTEREST_MAX + interest_max_bonus + (4 if has_relic(&"sock") else 0)
+	last_interest = mini(gold / INTEREST_PER, interest_cap)
+	gold += last_gold_reward + last_interest
+
+
+## Weiter nach dem Händler: normal zum nächsten Tisch; nach dem letzten Boss in den
+## Endlos-Modus; im Endlos-Modus direkt ins nächste Duell.
+func leave_shop() -> void:
+	boss_shop = false
+	boss_gift_open = false
+	if endless:
+		goto(SCENE_MAP)
+	elif floor_index >= encounters.size():
+		start_endless()
+	else:
+		goto(SCENE_MAP)
+
+
+# --- Endlos-Modus -------------------------------------------------------------
+
+## Nach dem 3. Boss: kein Punkteziel mehr, Punkte sammeln, bis die Leben weg sind.
+func start_endless() -> void:
+	endless = true
+	endless_score = 0
+	endless_decks = 0
+	endless_opponent = _next_endless_opponent()
+	Profile.unlock_achievement(&"run_win") # alle drei Bosse besiegt
+	changed.emit()
+	goto(SCENE_MAP)
+
+
+func _on_endless_finished(loser: int) -> void:
+	endless_score += last_duel_points
+	match loser:
+		DurakMatch.OPPONENT:
+			# Gegner ist Durak: Gold, neues Deck, neuer Gegner – direkt weiter
+			Profile.on_opponent_defeated(endless_opponent)
+			_pay_win(endless_opponent)
+			endless_decks += 1
+			endless_opponent = _next_endless_opponent()
+			changed.emit()
+			goto(SCENE_MATCH)
+		DurakMatch.PLAYER:
+			# selbst Durak: ein Leben weg; ist noch eins übrig, geht es zum Händler
+			lives -= 1
+			if lives <= 0:
+				_end_run(true)
+			else:
+				endless_opponent = _next_endless_opponent()
+				last_gold_reward = 0
+				last_interest = 0
+				open_shop()
+		_:
+			endless_opponent = _next_endless_opponent()
+			changed.emit()
+			goto(SCENE_MATCH)
+
+
+## Zufälliger Gegner (auch Bosse), nicht derselbe wie gerade eben.
+func _next_endless_opponent() -> OpponentData:
+	var pool: Array[OpponentData] = []
+	for res in _load_all(OPPONENT_DIR):
+		var o := res as OpponentData
+		if o != null and o.model != null and o.portrait != null and o != endless_opponent:
+			pool.append(o)
+	if pool.is_empty():
+		return endless_opponent
+	return pool[rng.randi_range(0, pool.size() - 1)]
+
+
+## Entwicklermenü: aktuellen Gegner überspringen (zählt als gewonnen, ohne Gold).
+func dev_skip_opponent() -> void:
+	if endless or tutorial:
+		return
+	floor_index += 1
+	if floor_index >= encounters.size():
+		start_endless()
+	else:
+		changed.emit()
+		goto(SCENE_MAP)
+
+
+## Entwicklermenü: direkt zum Boss des aktuellen Akts.
+func dev_skip_to_boss() -> void:
+	if endless or tutorial:
+		return
+	floor_index = act_of() * FIGHTS_PER_ACT + FIGHTS_PER_ACT - 1
+	changed.emit()
+	goto(SCENE_MAP)
+
+
+## Entwicklermenü: alle Tische überspringen und den Endlos-Modus starten.
+func dev_start_endless() -> void:
+	if tutorial:
+		return
+	floor_index = encounters.size()
+	start_endless()
 
 
 ## Bis zu `count` zufällige Relikte, die der Spieler noch nicht hat.
@@ -327,7 +488,24 @@ func make_shop_offers() -> Array[Dictionary]:
 		io.emoji = true
 		offers.append(io)
 	# Boni (Farb-Schliff, Trumpf-Kenner …) gibt es nicht mehr beim Händler – die bringen die Decks mit
+	if boss_shop: # Händler nach dem Boss: 30 % Rabatt auf alles
+		for o in offers:
+			o.full_price = o.price
+			o.price = maxi(1, int(roundf(o.price * (1.0 - BOSS_DISCOUNT))))
 	return offers
+
+
+## Geschenk des Boss-Händlers: Auswahl (1 von 3 Relikten, die man noch nicht hat).
+func boss_gift_choices() -> Array[RelicData]:
+	return get_reward_choices(BOSS_GIFT_CHOICES)
+
+
+func take_boss_gift(relic: RelicData) -> void:
+	if not boss_gift_open:
+		return
+	boss_gift_open = false
+	if relic != null:
+		add_relic(relic)
 
 
 func buy(offer: Dictionary) -> bool:
@@ -480,6 +658,8 @@ func abandon() -> void:
 
 func _end_run(won: bool) -> void:
 	won_run = won
+	if endless:
+		last_endless_place = Profile.record_endless(endless_score, endless_decks, deck_name())
 	last_souls = Profile.on_run_finished(won, mini(floor_index, encounters.size()), souls_factor(),
 		deck.id if deck != null else Profile.DEFAULT_DECK, difficulty)
 	changed.emit()
@@ -499,13 +679,22 @@ func _build_encounters() -> Array[OpponentData]:
 			bosses.append(o)
 		else:
 			normal.append(o)
+	if normal.is_empty():
+		return []
+	# 3 Akte: je 3 normale Gegner (leichtere zuerst) und ein Boss. Gibt es zu wenige Gegner,
+	# kommen sie mehrfach dran (darum gibt es vorerst Platzhalter-Gegner).
 	_shuffle(normal)
-	var result: Array[OpponentData] = normal.slice(0, NORMAL_FIGHTS)
-	# Leichtere Gegner zuerst
-	result.sort_custom(func(a: OpponentData, b: OpponentData) -> bool:
+	var picks: Array[OpponentData] = []
+	while picks.size() < NORMAL_FIGHTS * ACTS:
+		picks.append(normal[picks.size() % normal.size()])
+	picks.sort_custom(func(a: OpponentData, b: OpponentData) -> bool:
 		return a.mistake_chance > b.mistake_chance)
-	if not bosses.is_empty():
-		result.append(bosses[rng.randi_range(0, bosses.size() - 1)])
+	_shuffle(bosses)
+	var result: Array[OpponentData] = []
+	for act in ACTS:
+		result.append_array(picks.slice(act * NORMAL_FIGHTS, (act + 1) * NORMAL_FIGHTS))
+		if not bosses.is_empty():
+			result.append(bosses[act % bosses.size()])
 	return result
 
 

@@ -53,16 +53,27 @@ func _ready() -> void:
 func _render(next: OpponentData) -> void:
 	for c in %Stops.get_children():
 		c.queue_free()
-	for i in Run.encounters.size():
-		%Stops.add_child(_stop(i))
+	if Run.endless:
+		_render_endless()
+	else:
+		# nur der aktuelle Akt (3 Tische und der Boss), darüber „AKT x VON 3“
+		var act := UIKit.label("AKT %d VON %d" % [Run.act_of() + 1, Run.ACTS], 15, Color(1, 0.84, 0.55), &"HeaderLabel")
+		%Stops.add_child(act)
+		for i in Run.act_floors():
+			%Stops.add_child(_stop(i))
 
 	%NextCaption.text = "DER BOSS WARTET" if next.is_boss else "ALS NÄCHSTES AM TISCH"
+	if Run.endless:
+		%NextCaption.text = "ENDLOS · NÄCHSTER GEGNER"
 
 	%NextName.text = next.display_name
 	%NextTaunt.text = "„%s“" % next.taunt if not next.taunt.is_empty() else ""
 	for c in %NextFacts.get_children():
 		c.queue_free()
-	%NextFacts.add_child(_fact("Ziel %d" % Run.score_target(), UIKit.INK_RED, "So viele Punkte brauchst du an diesem Tisch."))
+	if Run.endless:
+		%NextFacts.add_child(_fact("Kein Ziel", UIKit.INK_RED, "Endlos: Punkte sammeln, bis du selbst Durak wirst."))
+	else:
+		%NextFacts.add_child(_fact("Ziel %d" % Run.score_target(), UIKit.INK_RED, "So viele Punkte brauchst du an diesem Tisch."))
 	%NextFacts.add_child(_fact("· %d Karten" % next.hand_size, UIKit.INK_SOFT, "Handkarten des Gegners."))
 	%NextFacts.add_child(_fact("· +%d Gold" % next.gold_reward, UIKit.INK_SOFT, "Belohnung bei Sieg (plus Zinsen)."))
 	%FightButton.text = "AN DEN TISCH SETZEN"
@@ -111,8 +122,9 @@ func _stop(i: int) -> Control:
 
 	var track := _Track.new()
 	track.custom_minimum_size = Vector2(64, STOP_HEIGHT)
-	track.first = i == 0
-	track.last = i == Run.encounters.size() - 1
+	var act := Run.act_floors(i)
+	track.first = i == act[0]
+	track.last = i == act[-1]
 	track.done = done
 	track.current = current
 	track.boss = o.is_boss
@@ -123,7 +135,7 @@ func _stop(i: int) -> Control:
 	info.alignment = BoxContainer.ALIGNMENT_CENTER
 	info.add_theme_constant_override("separation", 0)
 	row.add_child(info)
-	var step := UIKit.label("BOSS" if o.is_boss else "TISCH %d" % (i + 1), 12,
+	var step := UIKit.label("BOSS" if o.is_boss else "TISCH %d" % (Run.act_pos(i) + 1), 12,
 		Color(1, 0.5, 0.45) if o.is_boss else UIKit.MUTED, &"HeaderLabel")
 	info.add_child(step)
 	var name_l := UIKit.label(o.display_name, 26 if current else 21,
@@ -138,6 +150,19 @@ func _stop(i: int) -> Control:
 
 
 var _relic_grid: VBoxContainer
+
+
+## Endlos-Modus: statt der Stationen Punkte, Decks und Rekord.
+func _render_endless() -> void:
+	%Stops.add_child(UIKit.label("ENDLOS-MODUS", 15, Color(1, 0.84, 0.55), &"HeaderLabel"))
+	var big := UIKit.label("%d" % Run.endless_score, 64, UIKit.CREAM, &"TitleLabel")
+	%Stops.add_child(big)
+	%Stops.add_child(UIKit.label("Punkte bisher", 14, UIKit.MUTED, &"TypeLabel"))
+	%Stops.add_child(UIKit.label("%d Decks geschafft" % Run.endless_decks, 21, UIKit.CREAM, &"BrushLabel"))
+	var best := Profile.endless_best()
+	%Stops.add_child(UIKit.label("Rekord: %d" % best if best > 0 else "Noch kein Rekord", 18,
+		Color(1, 0.84, 0.55), &"TypeLabel"))
+	%Stops.add_child(UIKit.label("Gegner Durak → neues Deck.\nDu Durak → eine Kerze weniger.", 14, UIKit.MUTED, &"TypeLabel"))
 
 
 func _chip(text: String, color: Color, tip: String) -> Control:

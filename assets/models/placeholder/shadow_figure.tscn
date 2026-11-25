@@ -1,0 +1,147 @@
+[gd_scene format=3]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_hhtm3"]
+albedo_color = Color(0.12, 0.11, 0.13, 1)
+roughness = 0.85
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_fl8bi"]
+material = SubResource("StandardMaterial3D_hhtm3")
+top_radius = 0.24
+bottom_radius = 0.42
+height = 0.75
+radial_segments = 32
+
+[sub_resource type="SphereMesh" id="SphereMesh_walg8"]
+material = SubResource("StandardMaterial3D_hhtm3")
+radius = 0.3
+height = 0.36
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_ujvil"]
+albedo_color = Color(0.45, 0.36, 0.2, 1)
+metallic = 0.6
+roughness = 0.45
+
+[sub_resource type="SphereMesh" id="SphereMesh_uxlcc"]
+material = SubResource("StandardMaterial3D_ujvil")
+radius = 0.035
+height = 0.05
+
+[sub_resource type="SphereMesh" id="SphereMesh_ysgrk"]
+material = SubResource("StandardMaterial3D_hhtm3")
+radius = 0.17
+height = 0.4
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_q3keo"]
+material = SubResource("StandardMaterial3D_hhtm3")
+top_radius = 0.0
+bottom_radius = 0.1
+height = 0.16
+radial_segments = 32
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_l21nw"]
+albedo_color = Color(0.06, 0.055, 0.07, 1)
+roughness = 0.9
+
+[sub_resource type="SphereMesh" id="SphereMesh_ivcfq"]
+material = SubResource("StandardMaterial3D_l21nw")
+radius = 0.115
+height = 0.26
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_akcp7"]
+albedo_color = Color(0.28, 0.26, 0.25, 1)
+roughness = 0.7
+
+[sub_resource type="SphereMesh" id="SphereMesh_8hdqv"]
+material = SubResource("StandardMaterial3D_akcp7")
+radius = 0.045
+height = 0.08
+
+[sub_resource type="SphereMesh" id="SphereMesh_0pem5"]
+material = SubResource("StandardMaterial3D_akcp7")
+radius = 0.018
+height = 0.04
+
+[sub_resource type="SphereMesh" id="SphereMesh_bb52g"]
+material = SubResource("StandardMaterial3D_akcp7")
+radius = 0.045
+height = 0.08
+
+[sub_resource type="SphereMesh" id="SphereMesh_owpb1"]
+material = SubResource("StandardMaterial3D_akcp7")
+radius = 0.018
+height = 0.04
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_n83g7"]
+material = SubResource("StandardMaterial3D_hhtm3")
+top_radius = 0.05
+bottom_radius = 0.065
+height = 1.0
+radial_segments = 32
+
+[node name="ShadowFigure" type="Node3D" unique_id=311300015]
+
+[node name="Torso" type="Node3D" parent="." unique_id=1370954742]
+
+[node name="Cloak" type="MeshInstance3D" parent="Torso" unique_id=1071570495]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.72, 0)
+mesh = SubResource("CylinderMesh_fl8bi")
+
+[node name="Shoulders" type="MeshInstance3D" parent="Torso" unique_id=302091315]
+transform = Transform3D(1.25, 0, 0, 0, 0.55, 0, 0, 0, 0.85, 0, 1.06, 0)
+mesh = SubResource("SphereMesh_walg8")
+
+[node name="Clasp" type="MeshInstance3D" parent="Torso" unique_id=366157904]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.08, 0.24)
+mesh = SubResource("SphereMesh_uxlcc")
+
+[node name="Shoulder_L" type="Marker3D" parent="Torso" unique_id=1424632524]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.34, 1.04, 0.02)
+
+[node name="Shoulder_R" type="Marker3D" parent="Torso" unique_id=1106723345]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.34, 1.04, 0.02)
+
+[node name="Head" type="Node3D" parent="Torso" unique_id=1184293152]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.33, 0.03)
+
+[node name="Hood" type="MeshInstance3D" parent="Torso/Head" unique_id=76394401]
+transform = Transform3D(1, 0, 0, 0, 1.1, 0, 0, 0, 1.05, 0, 0.02, -0.02)
+mesh = SubResource("SphereMesh_ysgrk")
+
+[node name="HoodTip" type="MeshInstance3D" parent="Torso/Head" unique_id=1023356257]
+transform = Transform3D(1, 0, 0, 0, 0.87758255, 0.47942555, 0, -0.47942555, 0.87758255, 0, 0.2, -0.1)
+mesh = SubResource("CylinderMesh_q3keo")
+
+[node name="Void_Face" type="MeshInstance3D" parent="Torso/Head" unique_id=1707938503]
+transform = Transform3D(1, 0, 0, 0, 1.15, 0, 0, 0, 0.6, 0, -0.01, 0.09)
+mesh = SubResource("SphereMesh_ivcfq")
+
+[node name="Eye_L" type="Marker3D" parent="Torso/Head" unique_id=1320887542]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.042, 0, 0.14)
+
+[node name="Eye_R" type="Marker3D" parent="Torso/Head" unique_id=1925674890]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.042, 0, 0.14)
+
+[node name="Hand_L" type="Node3D" parent="." unique_id=423679391]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.15, 0.86, 0.2)
+
+[node name="Glove" type="MeshInstance3D" parent="Hand_L" unique_id=68473585]
+transform = Transform3D(1, 0, 0, 0, 0.7, 0, 0, 0, 1.2, 0, 0, 0)
+mesh = SubResource("SphereMesh_8hdqv")
+
+[node name="Thumb" type="MeshInstance3D" parent="Hand_L" unique_id=1157490624]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.035, 0.01, 0.02)
+mesh = SubResource("SphereMesh_0pem5")
+
+[node name="Hand_R" type="Node3D" parent="." unique_id=1042216273]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.15, 0.86, 0.2)
+
+[node name="Glove" type="MeshInstance3D" parent="Hand_R" unique_id=1810245953]
+transform = Transform3D(1, 0, 0, 0, 0.7, 0, 0, 0, 1.2, 0, 0, 0)
+mesh = SubResource("SphereMesh_bb52g")
+
+[node name="Thumb" type="MeshInstance3D" parent="Hand_R" unique_id=749084952]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.035, 0.01, 0.02)
+mesh = SubResource("SphereMesh_owpb1")
+
+[node name="Sleeve" type="MeshInstance3D" parent="." unique_id=216732842]
+mesh = SubResource("CylinderMesh_n83g7")

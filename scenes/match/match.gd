@@ -74,6 +74,8 @@ func _ready() -> void:
 	Card3D.hints = Run.hints
 	duel = DurakMatch.new()
 	var target := Run.score_target() if Run.current_opponent() != null else Run.SCORE_TARGETS[0]
+	if Run.endless:
+		target = 1 << 40 # Endlos: kein Ziel, gespielt wird bis einer Durak ist
 	score = ScoreTracker.new(target, Run.base_mult())
 	score.suit_chip_bonus = Run.suit_chip_bonus
 	score.trump_mult_bonus = Run.trump_mult_bonus
@@ -158,7 +160,8 @@ func _ready() -> void:
 			duel.pass_bout())
 	hud.continue_button.pressed.connect(func() -> void: Run.on_match_finished(_result()))
 
-	hud.setup(opponent, score.target, Run.floor_index, 0 if Run.tutorial else maxi(Run.encounters.size(), 1))
+	hud.setup(opponent, _hud_target(), Run.floor_index, 0 if Run.tutorial else maxi(Run.encounters.size(), 1),
+		_floor_text())
 	hud.set_relics(Run.relics, Run.items)
 	_refresh_items.call_deferred()
 	hud.item_pressed.connect(_use_item)
@@ -168,7 +171,10 @@ func _ready() -> void:
 	world.props.set_gold(Run.gold, false)
 	if not opponent.taunt.is_empty():
 		hud.say(opponent.taunt, 5.0)
-	hud.toast("Punkteziel: %d" % score.target, MatchHUD.COLOR_GOLD)
+	if Run.endless:
+		hud.toast("Endlos-Modus: sammle Punkte, so lange du kannst!", MatchHUD.COLOR_GOLD)
+	else:
+		hud.toast("Punkteziel: %d" % score.target, MatchHUD.COLOR_GOLD)
 	if Run.tutorial:
 		coach = TutorialCoach.new()
 		hud.add_child(coach)
@@ -229,7 +235,36 @@ func _fit_viewport() -> void:
 
 ## Für den Run zählt nur das Punkteziel: erreicht → Gegner verliert.
 func _result() -> int:
+	Run.last_duel_points = score.total
+	if Run.endless: # Endlos: wer Durak ist, entscheidet
+		return duel.loser
 	return DurakMatch.OPPONENT if score.reached_target() else DurakMatch.PLAYER
+
+
+## Gewonnen? Normal: Punkteziel erreicht. Endlos: der Gegner ist Durak.
+func _won() -> bool:
+	if Run.endless:
+		return duel.loser == DurakMatch.OPPONENT
+	return score.reached_target()
+
+
+## Text oben am Gegner: Akt und Tisch, Boss oder Endlos.
+func _floor_text() -> String:
+	if Run.tutorial:
+		return ""
+	if Run.endless:
+		return "ENDLOS · DECK %d" % (Run.endless_decks + 1)
+	var act := "AKT %d/%d" % [Run.act_of() + 1, Run.ACTS]
+	if opponent.is_boss:
+		return "%s · BOSS" % act
+	return "%s · TISCH %d/%d" % [act, Run.act_pos() + 1, Run.NORMAL_FIGHTS]
+
+
+## Ziel für die Anzeige; im Endlos-Modus negativ = bisheriger Rekord (siehe MatchHUD).
+func _hud_target() -> int:
+	if Run.endless:
+		return -maxi(1, Profile.endless_best())
+	return score.target
 
 
 func _on_target_reached() -> void:
@@ -361,7 +396,7 @@ func _on_message(text: String) -> void:
 
 
 func _on_finished(_loser: int) -> void:
-	var won := score.reached_target()
+	var won := _won()
 	_render()
 	if won:
 		world.figure.slump()
@@ -370,12 +405,14 @@ func _on_finished(_loser: int) -> void:
 			if note != "":
 				hud.flash_relic(&"matryoshka")
 				hud.toast("Matrjoschka: %s." % note, MatchHUD.COLOR_GOLD)
-	else:
+	elif not Run.endless or duel.loser == DurakMatch.PLAYER:
 		world.figure.laugh()
 		world.props.snuff_candle()
 		await get_tree().create_timer(1.1, false).timeout
-	hud.show_result(won, "SIEG!" if won else "DURAK!", _result_text(won),
-		"%d / %d Punkte" % [score.total, score.target])
+	var points_text := "%d / %d Punkte" % [score.total, score.target]
+	if Run.endless:
+		points_text = "+%d Punkte · gesamt %d" % [score.total, Run.endless_score + score.total]
+	hud.show_result(won, "SIEG!" if won else "DURAK!", _result_text(won), points_text)
 
 
 func _result_text(won: bool) -> String:
@@ -383,7 +420,17 @@ func _result_text(won: bool) -> String:
 		if won:
 			return "Tutorial geschafft! Die Tutorial-Karte verschwindet – in den Optionen kannst du sie zurückholen."
 		return "Knapp daneben – über die Tutorial-Karte im Menü kannst du es gleich nochmal versuchen."
+	if Run.endless:
+		if won:
+			return "%s ist Durak! Neues Deck, neuer Gegner – deine Punkte bleiben." % opponent.display_name
+		if Run.lives <= 1:
+			return "Du bist Durak und die letzte Kerze ist aus – der Endlos-Lauf endet hier."
+		return "Du bist Durak. Eine Kerze erlischt – zum Händler, dann geht es weiter."
 	if won:
+		if opponent.is_boss and Run.floor_index + 1 >= Run.encounters.size():
+			return "Alle drei Bosse besiegt! Nach dem Händler beginnt der Endlos-Modus."
+		if opponent.is_boss:
+			return "Boss besiegt! Der Händler wartet mit Rabatt und einem Geschenk."
 		return "Punkteziel erreicht. %s steht auf." % opponent.display_name
 	if Run.lives <= 1:
 		return "Die letzte Kerze ist aus – der Run endet hier."
@@ -684,11 +731,14 @@ func _render_score() -> void:
 	if score == null:
 		return
 	var sub := "Noch %d Punkte bis zum Ziel" % score.remaining()
+	if Run.endless:
+		sub = "Endlos · dieses Deck %d Punkte" % score.total
 	if duel != null and duel.is_over:
 		sub = score.last_text
 	elif score.reached_target():
 		sub = "Ziel erreicht!"
-	hud.set_score(score.total, score.target, score.chips, score.mult, sub)
+	var total := score.total + (Run.endless_score if Run.endless else 0)
+	hud.set_score(total, _hud_target(), score.chips, score.mult, sub)
 	hud.set_factor(score.next_bout_factor)
 
 
@@ -696,8 +746,11 @@ func _render_score() -> void:
 func _turn_info(my_turn: bool, defending: bool) -> Array:
 	var them := opponent.display_name.to_upper()
 	if duel.is_over:
-		var won := score.reached_target()
-		return [MatchHUD.Turn.OVER, "GEWONNEN" if won else "VERLOREN", "%d / %d Punkte" % [score.total, score.target]]
+		var won := _won()
+		var pts := "%d / %d Punkte" % [score.total, score.target]
+		if Run.endless:
+			pts = "+%d Punkte" % score.total
+		return [MatchHUD.Turn.OVER, "GEWONNEN" if won else "VERLOREN", pts]
 	if duel.taking:
 		if defending:
 			return [MatchHUD.Turn.WAIT, "DU NIMMST AUF", "%s wirft noch Karten nach …" % opponent.display_name]

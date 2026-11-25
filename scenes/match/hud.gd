@@ -587,7 +587,9 @@ func _build_result() -> void:
 
 # --- Öffentliche Schnittstelle ---------------------------------------------------
 
-func setup(opponent: OpponentData, target: int, floor_i := 0, floor_count := 1) -> void:
+## `floor_label`: wenn gesetzt, steht dieser Text oben am Gegner statt „TISCH x/y“
+## (Akte, Endlos-Modus). `target` < 0: kein Ziel (Endlos), |target| = bisheriger Rekord.
+func setup(opponent: OpponentData, target: int, floor_i := 0, floor_count := 1, floor_label := "") -> void:
 	_opp_label.text = opponent.display_name.to_upper()
 	# lange Namen kleiner schreiben, damit sie nicht in die Kartenanzeige rechts laufen
 	var font: Font = _opp_label.get_theme_font("font")
@@ -598,13 +600,22 @@ func setup(opponent: OpponentData, target: int, floor_i := 0, floor_count := 1) 
 	_opp_label.position.y = 34 + (26 - fs) * 0.5
 	_portrait.texture = opponent.portrait
 	_role_label.text = "ENDGEGNER" if opponent.is_boss else "GEGNER"
-	if floor_count <= 0:
+	if floor_label != "":
+		_floor_label.text = floor_label
+	elif floor_count <= 0:
 		_floor_label.text = "ÜBUNGSTISCH"
 	else:
 		_floor_label.text = ("BOSS · TISCH %d/%d" if opponent.is_boss else "TISCH %d/%d") % [floor_i + 1, floor_count]
-	_target = maxi(1, target)
-	_target_label.text = "/%d" % target
+	_target = maxi(1, absi(target))
+	_target_label.text = _target_text(target)
 	_intro.call_deferred()
+
+
+## „/Ziel“ oder im Endlos-Modus „REKORD x“ (bzw. nichts beim ersten Mal).
+func _target_text(target: int) -> String:
+	if target >= 0:
+		return "/%d" % target
+	return "REKORD %d" % -target if target < -1 else ""
 
 
 ## Einflug der Plakatflächen, erst wenn das Layout steht.
@@ -955,8 +966,8 @@ func flash_relic(id: StringName) -> void:
 
 
 func set_score(total: int, target: int, chips: int, mult: int, sub_text: String) -> void:
-	_target = maxi(1, target)
-	_target_label.text = "/%d" % target
+	_target = maxi(1, absi(target))
+	_target_label.text = _target_text(target)
 	if total != _score:
 		var from := _shown_score
 		_score = total

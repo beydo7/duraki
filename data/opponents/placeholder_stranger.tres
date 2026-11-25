@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="OpponentData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/opponent_data.gd" id="1_opp"]
+[ext_resource type="PackedScene" path="res://assets/models/placeholder/shadow_figure.tscn" id="2_model"]
+[ext_resource type="Texture2D" path="res://assets/portraits/placeholder_stranger.png" id="3_portrait"]
+
+[resource]
+script = ExtResource("1_opp")
+display_name = "Der Fremde"
+taunt = "Niemand weiß, woher er kommt. Er spielt trotzdem gern."
+hand_size = 6
+mistake_chance = 0.35
+gold_reward = 9
+is_boss = false
+model = ExtResource("2_model")
+portrait = ExtResource("3_portrait")
+eye_color = Color(0.3, 0.86, 1, 1)
+figure_scale = 1.0
