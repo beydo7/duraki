@@ -278,11 +278,12 @@ class Figure:
             self.rig.marker(name, tb, to_torso(pb["upperarm01" + sfx].head))
         return to_object("Body_Skin", bm, mat, tb)
 
-    def hands(self, skin, scale=1.3, stub=0.05, roll=72.0, pitch=-0.45, subdiv=1, pos=(0.1, 0.9, 0.22),
-              grip=(0.045, -0.03, 0.05)):
-        """Hand_L/Hand_R, gedreht wie hd.grip_hand. Die Hand wird so verschoben, dass die Lücke
-        zwischen Daumen und Zeigefinger an der unteren Ecke des Kartenfächers liegt
-        (grip = nach innen, nach vorn (Blender −Y), nach oben; relativ zum Hand-Ursprung)."""
+    def hands(self, skin, scale=1.3, stub=0.06, roll=72.0, pitch=-0.45, subdiv=1, height=0.9, front=0.22,
+              corner=0.055, grip_fwd=0.08, grip_up=0.055):
+        """Hand_L/Hand_R. Das Spiel lässt den Unterarm 5 cm hinter dem Hand-Ursprung enden und
+        hängt den Kartenfächer 3 cm davor / 3,5 cm darüber auf. Deshalb liegt hier das Handgelenk
+        genau am Ärmelende, und die Hand wird ums Handgelenk so gedreht, dass die Lücke zwischen
+        Daumen und Zeigefinger an der unteren Ecke des Fächers sitzt (`corner` = halbe Fächerbreite)."""
         ob = self.body
         out = []
         for sfx, side, name in ((".R", -1, "Hand_L"), (".L", 1, "Hand_R")):
@@ -298,11 +299,13 @@ class Figure:
             close_holes(bm)
             R = Matrix((back.cross(f), -f, back))  # Zeilen = Zielachsen X, Y, Z
             orient = Matrix.Rotation(math.radians(side * roll), 3, "Y") @ Matrix.Rotation(pitch, 3, "X")
-            place = lambda p: orient @ ((R @ (p - o)) * scale)
-            g = place((pb["finger1-3" + sfx].tail + pb["finger2-2" + sfx].head) * 0.5)
-            shift = Vector((-side * grip[0], grip[1], grip[2])) - g
-            transform(bm, lambda p: place(p) + shift)
-            h = to_object(name, bm, skin, None, G(side * pos[0], pos[1], pos[2]))
+            place0 = lambda p: orient @ ((R @ (p - o)) * scale)
+            g = place0((pb["finger1-3" + sfx].tail + pb["finger2-2" + sfx].head) * 0.5)
+            gx = math.sqrt(max(g.length_squared - grip_fwd ** 2 - grip_up ** 2, 0.0004))
+            Q = g.rotation_difference(Vector((-side * gx, -grip_fwd, grip_up))).to_matrix()
+            wrist = Vector((0, 0.05, 0))
+            transform(bm, lambda p: Q @ place0(p) + wrist)
+            h = to_object(name, bm, skin, None, G(side * (corner + gx), height, front))
             out.append(h)
         return out
 
@@ -520,3 +523,94 @@ def skin_textures(name, diffuse_path, tint=(1.0, 1.0, 1.0), gain=1.0, contrast=1
         height = height + image_array(bump_path)[..., 0]
     return (hd.to_image(name + "_color", a ** (1 / 2.2)),
             hd.to_image(name + "_normal", hd.height_to_normal(height, bump), non_color=True))
+
+
+# --- Ärmel ----------------------------------------------------------------------------------
+
+ARM = 0.34  # Länge von Ober- und Unterarm im Spiel (opponent_figure.gd: ARM_SEGMENT)
+
+
+def sleeve(name, mat, radii, cap0=True, cap1=True, fold0=0.0, fold1=0.0, cuff=None, seed=0, tile=0.3,
+           n_r=44, n_z=44):
+    """Ärmelstück für die Zwei-Segment-Arme: Länge 1 entlang Z (−0.5 körpernah … +0.5), das Spiel
+    streckt es auf ARM Meter. `radii` = [(t, Radius in m), …]. Kugelkappen an den Enden lassen
+    Schulter und Ellbogen wie ein durchgehender, gebeugter Ärmel aussehen. fold0/fold1: Stauchfalten
+    am Anfang/Ende. cuff = (t0, Dicke, Fellbilder, Materialname, Felllänge): Fellstulpe am Handgelenk."""
+    from mathutils import noise
+
+    def r_at(t):
+        for (t0, r0), (t1, r1) in zip(radii, radii[1:]):
+            if t0 <= t <= t1:
+                k = (t - t0) / (t1 - t0)
+                k = k * k * (3 - 2 * k)
+                return r0 + (r1 - r0) * k
+        return radii[-1][1] if t > radii[-1][0] else radii[0][1]
+
+    ring = [k / n_r * math.tau for k in range(n_r)]
+    rows, uvs = [], []
+
+    def add(z, r, fold=0.0):
+        row, uvr = [], []
+        for a in ring:
+            rr = r + fold * (0.65 + 0.35 * noise.noise(Vector((math.cos(a) * 1.3, math.sin(a) * 1.3, z * 3 + seed))))
+            row.append(Vector((rr * math.cos(a), rr * math.sin(a), z)))
+            uvr.append((a / math.tau * 2.4, z * ARM / tile))
+        rows.append(row)
+        uvs.append(uvr)
+
+    r0, r1 = radii[0][1], radii[-1][1]
+    if cap0:
+        for k in range(7, 0, -1):
+            phi = k / 8 * math.pi / 2
+            add(-0.5 - r0 * math.sin(phi) / ARM, r0 * math.cos(phi))
+    for i in range(n_z + 1):
+        t = i / n_z
+        d0, d1 = t * ARM, (1 - t) * ARM
+        fold = fold0 * 0.011 * math.exp(-d0 / 0.075) * math.sin(d0 / 0.03 * math.tau + seed) \
+            + fold1 * 0.011 * math.exp(-d1 / 0.075) * math.sin(d1 / 0.03 * math.tau + seed * 1.7)
+        fold += 0.004 * math.sin(t * 9 + seed)  # leichte Längswellen
+        add(-0.5 + t, r_at(t), fold)
+    if cap1:
+        for k in range(1, 8):
+            phi = k / 8 * math.pi / 2
+            add(0.5 + r1 * math.sin(phi) / ARM, r1 * math.cos(phi))
+    mb = hd.MeshBuilder()
+    vs = mb.grid(rows, uvs, close=True)
+    mb.bm.faces.new(list(reversed(vs[0])))
+    mb.bm.faces.new(vs[-1])
+    mats = [mat]
+    if cuff:
+        t0, thick, imgs, mat_name, fur = cuff
+        n = len(imgs)
+        for i in range(n):
+            u = i / (n - 1)
+            crows, cuvs = [], []
+            for k in range(11):
+                t = t0 + (1.03 - t0) * k / 12
+                bulge = math.sin(math.pi * k / 12) ** 0.45
+                r = r_at(min(t, 1.0)) - 0.004 + (thick + fur * u) * bulge
+                crows.append([Vector((r * math.cos(a), r * math.sin(a), -0.5 + t)) for a in ring])
+                cuvs.append([(a / math.tau * 6.0, t * ARM / 0.09) for a in ring])
+            first = len(mb.bm.faces)
+            mb.grid(crows, cuvs, close=True)
+            mb.bm.faces.ensure_lookup_table()
+            for fi in range(first, len(mb.bm.faces)):
+                mb.bm.faces[fi].material_index = i + 1
+            mats.append(hd.material(f"{mat_name}_{i:02d}", imgs[i], rough=0.92, spec=0.1, alpha_clip=i > 0))
+    if cuff:  # Lederfutter: schließt die Stulpe zum Handgelenk (kein offenes Ärmelende)
+        t0, thick = cuff[0], cuff[1]
+        lrows, luvs = [], []
+        for t, r in ((t0 + (1.03 - t0) * 10 / 12, r_at(1.0) - 0.004 + thick * math.sin(math.pi * 10 / 12) ** 0.45),
+                     (1.0, r_at(1.0) * 0.92), (0.94, r_at(1.0) * 0.72)):  # nach innen eingezogen
+            lrows.append([Vector((r * math.cos(a), r * math.sin(a), -0.5 + t)) for a in ring])
+            luvs.append([(a / math.tau * 2.4, r / tile) for a in ring])
+        first = len(mb.bm.faces)
+        mb.grid(lrows, luvs, close=True)
+        mb.bm.faces.ensure_lookup_table()
+        for fi in range(first, len(mb.bm.faces)):
+            mb.bm.faces[fi].material_index = len(mats)
+        mats.append(hd.material(mat.name + "_Futter", color=(0.035, 0.022, 0.015, 1), rough=0.95, spec=0.1))
+    ob = mb.finish(name, mat)
+    for extra in mats[1:]:
+        ob.data.materials.append(extra)
+    return ob

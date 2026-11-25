@@ -215,12 +215,13 @@ def build():
     hm = dk.head_metrics(face, bpy.data.objects["EyeL"].location.z)
     hat(fig, m, hm)
     bandana(fig, m, hm, dk.bvh(face))
-    skin_ob = fig.torso(m["skin"])
+    skin_ob = fig.torso(m["skin"], arm_stub=0.055)
     clothes(fig, m, skin_ob)
     bpy.data.objects.remove(skin_ob, do_unlink=True)
     hands = fig.hands(m["skin"], scale=1.3)
-    upper = hd.sleeve_segment("SleeveUpper", m["coat"], 0.125, 0.105, folds=1.3, bunch_end=1.0, seed=3)
-    fore = hd.sleeve_segment("SleeveFore", m["coat"], 0.1, 0.086, cuff=0.014, folds=1.0, seed=4)
+    upper = dk.sleeve("SleeveUpper", m["coat"], [(0, 0.132), (0.5, 0.122), (1, 0.106)], fold0=0.5, fold1=1.0, seed=3)
+    fore = dk.sleeve("SleeveFore", m["coat"], [(0, 0.106), (0.35, 0.098), (1, 0.066)], cap1=False, fold0=1.0, seed=4,
+                     cuff=(0.72, 0.016, m["wool_imgs"], "Bandit_Lammfell", 0.022))
     for ob in (body, mrig, *parts.values()):
         bpy.data.objects.remove(ob, do_unlink=True)
     hd.preview_arms(upper, fore, hands[0], hands[1])
