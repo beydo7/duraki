@@ -175,6 +175,7 @@ func _ready() -> void:
 		coach.setup(self)
 	# Böser Blick: der Gegner startet mit einer Karte weniger
 	var opp_hand := opponent.hand_size - (1 if Run.has_relic(&"evil_eye") else 0)
+	duel.burn_option_for = DurakMatch.PLAYER if Run.items.has(&"lighter") else -1
 	duel.start(Run.rng, Run.player_hand_size(), maxi(1, opp_hand), Run.apply_card_enhancements)
 	if Run.has_relic(&"evil_eye"):
 		hud.flash_relic(&"evil_eye")
@@ -364,8 +365,9 @@ func _process(_delta: float) -> void:
 		return
 	if _deck_hover and not duel.deck.is_empty():
 		var n := duel.deck.size()
-		hud.show_info("NACHZIEHSTAPEL", "Noch %d %s im Stapel. Unten liegt offen %s – Trumpf ist %s." % [
-			n, "Karte" if n == 1 else "Karten", duel.trump_card, Card.SUIT_NAMES[duel.trump_suit]])
+		var bottom := ("Unten liegt offen %s – " % duel.trump_card) if not duel.trump_hidden else ""
+		hud.show_info("NACHZIEHSTAPEL", "Noch %d %s im Stapel. %sTrumpf ist %s." % [
+			n, "Karte" if n == 1 else "Karten", bottom, Card.SUIT_NAMES[duel.trump_suit]])
 	elif _hover_card != null and Input.is_key_pressed(KEY_SHIFT) and _is_visible_card(_hover_card):
 		hud.show_info(_card_title(_hover_card), _card_info(_hover_card))
 	else:
@@ -451,12 +453,12 @@ func _use_item(i: int) -> void:
 			else:
 				Sfx.play(&"gulp")
 		&"swap":
-			if duel.deck.is_empty():
-				hud.toast("Kartentausch: unter dem Stapel liegt keine Karte mehr.", MatchHUD.COLOR_GOLD)
+			if duel.deck.is_empty() or duel.trump_hidden:
+				hud.toast("Kartentausch: unter dem Stapel liegt keine offene Karte mehr.", MatchHUD.COLOR_GOLD)
 				return
 			_swapping = i
 			hud.open_card_picker(duel.player_hand, "KARTENTAUSCH",
-				"Wähle eine Karte: Sie wird in den Stapel gemischt, du bekommst %s (offen unter dem Stapel)." % duel.deck.cards[0],
+				"Wähle eine Karte: Sie wird in den Stapel gemischt, du bekommst %s (offen unter dem Stapel)." % duel.trump_card,
 				func(card: Card) -> void:
 					var si := _swapping
 					_swapping = -1
@@ -567,6 +569,8 @@ func _unhandled_input(event: InputEvent) -> void:
 # --- Anzeige ------------------------------------------------------------------
 
 func _render() -> void:
+	# Feuerzeug im Besitz: Runde nicht automatisch beenden, wenn der Gegner alles geschlagen hat
+	duel.burn_option_for = DurakMatch.PLAYER if Run.items.has(&"lighter") else -1
 	hud.set_opponent_cards(duel.opponent_hand.size())
 	hud.set_run_info(Run.lives, Run.gold, duel.deck.size(), duel.trump_suit)
 

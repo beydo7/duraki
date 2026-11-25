@@ -219,11 +219,11 @@ func sync(duel: DurakMatch, playable: Array[Card]) -> void:
 		if d != null:
 			targets[d] = [_table_xf(i, duel.attack_cards.size(), true, d), true, "table_d"]
 			beats[d] = duel.attack_cards[i]
-	if not duel.deck.is_empty():
+	if not duel.deck.is_empty() and not duel.trump_hidden:
 		targets[duel.trump_card] = [_trump_xf(), true, "trump"]
 
 	# Stapelhöhe
-	var deck_left := duel.deck.size() - (1 if not duel.deck.is_empty() else 0)
+	var deck_left := duel.deck.size() - (1 if not duel.deck.is_empty() and not duel.trump_hidden else 0)
 	_deck_pile.visible = deck_left > 0
 	_set_pile_height(_deck_pile, DECK_POS, deck_left)
 
@@ -495,7 +495,6 @@ func take_from_discard(card: Card) -> void:
 ## Vor der Änderung am Duell aufrufen.
 func send_to_deck(card: Card) -> void:
 	into_deck[card] = true
-	_animate_trump = true
 
 
 ## Feuerzeug gezückt: diese Gegnerkarten bekommen einen leuchtenden Rahmen (leer = aus).

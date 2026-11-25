@@ -35,7 +35,12 @@ func _ready() -> void:
 	add_child(bd)
 	move_child(bd, 0)
 
-	%ContinueButton.pressed.connect(func() -> void: Run.goto(Run.SCENE_MAP))
+	%ContinueButton.pressed.connect(func() -> void:
+		if Run.tutorial_shop:
+			Run.tutorial_shop = false
+			Run.goto(Run.SCENE_MENU) # Tutorial zu Ende
+		else:
+			Run.goto(Run.SCENE_MAP))
 	%RerollButton.pressed.connect(func() -> void:
 		if Run.reroll_shop():
 			_render(true))
@@ -44,6 +49,9 @@ func _ready() -> void:
 	_render(true)
 	%ContinueButton.grab_focus()
 	UIKit.show_unlocks.call_deferred(self)
+	if Run.tutorial_shop:
+		%ContinueButton.text = "TUTORIAL BEENDEN"
+		_start_tutorial()
 
 
 ## Komplette Auslage neu aufbauen (Start und Neu-Mischen).
@@ -362,6 +370,77 @@ func _price(offer: Dictionary) -> Control:
 		col = UIKit.P_CREAM
 	tag.add_child(UIKit.poster_label(text, UIKit.display_font(1), 18, col))
 	return tag
+
+
+# --- Tutorial: Händler erklären ---------------------------------------------------------
+
+const TUTORIAL_STEPS := [
+	["DER HÄNDLER", "Nach jedem gewonnenen Tisch kommst du hierher. Mit deinem Gold kaufst du Karten, Relikte und Items. Fürs Tutorial hast du %d Gold bekommen – kauf ruhig etwas."],
+	["KARTEN", "Links: verbesserte Karten für dein Deck (Gold, Glas, Glück). Sie ersetzen die normale Karte gleichen Rangs und gleicher Farbe."],
+	["RELIKTE", "In der Mitte: Relikte wirken dauerhaft, den ganzen Run lang. Im Duell stehen sie oben rechts als Symbole – Maus drüber zeigt die Wirkung."],
+	["ITEMS", "Rechts: Items setzt du im Duell einmal ein, du kannst höchstens 2 tragen. Im Duell sind sie oben rechts in den runden Plätzen – anklicken zum Einsetzen."],
+	["WEITER", "Neu mischen legt für etwas Gold neue Waren aus. Unten links siehst du deinen Besitz. Mit dem roten Knopf geht es zum nächsten Tisch – hier beendest du damit das Tutorial."],
+]
+var tutorial_step := -1
+var _tut_panel: PanelContainer
+var _tut_title: Label
+var _tut_text: Label
+var _tut_button: Button
+
+
+func _start_tutorial() -> void:
+	_tut_panel = PanelContainer.new()
+	var box := StyleBoxFlat.new()
+	box.bg_color = Color(UIKit.P_BLACK, 0.96)
+	box.border_color = UIKit.P_RED
+	box.border_width_left = 8
+	box.content_margin_left = 22
+	box.content_margin_right = 20
+	box.content_margin_top = 12
+	box.content_margin_bottom = 14
+	_tut_panel.add_theme_stylebox_override("panel", box)
+	_tut_panel.anchor_left = 0.5
+	_tut_panel.anchor_right = 0.5
+	_tut_panel.offset_left = -40
+	_tut_panel.offset_right = 400
+	_tut_panel.offset_top = 14
+	add_child(_tut_panel)
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 4)
+	_tut_panel.add_child(col)
+	var step := UIKit.poster_label("TUTORIAL · HÄNDLER", UIKit.body_font(700, 4), 12, UIKit.P_GOLD)
+	col.add_child(step)
+	_tut_title = UIKit.poster_label("", UIKit.display_font(2), 22, UIKit.P_CREAM)
+	col.add_child(_tut_title)
+	_tut_text = UIKit.poster_label("", UIKit.body_font(400), 15, UIKit.P_CREAM)
+	_tut_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_tut_text.custom_minimum_size = Vector2(390, 0)
+	col.add_child(_tut_text)
+	_tut_button = Button.new()
+	_tut_button.custom_minimum_size = Vector2(0, 36)
+	_tut_button.size_flags_horizontal = Control.SIZE_SHRINK_END
+	_tut_button.pressed.connect(tutorial_next)
+	col.add_child(_tut_button)
+	tutorial_next()
+
+
+## Nächster Erklärschritt (nach dem letzten verschwindet die Tafel).
+func tutorial_next() -> void:
+	tutorial_step += 1
+	if tutorial_step >= TUTORIAL_STEPS.size():
+		_tut_panel.queue_free()
+		_tut_panel = null
+		%ContinueButton.grab_focus()
+		return
+	if tutorial_step > 0:
+		Sfx.play(&"button")
+	var st: Array = TUTORIAL_STEPS[tutorial_step]
+	_tut_title.text = st[0]
+	_tut_text.text = st[1] % Run.TUTORIAL_SHOP_GOLD if "%d" in st[1] else st[1]
+	_tut_button.text = "VERSTANDEN" if tutorial_step == TUTORIAL_STEPS.size() - 1 else "WEITER"
+	_tut_panel.reset_size.call_deferred()
+	_tut_panel.modulate.a = 0.0
+	_tut_panel.create_tween().tween_property(_tut_panel, "modulate:a", 1.0, 0.2)
 
 
 # --- Besitz -----------------------------------------------------------------------------

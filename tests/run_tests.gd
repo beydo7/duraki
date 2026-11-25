@@ -272,7 +272,8 @@ func test_new_items_and_relics() -> void:
 	check(duel.swap_with_bottom(mine), "Kartentausch geht")
 	check(duel.deck.cards.has(mine) and duel.player_hand.any(func(c: Card) -> bool: return c.rank == 14),
 		"Handkarte im Stapel, Ass auf der Hand")
-	check(duel.trump_card == duel.deck.cards[0] and duel.deck.size() == 2, "unten liegt wieder eine offene Karte")
+	check(duel.trump_hidden and duel.deck.size() == 2, "keine neue offene Karte unter dem Stapel")
+	check(not duel.swap_with_bottom(duel.player_hand[0]), "zweiter Tausch geht nicht mehr")
 	check(duel.trump_suit == old_trump, "Trumpffarbe bleibt")
 	duel.discard_pile.append(Card.new(C, 10))
 	var rng := RandomNumberGenerator.new()
@@ -320,6 +321,22 @@ func test_burn_and_insert() -> void:
 	check(d2.burnable_cards(DurakMatch.PLAYER) == [a], "sein Angriff ist verbrennbar")
 	check(d2.burn(a) and d2.attack_cards.is_empty(), "Angriff verbrannt")
 	check(d2.current_actor() == DurakMatch.OPPONENT and d2.can_attack_with(d2.opponent_hand[0]), "Gegner greift neu an")
+	# Feuerzeug in der Hand: Runde endet nicht automatisch, wenn er alles schlägt
+	var d3 := _fixed_duel([[H, 7], [C, 6]], [[H, 8], [D, 12]])
+	d3.burn_option_for = DurakMatch.PLAYER
+	d3.attack(d3.player_hand[0])
+	d3.defend(d3.opponent_hand[0])
+	check(not d3.attack_cards.is_empty() and d3.can_pass(), "mit Feuerzeug: Runde bleibt offen (FERTIG oder verbrennen)")
+	var d4 := _fixed_duel([[H, 7], [C, 6]], [[H, 8], [D, 12]])
+	d4.attack(d4.player_hand[0])
+	d4.defend(d4.opponent_hand[0])
+	check(d4.attack_cards.is_empty(), "ohne Feuerzeug: Runde endet automatisch")
+	var d5 := _fixed_duel([[H, 7], [C, 6]], [[H, 8]])
+	d5.attack(d5.player_hand[0])
+	check(d5.burnable_cards(DurakMatch.PLAYER).is_empty() or d5.opponent_hand.size() > 0, "Vorbereitung")
+	d5.burn_option_for = DurakMatch.PLAYER
+	d5.defend(d5.opponent_hand[0])
+	check(d5.burnable_cards(DurakMatch.PLAYER).is_empty(), "Gegner ohne Handkarten: nichts zu verbrennen")
 
 
 ## Schieben nur, wenn der neue Verteidiger genug Karten hat.

@@ -89,6 +89,10 @@ var difficulty := 1
 var hints := true
 ## Tutorial-Runde (eigene Szene, kein echter Run)
 var tutorial := false
+## Nach gewonnenem Tutorial: der Händler wird einmal mit Erklärungen gezeigt
+var tutorial_shop := false
+## Startgold für den Tutorial-Händler
+const TUTORIAL_SHOP_GOLD := 15
 ## Seelen, die am Ende dieses Runs gutgeschrieben wurden
 var last_souls := 0
 
@@ -113,9 +117,15 @@ func start_new_run(p_seed := 0) -> void:
 func start_tutorial() -> void:
 	_reset(0)
 	tutorial = true
+	tutorial_shop = false
 	difficulty = 0
 	hints = true
 	lives = 1
+	# zum Zeigen: ein Relikt und ein Item (oben rechts im Duell, wird im Tutorial erklärt)
+	var coin := load("res://data/relics/lucky_coin.tres") as RelicData
+	if coin != null:
+		relics.append(coin)
+	items.append(&"mirror")
 	var o := load(TUTORIAL_OPPONENT) as OpponentData
 	if o != null:
 		encounters.assign([o])
@@ -130,6 +140,7 @@ func _reset(p_seed: int) -> void:
 	seed_value = p_seed if p_seed != 0 else randi()
 	rng.seed = seed_value
 	tutorial = false
+	tutorial_shop = false
 	gold = 0
 	floor_index = 0
 	relics.clear()
@@ -237,6 +248,13 @@ func on_match_finished(loser: int) -> void:
 		tutorial = false
 		if loser == DurakMatch.OPPONENT:
 			Settings.set_value("general/show_tutorial", false) # geschafft: Karte ausblenden
+			# zum Abschluss den Händler zeigen und erklären (danach zurück ins Menü)
+			tutorial_shop = true
+			gold = TUTORIAL_SHOP_GOLD
+			last_gold_reward = 0
+			last_interest = 0
+			open_shop()
+			return
 		goto(SCENE_MENU)
 		return
 	match loser:

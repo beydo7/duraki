@@ -1155,7 +1155,6 @@ func open_card_picker(cards: Array, title: String, hint: String, on_pick: Callab
 		pic.custom_minimum_size = Vector2(w, w * 1.4)
 		pic.mouse_filter = Control.MOUSE_FILTER_STOP
 		pic.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-		pic.tooltip_text = str(c)
 		pic.mouse_entered.connect(func() -> void:
 			Sfx.play(&"card_hand_hover", randf_range(0.95, 1.05))
 			pic.pivot_offset = pic.size * 0.5

@@ -45,9 +45,20 @@ func _build() -> void:
 	add_child(_lid)
 	_box(Vector3(W + 0.0008, LID_H, D + 0.0008), red, Vector3(0, LID_H * 0.5, D * 0.5), _lid)
 	# Beschriftung vorne (Label3D, erfundene Marke)
-	_label("DURAKI", 34, Color(0.74, 0.08, 0.1), Vector3(0, body_h * 0.62, D * 0.5 + 0.0008), self)
-	_label("★", 26, Color(0.78, 0.62, 0.3), Vector3(0, body_h * 0.4, D * 0.5 + 0.0008), self)
-	_label("FEINE TABAKE", 11, Color(0.35, 0.3, 0.28), Vector3(0, body_h * 0.24, D * 0.5 + 0.0008), self)
+	# rotes Dreieck vorne und hinten: hängt vom Deckel herab, Spitze zeigt nach unten (eigenes Design)
+	for side in [1.0, -1.0]:
+		var tri := MeshInstance3D.new()
+		var prism := PrismMesh.new()
+		prism.left_to_right = 0.5
+		prism.size = Vector3(W + 0.0006, body_h * 0.46, 0.0004)
+		tri.mesh = prism
+		tri.material_override = red
+		tri.position = Vector3(0, body_h - body_h * 0.23, side * (D * 0.5 + 0.0003))
+		tri.rotation.z = PI # Spitze nach unten
+		add_child(tri)
+	_label("★", 22, Color(0.98, 0.9, 0.7), Vector3(0, body_h * 0.86, D * 0.5 + 0.0008), self)
+	_label("DURAKI", 28, Color(0.74, 0.08, 0.1), Vector3(0, body_h * 0.43, D * 0.5 + 0.0008), self)
+	_label("FEINE TABAKE", 11, Color(0.35, 0.3, 0.28), Vector3(0, body_h * 0.28, D * 0.5 + 0.0008), self)
 	_label("DURAKI", 22, Color(0.98, 0.95, 0.9), Vector3(0, LID_H * 0.5, D + 0.0009), _lid)
 	# drei Zigaretten im Inneren (Filter oben), zunächst versteckt in der Schachtel
 	for i in 3:

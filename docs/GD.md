@@ -82,6 +82,9 @@ Ein Run = 3 normale Gegner + Boss, 3 Leben (Kerzen). Wer verliert, ist der Durak
     dann dreht er sie um und sie bleibt klein über ihm sichtbar (`MatchHUD.add_known`), bis er sie spielt
     (platzt dann weg).
   - Feuerzeug gezückt: verbrennbare Gegnerkarten bekommen einen pulsierenden orangen Rahmen.
+- **Tutorial**: zeigt zum Start eine Glücksmünze und einen Spiegel und erklärt Relikte und Item-Plätze
+  oben rechts. Nach dem Sieg öffnet sich der Händler mit 15 Gold und fünf Erklärschritten
+  (`shop.gd`, `Run.tutorial_shop`); „TUTORIAL BEENDEN“ führt ins Hauptmenü.
 - **Entwicklermenü** (F8, `ui/dev_menu.gd`): beliebige Karte mit Verbesserung auf die Hand,
   Items, Relikte, +10 Gold. Der Gegner wartet, solange es offen ist. Im Duell öffnet es `match.gd`,
   überall sonst (Hauptmenü, Weg, Händler) der Autoload `Pause` (Karten gibt es dort nicht).
@@ -105,7 +108,11 @@ Ein Run = 3 normale Gegner + Boss, 3 Leben (Kerzen). Wer verliert, ist der Durak
     Icon ohne Eiswürfel (`assets/items/schnaps.png`, `tools/generate_icons.py`).
   - Kartentausch: Fenster mit allen Handkarten (`MatchHUD.open_card_picker`); die gewählte Karte wird in
     den Stapel gemischt (`TableWorld.send_to_deck`), die offene Karte unter dem Stapel kommt auf die Hand.
-    Unten liegt danach wieder offen eine Karte der Trumpffarbe (falls noch eine im Stapel ist).
+    Danach liegt keine offene Karte mehr unter dem Stapel (`DurakMatch.trump_hidden`), ein zweiter
+    Tausch im selben Duell geht nicht. Die Trumpffarbe bleibt.
+  - Feuerzeug im Besitz: Hat der Gegner alles geschlagen, endet deine Angriffsrunde nicht automatisch
+    (`DurakMatch.burn_option_for`) – du entscheidest: verbrennen oder FERTIG. Hat der Gegner keine
+    Handkarten mehr, ist nichts verbrennbar.
   - Maske: hinter Chips × Mult steht sofort „×2“ (`MatchHUD.set_factor`).
   - Falle: Symbol „Schieben verboten“ über dem Gegner bis Rundenende (`assets/items/no_transfer.png`).
 - Entwicklermenü (F8): zusätzlich „ALLES FREISCHALTEN“ (alle Decks, alle Abzeichen), scrollbar.
@@ -268,7 +275,8 @@ setzt ältere Einstellungsdateien einmalig darauf).
   echtes Markenlogo) rechts neben deinem Aschenbecher: 1. Klick Deckel auf, 2. Klick drei Zigaretten
   rutschen halb raus, 3. Klick eine wandert in den Aschenbecher (der startet im Duell leer). Ist sie
   aufgeraucht, holt der nächste Klick sofort die nächste – alle drei lassen sich rauchen, die Stummel
-  bleiben in der Mulde liegen (`Ashtray.STUB_SPOTS`).
+  bleiben in der Mulde liegen (`Ashtray.STUB_SPOTS`). Vorne und hinten ein rotes Dreieck, das vom
+  Deckel nach unten zeigt (eigenes Design), darin ein Stern.
 - **Aschenbecher** (`scenes/match/ashtray.gd`): hinten links der des Gegners (Filter zeigt zu ihm, Deko),
   im Duell zusätzlich dein eigener vorne links neben den Kerzen. Klick = anzünden, dann 5 Züge
   (Zigarette zum Mund, brennt ab, Rauchwolke), danach qualmt der Stummel in der Kerbe 12 s und geht aus.
@@ -286,7 +294,7 @@ Run: Schwierigkeit, Hinweise, Tutorial im Hauptmenü anzeigen).
 `user://settings.cfg`, Autoload `Settings`. Esc = Pause.
 
 ## 7. Tests
-- `godot --headless --path . -s res://tests/run_tests.gd` → Regeln/KI (68 Checks)
+- `godot --headless --path . -s res://tests/run_tests.gd` → Regeln/KI (73 Checks)
 - `godot --headless --path . res://tests/deck_tests.tscn` → Decks/Seelen/Schwierigkeit (46 Checks)
 - `godot --headless --path . res://tests/autoplay.tscn` → 5 komplette Runs automatisch
   (`DURAKI_DIFF=0/1/2` wählt die Schwierigkeit, `DURAKI_RUNS=n` die Anzahl)

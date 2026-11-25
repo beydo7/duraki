@@ -42,6 +42,11 @@ const MAX_ATTACK_CARDS := 6
 
 var deck: Deck
 var trump_card: Card
+## Kartentausch: die offene Karte unter dem Stapel ist weg, unten liegt jetzt verdeckt eine Karte
+var trump_hidden := false
+## Feuerzeug: dieser Spieler kann noch Gegnerkarten verbrennen → als Angreifer wird seine Runde
+## nicht automatisch beendet, wenn alles geschlagen ist (er entscheidet selbst: verbrennen oder FERTIG)
+var burn_option_for := -1
 var trump_suit: Card.Suit
 var player_hand: Array[Card] = []
 var opponent_hand: Array[Card] = []
@@ -69,6 +74,7 @@ func start(rng: RandomNumberGenerator, player_hand_size := 6, opponent_hand_size
 		deck_setup.call(deck.cards)
 	trump_card = deck.bottom_card()
 	trump_suit = trump_card.suit
+	trump_hidden = false
 	hand_sizes = [player_hand_size, opponent_hand_size]
 	_refill(PLAYER)
 	_refill(OPPONENT)
@@ -233,7 +239,7 @@ func attack(card: Card, at := -1) -> bool:
 ## Kartentausch (Item): Handkarte gegen die offene Karte unter dem Stapel tauschen.
 ## Die Trumpffarbe bleibt, wie sie zu Beginn war.
 func swap_with_bottom(card: Card, rng: RandomNumberGenerator = null) -> bool:
-	if is_over or deck.is_empty() or not player_hand.has(card):
+	if is_over or deck.is_empty() or trump_hidden or not player_hand.has(card):
 		return false
 	var bottom: Card = deck.cards[0]
 	deck.cards.remove_at(0)
@@ -245,14 +251,9 @@ func swap_with_bottom(card: Card, rng: RandomNumberGenerator = null) -> bool:
 		rng = RandomNumberGenerator.new()
 		rng.randomize()
 	deck.cards.insert(rng.randi_range(0, deck.cards.size()), card)
-	# unten liegt wieder offen eine Karte der Trumpffarbe, falls noch eine im Stapel ist
-	for i in deck.cards.size():
-		if deck.cards[i].suit == trump_suit:
-			var t: Card = deck.cards[i]
-			deck.cards.remove_at(i)
-			deck.cards.insert(0, t)
-			break
-	trump_card = deck.cards[0]
+	# keine neue offene Karte: unten liegt jetzt verdeckt die unterste Karte (Trumpffarbe bleibt)
+	trump_hidden = true
+	trump_card = deck.cards[0] if not deck.is_empty() else null
 	message.emit("Getauscht: %s in den Stapel gemischt, %s auf die Hand." % [card, bottom])
 	changed.emit()
 	return true
@@ -278,6 +279,8 @@ func burnable_cards(who: int) -> Array[Card]:
 	if is_over or taking:
 		return result
 	var other := 1 - who
+	if hand(other).is_empty():
+		return result # ohne Handkarten könnte er nicht neu legen
 	for i in attack_cards.size():
 		if attacker == other and defense_cards[i] == null:
 			result.append(attack_cards[i])
@@ -403,6 +406,8 @@ func force_finish(p_loser: int, text := "") -> void:
 
 func _auto_pass_if_stuck() -> void:
 	if not taking and unbeaten_index() == -1 and legal_attacks().is_empty():
+		if burn_option_for == attacker and not burnable_cards(attacker).is_empty():
+			return # erst entscheiden lassen, ob eine Karte verbrannt wird
 		pass_bout()
 
 

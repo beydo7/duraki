@@ -48,6 +48,10 @@ func setup(match_node: Node) -> void:
 		"Die offene Karte unter dem Stapel zeigt den Trumpf: %s. Trumpf schlägt jede andere Farbe – spar ihn dir für schwierige Momente." % Card.SUIT_NAMES[duel.trump_suit], true)
 	_tip("hand", "DEINE HAND",
 		"Unten liegen deine Karten. Leuchtende Karten kannst du gerade spielen – einfach anklicken. Halte Shift über einer Karte, um zu sehen, was sie bringt.", true)
+	_tip("relics", "RELIKTE",
+		"Oben rechts stehen deine Relikte als Symbole – hier die Glücksmünze. Sie wirken dauerhaft, den ganzen Run lang. Fahr mit der Maus drüber, um die Wirkung zu sehen; wirkt eins, blitzt es kurz auf.", true)
+	_tip("items", "ITEMS",
+		"Links neben den Relikten sind die runden Item-Plätze (höchstens 2). Ein Item setzt du einmal ein: einfach anklicken. Probier den Spiegel – er verrät dir eine Karte des Gegners. Neue Relikte und Items gibt es beim Händler.", true)
 
 
 func _build() -> void:
@@ -69,7 +73,7 @@ func _build() -> void:
 	_panel.anchor_right = 1.0
 	_panel.offset_left = -PANEL_W - 28
 	_panel.offset_right = -28
-	_panel.offset_top = 118
+	_panel.offset_top = 172 # unter Relikten und Items (die erklärt das Tutorial)
 	_panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	_panel.visible = false
 	add_child(_panel)

@@ -19,9 +19,17 @@ func _go() -> void:
 		if sc.name == "MainMenu" or sc.scene_file_path == Run.SCENE_MENU:
 			var hidden := not bool(Settings.get_value("general/show_tutorial"))
 			print("Zurück im Menü. Hinweise: %d, Karte ausgeblendet: %s" % [_tips, hidden])
-			print("Tutorial-Test: %s" % ("OK" if _tips >= 5 and hidden else "FEHLER (Tutorial verloren?)"))
+			print("Tutorial-Test: %s" % ("OK" if _tips >= 10 and hidden else "FEHLER (Tutorial verloren?)"))
 			Settings.set_value("general/show_tutorial", true) # echte Einstellung nicht verstellen
 			get_tree().quit(); return
+		if sc.scene_file_path == Run.SCENE_SHOP:
+			# Tutorial-Händler: Erklärungen durchklicken, dann beenden
+			if sc.tutorial_step >= 0 and sc.tutorial_step < sc.TUTORIAL_STEPS.size():
+				_tips += 1
+				sc.tutorial_next()
+			else:
+				sc.get_node("%ContinueButton").pressed.emit()
+			continue
 		if sc.scene_file_path != Run.SCENE_MATCH: continue
 		var duel: DurakMatch = sc.duel
 		if sc.coach != null and sc.coach._open_key != "":
