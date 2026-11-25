@@ -248,6 +248,7 @@ func on_match_finished(loser: int) -> void:
 		tutorial = false
 		if loser == DurakMatch.OPPONENT:
 			Settings.set_value("general/show_tutorial", false) # geschafft: Karte ausblenden
+			Profile.unlock_achievement(&"tutorial")
 			# zum Abschluss den Händler zeigen und erklären (danach zurück ins Menü)
 			tutorial_shop = true
 			gold = TUTORIAL_SHOP_GOLD
@@ -453,6 +454,8 @@ func use_item(i: int) -> void:
 func add_relic(relic: RelicData) -> void:
 	relics.append(relic)
 	lives += relic.extra_lives
+	if relics.size() >= 5:
+		Profile.unlock_achievement(&"relics5")
 	changed.emit()
 
 

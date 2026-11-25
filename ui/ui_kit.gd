@@ -311,7 +311,8 @@ static func show_unlocks(owner: Control) -> void:
 
 ## SubViewport in echter Bildschirmauflösung rendern (statt der Basisauflösung
 ## hochzuskalieren). `scale` < 1 rendert absichtlich kleiner (z. B. für unscharfe Hintergründe).
-static func fit_viewport(owner: Control, view: SubViewportContainer, vp: SubViewport, scale := 1.0) -> void:
+## `sharpen`: Nachschärf-Material setzen (aus bei Hintergründen mit eigenem Material).
+static func fit_viewport(owner: Control, view: SubViewportContainer, vp: SubViewport, scale := 1.0, sharpen := true) -> void:
 	var canvas := owner.get_viewport_rect().size
 	var pixels := Vector2(owner.get_tree().root.size)
 	var factor := maxf(pixels.x / maxf(canvas.x, 1.0), 1.0) * scale
@@ -322,12 +323,10 @@ static func fit_viewport(owner: Control, view: SubViewportContainer, vp: SubView
 	vp.size = px
 	view.size = Vector2(px)
 	view.scale = Vector2.ONE / factor
-	# Nachschärfen nur fürs 3D-Bild; unscharfe Hintergründe (scale < 1) bleiben weich.
-	if scale >= 1.0:
+	# Nachschärfen nur fürs 3D-Bild (nicht bei Hintergründen mit eigenem Weichzeichner)
+	if sharpen:
 		Settings._apply_post()
 		view.material = Settings.view_material
-	elif view.material != null:
-		view.material = null
 
 
 # --- Animationen ----------------------------------------------------------------------

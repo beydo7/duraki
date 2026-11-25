@@ -168,6 +168,8 @@ func _drink() -> void:
 		_bottle_clicks = 0
 		_busy = false
 		_tipsy = 1.0
+		if _world.whiskey != null and not _world.whiskey.can_pour():
+			Profile.unlock_achievement(&"alcoholic") # Flasche leer getrunken
 		if _world.figure != null:
 			_world.figure.laugh())
 

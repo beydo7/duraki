@@ -17,7 +17,7 @@ enum Step { CLOSED, OPEN, OUT }
 
 var ashtray: Ashtray
 var step := Step.CLOSED
-var left := 19 # Zigaretten in der Schachtel
+var left := Profile.PACK_SIZE # Zigaretten in der Schachtel
 var _busy := false
 var _lid: Node3D
 var _cigs: Array[Node3D] = []

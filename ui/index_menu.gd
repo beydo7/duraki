@@ -5,11 +5,12 @@ extends Control
 ##   KARTEN   alle 36 Karten, umschaltbar Normal / Gold / Glas / Glück (mit Effekt und Preis)
 ##   RELIKTE  alle Relikte aus data/relics/ mit Effekt
 ##   ITEMS    Feuerzeug, Spiegel …
+##   ERFOLGE  erreichte und offene Erfolge; geheime zeigen ihre Aufgabe erst, wenn erreicht
 ##     var menu := IndexMenu.new(); add_child(menu); menu.closed.connect(...)
 
 signal closed
 
-const TABS := ["KARTEN", "RELIKTE", "ITEMS"] # Boni stehen bei den Decks
+const TABS := ["KARTEN", "RELIKTE", "ITEMS", "ERFOLGE"] # Boni stehen bei den Decks
 const CARD_SIZE := Vector2(80, 112)
 const ENH_COLORS := [UIKit.P_CREAM, UIKit.P_GOLD, Color(0.55, 0.82, 1.0), Color(0.42, 0.85, 0.5)]
 const ENH_LABELS := ["NORMAL", "GOLD", "GLAS", "GLÜCK"]
@@ -115,6 +116,7 @@ func _show_tab(index: int) -> void:
 		0: _content.add_child(_cards_tab())
 		1: _content.add_child(_relics_tab())
 		2: _content.add_child(_items_tab())
+		3: _content.add_child(_achievements_tab())
 	_tab_buttons[index].grab_focus()
 
 
@@ -288,3 +290,59 @@ func _items_tab() -> Control:
 		var it: Dictionary = Run.ITEMS[id]
 		entries.append([it.emoji, Color.BLACK, Color.BLACK, it.name, it.text, "Preis: %d G · einmal einsetzbar" % it.price])
 	return _medal_grid(entries, "Items kauft man beim Händler (höchstens %d gleichzeitig) und setzt sie im Duell oben rechts ein." % Run.ITEM_SLOTS)
+
+
+# --- ERFOLGE ------------------------------------------------------------------------------
+
+func _achievements_tab() -> Control:
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 14)
+	var done := Profile.achievements.size()
+	var total := Profile.ACHIEVEMENTS.size()
+	box.add_child(UIKit.poster_label("%d von %d erreicht. Geheime Erfolge verraten ihre Aufgabe erst, wenn du sie geschafft hast." % [done, total],
+		UIKit.body_font(500), 15, Color(UIKit.P_CREAM, 0.7)))
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	box.add_child(scroll)
+	var grid := GridContainer.new()
+	grid.columns = 3
+	grid.add_theme_constant_override("h_separation", 18)
+	grid.add_theme_constant_override("v_separation", 14)
+	scroll.add_child(grid)
+	for id: StringName in Profile.ACHIEVEMENTS:
+		var a: Array = Profile.ACHIEVEMENTS[id]
+		var got := Profile.has_achievement(id)
+		var secret: bool = a[3] and not got
+		var cell := PanelContainer.new()
+		var st := StyleBoxFlat.new()
+		st.bg_color = Color(1, 1, 1, 0.05) if got else Color(0, 0, 0, 0.25)
+		st.border_color = UIKit.P_GOLD if got else Color(UIKit.P_CREAM, 0.15)
+		st.set_border_width_all(2)
+		st.border_width_left = 6
+		st.set_content_margin_all(12)
+		cell.add_theme_stylebox_override("panel", st)
+		cell.custom_minimum_size = Vector2(360, 108)
+		cell.mouse_entered.connect(func() -> void: Sfx.play(&"index_hover", randf_range(0.9, 1.0)))
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 12)
+		cell.add_child(row)
+		var icon := UIKit.relic_icon("❓" if secret else a[0], 60, 38)
+		icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		icon.modulate = Color.WHITE if got else Color(0.55, 0.52, 0.5, 0.85)
+		row.add_child(icon)
+		var col := VBoxContainer.new()
+		col.add_theme_constant_override("separation", 1)
+		col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(col)
+		col.add_child(UIKit.poster_label(a[1], UIKit.display_font(), 19, UIKit.P_CREAM if got else Color(UIKit.P_CREAM, 0.75)))
+		# geheim: Aufgabe zensiert (Balken statt Text)
+		var task := UIKit.poster_label("████ ███ ██████ ?" if secret else String(a[2]), UIKit.body_font(500), 14,
+			Color(UIKit.P_CREAM, 0.35 if secret else 0.78))
+		task.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		task.custom_minimum_size.x = 250
+		col.add_child(task)
+		col.add_child(UIKit.poster_label("✓ ERREICHT" if got else "Belohnung: noch offen",
+			UIKit.body_font(600, 1), 13, UIKit.P_GOLD if got else Color(UIKit.P_CREAM, 0.45)))
+		grid.add_child(cell)
+	return box

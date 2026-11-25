@@ -95,6 +95,8 @@ func _ready() -> void:
 	score.attach(duel) # vor den UI-Signalen verbinden, damit zuerst gewertet wird
 	score.changed.connect(_render_score)
 	score.bout_scored.connect(func(points: int, text: String) -> void:
+		if points >= 100 and not Run.tutorial:
+			Profile.unlock_achievement(&"big_bout")
 		hud.bout_scored(points, text)
 		for r in Run.relics:
 			if r.bonus_mult > 0:
@@ -128,6 +130,8 @@ func _ready() -> void:
 			if count >= 3:
 				_maybe_say(LINES_GLOAT, 0.6))
 	duel.transferred.connect(func(who: int, card: Card) -> void:
+		if who == DurakMatch.PLAYER:
+			Profile.unlock_achievement(&"transfer")
 		world.note_transfer(card)
 		hud.speed_lines(who == DurakMatch.PLAYER)
 		hud.close_choice()
@@ -261,6 +265,7 @@ func _on_player_card(card: Card, target := -1, slot := -1) -> void:
 			Run.use_item(i)
 			hud.set_relics(Run.relics, Run.items)
 			duel.burn(card)
+			Profile.unlock_achievement(&"burn")
 		return
 	if _now() < world.busy_until():
 		return # es wird noch ausgeteilt – erst die neuen Karten abwarten

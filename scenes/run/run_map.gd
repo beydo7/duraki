@@ -17,7 +17,7 @@ func _ready() -> void:
 	var next := Run.current_opponent()
 	_backdrop = RoomBackdrop.new()
 	_backdrop.opponent = next
-	_backdrop.blur = 1.2
+	_backdrop.blur = 0.0 # Gegner so scharf wie am Tisch
 	_backdrop.darken = 0.35
 	_backdrop.cam_from = Vector3(0.12, 1.32, 0.95)
 	_backdrop.cam_to = Vector3(0.12, 1.12, -0.4)

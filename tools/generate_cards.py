@@ -634,7 +634,8 @@ def save(img, name):
 
 def glass_version(art, suit="s"):
     """Glaskarte wie bei Balatro: eigener heller, grau-blauer Glasgrund mit schrägen
-    Lichtbändern; Linien und Symbole werden dunkel (Schiefer, bei Herz/Karo gedecktes Rot).
+    Lichtbändern; Linien dunkel nachtblau, Farbsymbole knallig (Herz rot, Karo orange,
+    Kreuz schiefergrau, Pik schwarz). Bildfelder der Figuren deutlich getönt.
     Bläulich und durchscheinend (Alpha ~0,67), Linien deckend."""
     w, h = W // S, H // S
     yy, xx = np.mgrid[0:h, 0:w].astype(np.float32)
@@ -656,14 +657,30 @@ def glass_version(art, suit="s"):
     a[..., 3] = np.where(rim | inner, 255, a[..., 3])
     glass = Image.fromarray(a.clip(0, 255).astype(np.uint8), "RGBA")
     small = np.array(art.resize((w, h), Image.LANCZOS)).astype(np.float32)
-    ink = np.array({"h": (150, 52, 62), "d": (168, 84, 20), "c": (64, 68, 80)}.get(suit, (26, 44, 70)), np.float32)
+    # Linien und Bildflächen in dunklem Nachtblau, Farbsymbole knallig in ihrer Farbe
+    ink = np.array((20, 30, 66), np.float32)
+    vivid = np.array({"h": (232, 18, 40), "d": (255, 118, 0), "c": (34, 40, 56)}.get(suit, (6, 6, 10)), np.float32)
     lines = np.zeros_like(small)
     lines[..., :3] = ink
-    # helle Linien (Gold, Koralle) voll dunkel, dunkle Flächen (z. B. Bildfelder) nur zart getönt
     lum = small[..., :3] @ np.array((0.299, 0.587, 0.114), np.float32)
-    lines[..., 3] = small[..., 3] * np.clip(lum / 150.0, 0.18, 1.0)
-    # schwarze Pik-Symbole voll dunkel (nicht als „dunkle Fläche“ nur zart tönen)
-    lines[..., 3] = np.where(lum < 20, small[..., 3], lines[..., 3])
+    # helle Linien voll deckend, dunkle Flächen (Bildfelder der Figuren) deutlich getönt statt nur zart
+    lines[..., 3] = small[..., 3] * np.clip(lum / 120.0, 0.3, 1.0)
+    r, g, b = small[..., 0], small[..., 1], small[..., 2]
+    # goldene Linien (Figuren, Rahmen) in der Farbe der Karte – so leuchten auch die Bildkarten
+    goldish = (r > 120) & (g > 90) & (b < 170) & (g > b + 25) & (small[..., 3] > 40)
+    line_col = {"h": (200, 16, 36), "d": (230, 100, 0)}.get(suit, (20, 30, 66))
+    lines[..., :3] = np.where(goldish[..., None], np.array(line_col, np.float32), lines[..., :3])
+    if suit == "h":
+        sym = (r > 170) & (g < 110) & (b < 130)
+    elif suit == "d":
+        sym = (r > 170) & (g > 60) & (g < 170) & (b < 90)
+    elif suit == "c":
+        sym = (np.abs(r - g) < 26) & (b > r) & (b - r < 45) & (r > 110)
+    else:
+        sym = lum < 24
+    sym &= small[..., 3] > 40
+    lines[..., :3] = np.where(sym[..., None], vivid, lines[..., :3])
+    lines[..., 3] = np.where(sym, small[..., 3], lines[..., 3])
     glass.alpha_composite(Image.fromarray(lines.clip(0, 255).astype(np.uint8), "RGBA"))
     return glass
 

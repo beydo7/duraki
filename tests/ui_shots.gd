@@ -39,6 +39,12 @@ func _run() -> void:
 	get_tree().current_scene.add_child(decks)
 	await _wait_shot("1e_decks")
 	decks.close()
+	Profile.achievements.assign([&"tutorial", &"first_win", &"smoker"])
+	var index := IndexMenu.new()
+	get_tree().current_scene.add_child(index)
+	index._show_tab(3)
+	await _wait_shot("1f_erfolge")
+	index.close()
 	Run.start_new_run(4242)
 	await get_tree().create_timer(0.2).timeout
 	Run.floor_index = 1

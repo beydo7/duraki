@@ -6,6 +6,26 @@ extends Node
 signal changed
 ## Ein Deck wurde frisch freigeschaltet (für Meldungen).
 signal deck_unlocked(deck: DeckData)
+## Ein Erfolg wurde gerade erreicht (Meldung zeigt der Autoload Pause).
+signal achievement_unlocked(id: StringName)
+
+## Erfolge: id → [Symbol, Name, Aufgabe, geheim?]. Geheime zeigen ihre Aufgabe erst, wenn erreicht.
+## Belohnungen sind noch offen (Leon überlegt sich die noch).
+const ACHIEVEMENTS := {
+	&"tutorial": ["🎓", "Lehrling", "Schließe das Tutorial ab.", false],
+	&"first_win": ["🏆", "Erster Sieg", "Gewinne deinen ersten Tisch.", false],
+	&"transfer": ["🌀", "Weitergeschoben", "Schiebe einen Angriff weiter.", false],
+	&"burn": ["🔥", "Brandstifter", "Verbrenne eine Karte mit dem Feuerzeug.", false],
+	&"big_bout": ["💥", "Volltreffer", "Mach 100 Punkte oder mehr in einer einzigen Runde.", false],
+	&"relics5": ["🧺", "Sammler", "Besitze 5 Relikte gleichzeitig.", false],
+	&"boss": ["🗿", "Riesentöter", "Besiege einen Boss.", false],
+	&"run_win": ["👑", "Durchgezogen", "Gewinne einen ganzen Run.", false],
+	&"hard_win": ["💀", "Eiskalt", "Gewinne einen Run auf Schwer.", false],
+	&"smoker": ["🚬", "Raucher", "Rauche eine Zigarette zu Ende.", true],
+	&"chain_smoker": ["📦", "Kettenraucher", "Rauche eine ganze Schachtel (20 Zigaretten).", true],
+	&"alcoholic": ["🥃", "Alkoholiker", "Trink die Whiskeyflasche leer.", true],
+}
+const PACK_SIZE := 20
 
 const PATH := "user://profile.cfg"
 const DECK_DIR := "res://data/decks/"
@@ -22,6 +42,9 @@ var selected: StringName = DEFAULT_DECK
 var runs_played := 0
 var runs_won := 0
 var best_floor := 0
+## Erreichte Erfolge (ids) und Zähler dafür
+var achievements: Array[StringName] = []
+var cigarettes_smoked := 0
 ## Frisch freigeschaltete Decks, die noch nicht angezeigt wurden.
 var pending_unlocks: Array[DeckData] = []
 
@@ -86,6 +109,9 @@ func buy(id: StringName) -> bool:
 func on_opponent_defeated(opponent: OpponentData) -> void:
 	if opponent == null:
 		return
+	unlock_achievement(&"first_win")
+	if opponent.is_boss:
+		unlock_achievement(&"boss")
 	var oid := StringName(opponent.resource_path.get_file().get_basename())
 	for d in _decks:
 		if d.unlock_opponent == oid and not is_unlocked(d.id):
@@ -109,6 +135,10 @@ func _give_badge(deck_id: StringName, level: int) -> void:
 
 
 func on_run_finished(won: bool, tables_won: int, factor := 1.0, deck_id: StringName = &"", level := -1) -> int:
+	if won:
+		unlock_achievement(&"run_win")
+		if level == 2:
+			unlock_achievement(&"hard_win")
 	if won and level >= 0:
 		_give_badge(deck_id, level)
 	var gained := int(roundf((tables_won * SOULS_PER_TABLE + (SOULS_RUN_WIN if won else 0)) * factor))
@@ -162,6 +192,30 @@ func _load_decks() -> void:
 	_decks.sort_custom(func(a: DeckData, b: DeckData) -> bool: return a.sort_order < b.sort_order)
 
 
+# --- Erfolge --------------------------------------------------------------------------
+
+func has_achievement(id: StringName) -> bool:
+	return achievements.has(id)
+
+
+## Erfolg freischalten (nur beim ersten Mal: speichern und melden).
+func unlock_achievement(id: StringName) -> void:
+	if not ACHIEVEMENTS.has(id) or achievements.has(id):
+		return
+	achievements.append(id)
+	save_profile()
+	achievement_unlocked.emit(id)
+
+
+## Eine Zigarette zu Ende geraucht (Aschenbecher).
+func add_cigarette() -> void:
+	cigarettes_smoked += 1
+	save_profile()
+	unlock_achievement(&"smoker")
+	if cigarettes_smoked >= PACK_SIZE:
+		unlock_achievement(&"chain_smoker")
+
+
 # --- Speichern ------------------------------------------------------------------------
 
 func load_profile() -> void:
@@ -177,6 +231,10 @@ func load_profile() -> void:
 	for id in cfg.get_value("profile", "unlocked", PackedStringArray()):
 		unlocked.append(StringName(id))
 	badges = cfg.get_value("profile", "badges", {})
+	achievements.clear()
+	for id in cfg.get_value("achievements", "done", PackedStringArray()):
+		achievements.append(StringName(id))
+	cigarettes_smoked = int(cfg.get_value("stats", "cigarettes", 0))
 
 
 func save_profile() -> void:
@@ -193,6 +251,11 @@ func save_profile() -> void:
 	cfg.set_value("stats", "runs_played", runs_played)
 	cfg.set_value("stats", "runs_won", runs_won)
 	cfg.set_value("stats", "best_floor", best_floor)
+	cfg.set_value("stats", "cigarettes", cigarettes_smoked)
+	var done := PackedStringArray()
+	for id in achievements:
+		done.append(String(id))
+	cfg.set_value("achievements", "done", done)
 	cfg.save(PATH)
 
 
@@ -202,5 +265,7 @@ func reset_for_tests() -> void:
 	souls = 0
 	unlocked.clear()
 	badges.clear()
+	achievements.clear()
+	cigarettes_smoked = 0
 	selected = DEFAULT_DECK
 	pending_unlocks.clear()

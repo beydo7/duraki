@@ -82,6 +82,14 @@ Ein Run = 3 normale Gegner + Boss, 3 Leben (Kerzen). Wer verliert, ist der Durak
     dann dreht er sie um und sie bleibt klein über ihm sichtbar (`MatchHUD.add_known`), bis er sie spielt
     (platzt dann weg).
   - Feuerzeug gezückt: verbrennbare Gegnerkarten bekommen einen pulsierenden orangen Rahmen.
+- **Erfolge** (`Profile.ACHIEVEMENTS`, gespeichert in profile.cfg, Index-Reiter ERFOLGE): Lehrling,
+  Erster Sieg, Weitergeschoben, Brandstifter, Volltreffer (100+ Punkte in einer Runde), Sammler
+  (5 Relikte), Riesentöter (Boss), Durchgezogen (Run gewonnen), Eiskalt (Run auf Schwer) und die
+  geheimen Raucher (eine Zigarette zu Ende), Kettenraucher (20 = eine Schachtel, zählt über alle
+  Duelle) und Alkoholiker (Whiskeyflasche im Hauptmenü leer getrunken). Geheime zeigen ein „?“ und
+  eine zensierte Aufgabe, bis sie erreicht sind. Meldung oben in der Mitte (Autoload `Pause`).
+  Belohnungen: noch offen (Leon entscheidet).
+- **Der Weg** zeigt den Raum scharf wie im Duell (`RoomBackdrop.blur = 0`, MSAA 4×).
 - **Tutorial**: zeigt zum Start eine Glücksmünze und einen Spiegel und erklärt Relikte und Item-Plätze
   oben rechts. Nach dem Sieg öffnet sich der Händler mit 15 Gold und fünf Erklärschritten
   (`shop.gd`, `Run.tutorial_shop`); „TUTORIAL BEENDEN“ führt ins Hauptmenü.
@@ -123,6 +131,8 @@ Ein Run = 3 normale Gegner + Boss, 3 Leben (Kerzen). Wer verliert, ist der Durak
   (`UIKit.msdf_body_font`).
 - Relikte stehen höchstens zu fünft in einer Reihe (Duell und Weg). Händler: „Dein Besitz“ klein unten,
   Relikte/Items nur als Symbol mit Tooltip; Item-Texte brechen fest in ihrer Spalte um.
+- Glaskarten: Farbsymbole knallig (Herz rot, Karo orange, Kreuz schiefergrau, Pik schwarz), die
+  goldenen Linien der Bildkarten in Herz-/Karo-Rot bzw. -Orange, Bildfelder nur leicht getönt.
 - Farben der Kartenfarben (`tools/generate_cards.py`): Herz knallrot (`CORAL`), Karo orange (`ORANGE`),
   Kreuz grau (`SILVER`), Pik schwarz mit feiner Goldkante (`BLACK`, sonst unsichtbar auf dem dunklen Grund) – so unterscheidet man Herz/Karo und Kreuz/Pik leichter. Gold-, Glas- und
   Glückskarten übernehmen das (eigene dunkle Töne auf Gold/Glas). HUD-Farben passend (`UIKit.SUIT_COLORS`).

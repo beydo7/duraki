@@ -36,7 +36,8 @@ func _ready() -> void:
 	_view.material = mat
 	add_child(_view)
 	_vp = SubViewport.new()
-	_vp.msaa_3d = Viewport.MSAA_DISABLED
+	# scharfer Hintergrund (blur 0, z. B. der Weg): Kantenglättung wie im Duell
+	_vp.msaa_3d = Viewport.MSAA_DISABLED if blur > 0.0 else Viewport.MSAA_4X
 	_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	_view.add_child(_vp)
 	world = TableWorld.new()
@@ -72,7 +73,7 @@ func _build_merchant_table() -> void:
 
 func _fit() -> void:
 	# halbe Auflösung reicht – das Bild wird ohnehin weichgezeichnet
-	UIKit.fit_viewport(self, _view, _vp, 0.5 if blur > 0.5 else 1.0)
+	UIKit.fit_viewport(self, _view, _vp, 0.5 if blur > 0.5 else 1.0, false)
 
 
 func _process(delta: float) -> void:
