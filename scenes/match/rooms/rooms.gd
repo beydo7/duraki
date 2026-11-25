@@ -3,20 +3,23 @@ extends RefCounted
 ## Welche Räume es gibt und welcher Raum an einem Tisch dran ist (zufällig pro Tisch).
 ##
 ## Jeder Raum hat eigene Details (das Hinterzimmer: Aschenbecher, Zigaretten, Whiskey;
-## das Casino: Roulette, Spielautomaten, Pokerchips). TableWorld fragt hier nach und
+## das Casino: Roulette, Spielautomaten, Pokerchips; der Bahnhofswartesaal: Teegläser,
+## Fahrplantafel, vorbeifahrende Züge). TableWorld fragt hier nach und
 ## baut den passenden Raum (`TableWorld.room_id`).
 
 const HINTERZIMMER := &"hinterzimmer"
 const CASINO := &"casino"
+const STATION := &"bahnhof"
 
 ## Anzeigename (z. B. für das Entwicklermenü)
 const NAMES := {
 	HINTERZIMMER: "Hinterzimmer",
 	CASINO: "Altes Casino",
+	STATION: "Bahnhofswartesaal",
 }
 
 ## Alle Räume, aus denen für jeden Tisch zufällig gewählt wird
-const ALL: Array[StringName] = [HINTERZIMMER, CASINO]
+const ALL: Array[StringName] = [HINTERZIMMER, CASINO, STATION]
 
 ## Zum Testen (Entwicklermenü): erzwingt einen Raum für alle Tische, leer = normal.
 static var forced: StringName = &""

@@ -89,7 +89,7 @@ Ein Run = 3 normale Gegner + Boss, 3 Leben (Kerzen). Wer verliert, ist der Durak
   eine zensierte Aufgabe, bis sie erreicht sind. Meldung oben in der Mitte (Autoload `Pause`).
   Belohnungen: noch offen (Leon entscheidet).
 - **Räume** (`scenes/match/rooms/`, `Rooms.for_floor`): Jeder Tisch spielt in einem zufälligen Raum
-  (Hinterzimmer oder **Altes Casino**), fest pro Run-Seed und Tisch, damit Weg und Duell denselben Raum
+  (Hinterzimmer, **Altes Casino** oder **Bahnhofswartesaal**), fest pro Run-Seed und Tisch, damit Weg und Duell denselben Raum
   zeigen; eigener Zufallsgenerator, `Run.rng` bleibt unberührt. Das Tutorial spielt immer im Hinterzimmer.
   Das Casino ist ganz in Code gebaut (kein Blender): Damast-Tapete, Teppich, Vorhänge, Kronleuchter,
   Neonschild „CASINO“, zwei alte Spielautomaten mit „DURAKI“-Schild und großem Hebel (anklickbar: Walzen
@@ -103,6 +103,14 @@ Ein Run = 3 normale Gegner + Boss, 3 Leben (Kerzen). Wer verliert, ist der Durak
   europäischen Roulette, grüne 0 = 1/37), die Kugel rollt dorthin und hüpft über die letzten Stege.
   Grün → geheimer Erfolg „Alles auf Grün“. Leise Geräusche (`roulette*.wav`, -14 dB).
   Texturen und Geräusche: `tools/generate_casino.py` → `assets/rooms/casino/`.
+  **Bahnhofswartesaal** (`StationRoom`, ebenfalls ganz in Code): unten grüne, darüber weiße Kacheln,
+  Schachbrett-Fliesen, Holzbänke, Heizkörper, Kipjatok-Kessel, zwei Fenster zum Bahnsteig, Fahrplantafel
+  „ОТПРАВЛЕНИЕ ПОЕЗДОВ“ mit kyrillischen Städten, Bahnhofsuhr (echte Uhrzeit), brummende Neonröhren, die
+  ab und zu flackern. Alle 40–80 s rauscht draußen ein Zug vorbei (Signal `train_passing`): Licht huscht
+  durch den Raum, das Bild zittert leicht (`TableWorld.shake`, nur mit Kamera-Schwenk), die Teegläser
+  klirren; danach klappt die Tafel eine Zeile weiter. Leben = **Teegläser in Metallhaltern** (`TeaGlasses`,
+  `TableProps.tea_style`): Leben weg → ein Glas wird leer getrunken. Auf dem Holztisch: Zeitung, Fahrkarte,
+  Zucker. Texturen und Geräusche: `tools/generate_station.py` → `assets/rooms/station/`.
   F8-Menü: Raum für alle Tische erzwingen (`Rooms.forced`, „ZUFÄLLIG“ = normal).
 - **Der Weg** zeigt den Raum scharf wie im Duell (`RoomBackdrop.blur = 0`, MSAA 4×).
 - **Tutorial**: zeigt zum Start eine Glücksmünze und einen Spiegel und erklärt Relikte und Item-Plätze

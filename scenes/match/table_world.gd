@@ -66,6 +66,8 @@ var whiskey: WhiskeyBottle
 var room_id: StringName = Rooms.HINTERZIMMER
 ## Nur im Casino: Raum mit Roulette und Spielautomaten
 var casino: CasinoRoom
+## nur im Bahnhofswartesaal gesetzt
+var station: StationRoom
 ## Kamera schwenkt leicht mit der Maus (aus im Menü-Hintergrund möglich).
 var sway_strength := 1.0
 
@@ -168,6 +170,11 @@ func build(opponent: OpponentData) -> void:
 	props = TableProps.new()
 	props.chip_style = room_id == Rooms.CASINO # Pokerchips statt Goldmünzen
 	props.lamp_style = room_id == Rooms.CASINO # grüne Bankerlampe statt Kerzen
+	props.tea_style = room_id == Rooms.STATION # Teegläser statt Kerzen
+	if station != null: # vorbeifahrender Zug: Bild zittert leicht, Gläser klirren
+		station.train_passing.connect(func(strength: float) -> void:
+			shake(0.35 * strength)
+			props.rattle(0.25))
 	add_child(props)
 	_deck_pile = _pile_mesh()
 	_deck_pile.position = DECK_POS
@@ -1027,6 +1034,11 @@ func _build_models() -> void:
 		add_child(casino)
 		casino.apply_environment(_env)
 		return
+	if room_id == Rooms.STATION:
+		station = StationRoom.new()
+		add_child(station)
+		station.apply_environment(_env)
+		return
 	for scene in MODELS:
 		add_child(scene.instantiate())
 	for part in NO_SHADOW:
@@ -1064,6 +1076,10 @@ func _build_lights() -> void:
 
 	if casino != null:
 		casino.add_lights(self) # Kronleuchter, Neonschild, Automaten
+		_build_lights_common()
+		return
+	if station != null:
+		station.add_lights(self) # Neonröhren, Fenster, Gegenlicht
 		_build_lights_common()
 		return
 	for side in [-1, 1]:

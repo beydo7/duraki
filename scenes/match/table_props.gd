@@ -2,7 +2,8 @@ class_name TableProps
 extends Node3D
 ## Lebendige Gegenstände auf deiner Tischseite – das „diegetische“ HUD:
 ##   Kerzen   = deine Leben (verlierst du, erlischt eine mit Rauch)
-##   (Casino: grüne Bankerlampe statt Kerzen – Leben = kleine Lämpchen auf dem Messingfuß)
+##   (Casino: grüne Bankerlampe statt Kerzen – Leben = kleine Lämpchen auf dem Messingfuß;
+##    Bahnhof: Teegläser – Leben = Gläser mit Tee)
 ##   Münzen   = dein Gold (neue Münzen fallen klimpernd auf den Stapel)
 
 const CANDLE_ORIGIN := Vector3(-0.72, 0.80, 0.08)
@@ -29,6 +30,10 @@ var _chip_white: StandardMaterial3D
 var lamp_style := false
 const LAMP_ORIGIN := Vector3(-0.92, 0.80, -0.36)
 var _lamp: BankerLamp
+## Bahnhof: Teegläser in Metallhaltern statt Kerzen (vor set_lives setzen)
+var tea_style := false
+const TEA_ORIGIN := Vector3(-0.86, 0.80, -0.3)
+var _tea: TeaGlasses
 ## Nur ein gemeinsames Licht pro Kerzenkranz (spart Leistung, z. B. im Shop-Hintergrund)
 var _single_light := false
 ## Maus über den Kerzen → sie werden dunkler (1 = normal, ~0.35 = gedimmt)
@@ -90,6 +95,15 @@ func _process(delta: float) -> void:
 
 ## Kerzen für die Leben aufstellen (einmal beim Aufbau).
 func set_lives(count: int) -> void:
+	if tea_style:
+		if _tea != null:
+			_tea.queue_free()
+		_tea = TeaGlasses.new()
+		_tea.position = TEA_ORIGIN
+		_tea.rotation.y = 0.45 # Reihe schräg zur Tischmitte
+		add_child(_tea)
+		_tea.set_lives(count)
+		return
 	if lamp_style:
 		if _lamp != null:
 			_lamp.queue_free()
@@ -167,6 +181,9 @@ func use_single_light() -> void:
 
 ## Die letzte brennende Kerze erlischt (mit Rauchfaden).
 func snuff_candle() -> void:
+	if _tea != null:
+		_tea.lose_life()
+		return
 	if _lamp != null:
 		_lamp.lose_life()
 		return
@@ -177,6 +194,12 @@ func snuff_candle() -> void:
 			tw.tween_method(func(v: float) -> void: c.life = v, 1.0, 0.0, 0.9).set_trans(Tween.TRANS_SINE)
 			tw.tween_callback(func() -> void: _smoke((c.flame as Node3D).global_position))
 			return
+
+
+## Ein Zug fährt vorbei (Bahnhof): die Teegläser klappern.
+func rattle(seconds: float) -> void:
+	if _tea != null:
+		_tea.rattle(seconds)
 
 
 ## Münzstapel auf die Goldmenge bringen (neue Münzen fallen herunter).
