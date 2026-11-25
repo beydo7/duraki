@@ -77,14 +77,7 @@ func _ready() -> void:
 	score = ScoreTracker.new(target, Run.base_mult())
 	score.suit_chip_bonus = Run.suit_chip_bonus
 	score.trump_mult_bonus = Run.trump_mult_bonus
-	if Run.has_relic(&"loaded_dice"):
-		score.lucky_chance = 0.5
-	if Run.has_relic(&"wolf_tooth"):
-		score.trump_defense_chips = 10
-	if Run.has_relic(&"whirl"):
-		score.first_transfer_mult = 3
-	if Run.has_relic(&"horseshoe"):
-		score.lucky_gold = 2
+	_apply_relics()
 	score.relic_triggered.connect(func(id: StringName) -> void: hud.flash_relic(id))
 	score.gold_found.connect(func(amount: int, source: String) -> void:
 		Sfx.play(&"coins")
@@ -184,9 +177,42 @@ func _ready() -> void:
 	var opp_hand := opponent.hand_size - (1 if Run.has_relic(&"evil_eye") else 0)
 	duel.burn_option_for = DurakMatch.PLAYER if Run.items.has(&"lighter") else -1
 	duel.start(Run.rng, Run.player_hand_size(), maxi(1, opp_hand), Run.apply_card_enhancements)
+	Run.changed.connect(_on_run_changed)
 	if Run.has_relic(&"evil_eye"):
 		hud.flash_relic(&"evil_eye")
 	_render_score()
+
+
+## Relikt-Wirkungen auf Wertung und Duell übertragen. Läuft beim Start und noch einmal,
+## wenn mitten im Duell ein Relikt dazukommt (z. B. über das F8-Menü) – dann wirkt es sofort.
+func _apply_relics() -> void:
+	_relic_count = Run.relics.size()
+	_lives_seen = Run.lives
+	score.lucky_chance = 0.5 if Run.has_relic(&"loaded_dice") else ScoreTracker.LUCKY_CHANCE
+	score.trump_defense_chips = 10 if Run.has_relic(&"wolf_tooth") else 0
+	score.first_transfer_mult = 3 if Run.has_relic(&"whirl") else 0
+	score.lucky_gold = 2 if Run.has_relic(&"horseshoe") else 0
+	score.base_mult = maxi(1, Run.base_mult())
+
+
+var _relic_count := -1
+var _lives_seen := -1
+
+
+## Run hat sich geändert (Relikt gekauft/geschenkt, Leben dazu): Wirkungen nachziehen.
+func _on_run_changed() -> void:
+	if score == null or duel == null:
+		return
+	if Run.relics.size() != _relic_count:
+		var old_base := score.base_mult
+		_apply_relics()
+		score.mult += score.base_mult - old_base # Wodka sofort in der laufenden Runde
+		# Ass im Ärmel: größere Hand gilt ab sofort, fehlende Karte gibt es beim nächsten Nachziehen
+		duel.hand_sizes[DurakMatch.PLAYER] = Run.player_hand_size()
+		_render_score()
+	if Run.lives != _lives_seen and Run.lives > _lives_seen: # Med-Kit: Leben dazu → Anzeige erneuern
+		world.props.set_lives(Run.lives)
+	_lives_seen = Run.lives
 
 
 func _on_settings_changed() -> void:
