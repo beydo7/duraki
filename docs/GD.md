@@ -321,6 +321,9 @@ Run: Schwierigkeit, Hinweise, Tutorial im Hauptmenü anzeigen).
    dann Hexe + Riese, danach die Krähe auf den neuen Stand bringen. Fertig: Bandit, Sumpfmann, Wölfin.
 3. Lila Lampen-Scheiben im Raum sind Platzhalter → echte Lampen.
 5. Die 3D-Menükarten im Hauptmenü an den Okkult-Gold-Stil der Karten anpassen.
+6. Belohnungen für die Erfolge festlegen (Leon überlegt noch).
+7. Alte Gegner ohne Porträt (Betrunkener Wirt, Babuschka …) aus `data/opponents/` löschen.
+8. Easter-Egg-Absturz unter Windows: Log aus `logs\letzter_start.log` ansehen, falls er wieder auftritt.
 
 ## 9. Zusammenarbeit
 - Repo: https://github.com/beydo7/duraki (Team: beydo7/Pascal, Florry7, Leon).
