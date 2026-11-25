@@ -4,11 +4,11 @@ extends Node3D
 ##
 ## Unten grüne, darüber weiße Wandkacheln, Schachbrett-Fliesenboden, Holzbänke an den
 ## Wänden, ein Heißwasserkessel. Hinten zwei hohe Fenster zum Bahnsteig, dazwischen
-## eine Fahrplantafel „DURAKI BAHNHOF“ mit deutschen Städten; rechts an der Wand eine große
-## Bahnhofsuhr (zeigt die echte Uhrzeit). Über dem Tisch hängt eine Neonröhre, die brummt und ab und zu flackert.
+## eine Fahrplantafel „DURAKI BAHNHOF“ mit deutschen Städten, darunter links eine LED-Anzeige
+## für die Leben. Auf der hinteren linken Bank liegt eine aufgeschlagene Zeitung. Über dem Tisch hängt eine Neonröhre, die brummt und ab und zu flackert.
 ##
 ## Ab und zu rauscht draußen ein Zug vorbei: Licht aus den Abteilfenstern huscht durch den
-## Raum, das Bild zittert leicht und die Teegläser wackeln (Signal `train_passing`).
+## Raum, das Bild zittert leicht und (Signal `train_passing`).
 ## Danach ist der Zug von der Tafel verschwunden und die Zeilen rücken nach.
 ##
 ## Der Spieltisch ist ein alter Holztisch; die Spielfläche liegt wie im Hinterzimmer auf
@@ -57,6 +57,8 @@ const DEPARTURES := [
 const ROWS := 6
 
 var _t := 0.0
+## LED-Anzeige der Leben an der Rückwand (TableProps schaltet sie)
+var lives_panel: LedLives
 ## Neonröhren: Material und Licht, Helligkeit 0..1
 var _tubes: Array[Dictionary] = []
 var _buzz: AudioStreamPlayer
@@ -66,7 +68,6 @@ var _train_x := 1000.0 # außerhalb = kein Zug
 var _next_train := 0.0
 var _board_rows: Array[Array] = [] # pro Zeile die Label3D (Nr, Ziel, Zeit, Gleis)
 var _first_departure := 0
-var _clock_hands: Array[Node3D] = [] # Stunde, Minute, Sekunde
 
 
 func _ready() -> void:
@@ -75,7 +76,8 @@ func _ready() -> void:
 	_build_windows()
 	_build_outside()
 	_build_board()
-	_build_clock()
+	_build_lives_panel()
+	_build_newspaper()
 	_build_table()
 	_build_on_table()
 	_build_benches()
@@ -98,7 +100,6 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	_t += delta
 	_update_tubes(delta)
-	_update_clock()
 	# Zug
 	_next_train -= delta
 	if _next_train <= 0.0 and _train_x > 999.0:
@@ -417,7 +418,7 @@ func _build_train() -> void:
 	add_child(_train_light)
 
 
-# --- Fahrplantafel und Uhr ----------------------------------------------------------
+# --- Fahrplantafel ----------------------------------------------------------
 
 func _build_board() -> void:
 	var y := 2.12
@@ -481,53 +482,6 @@ func _advance_board() -> void:
 			(tw.parallel() if ci > 0 else tw).tween_property(l, "scale:y", 1.0, 0.07)
 
 
-func _build_clock() -> void:
-	# große runde Bahnhofsuhr an der rechten Wand, schräg vor dem Spieler gut sichtbar
-	var root := Node3D.new()
-	root.position = Vector3(ROOM_W * 0.5 - 0.01, 1.27, -2.0)
-	root.rotation.y = -PI * 0.5 # Zifferblatt zeigt in den Raum (-x)
-	add_child(root)
-	var metal := _mat(Color(0.15, 0.16, 0.16), 0.4)
-	metal.metallic = 0.6
-	var r := 0.27
-	var case := _cyl_in(root, r + 0.025, r + 0.025, 0.08, Vector3(0, 0, 0.04), metal)
-	case.rotation.x = PI * 0.5
-	var face_mat := _mat(Color(0.97, 0.96, 0.92), 0.6)
-	face_mat.emission_enabled = true # etwas hinterleuchtet, damit man sie im Halbdunkel sieht
-	face_mat.emission = Color(0.9, 0.95, 0.85)
-	face_mat.emission_energy_multiplier = 0.35
-	var face := _cyl_in(root, r, r, 0.082, Vector3(0, 0, 0.04), face_mat)
-	face.rotation.x = PI * 0.5
-	var ink := _mat(Color(0.05, 0.05, 0.05), 0.5)
-	for k in 60: # Minuten- und Stundenstriche
-		var a2 := TAU * k / 60.0
-		var big := k % 5 == 0
-		var tick := _box_in(root, Vector3(0.016 if big else 0.005, 0.055 if big else 0.02, 0.004),
-			Vector3(sin(a2) * (r - 0.045 if big else r - 0.03), cos(a2) * (r - 0.045 if big else r - 0.03), 0.083), ink)
-		tick.rotation.z = -a2
-	var red := _mat(Color(0.85, 0.1, 0.08), 0.5)
-	for spec in [[0.15, 0.02, ink], [0.22, 0.013, ink], [0.23, 0.005, red]]:
-		var hand := Node3D.new()
-		hand.position = Vector3(0, 0, 0.088 + _clock_hands.size() * 0.004)
-		root.add_child(hand)
-		_box_in(hand, Vector3(spec[1], spec[0], 0.004), Vector3(0, spec[0] * 0.4, 0), spec[2])
-		_clock_hands.append(hand)
-	var cap := _cyl_in(root, 0.012, 0.012, 0.01, Vector3(0, 0, 0.1), red)
-	cap.rotation.x = PI * 0.5
-
-
-func _update_clock() -> void:
-	if _clock_hands.is_empty():
-		return
-	var tm := Time.get_time_dict_from_system()
-	var sec := float(tm.second)
-	var minute := float(tm.minute) + sec / 60.0
-	var hour := fmod(float(tm.hour), 12.0) + minute / 60.0
-	_clock_hands[0].rotation.z = -TAU * hour / 12.0
-	_clock_hands[1].rotation.z = -TAU * minute / 60.0
-	_clock_hands[2].rotation.z = -TAU * sec / 60.0
-
-
 # --- Tisch und Deko -----------------------------------------------------------------
 
 func _build_table() -> void:
@@ -551,23 +505,6 @@ func _build_table() -> void:
 
 func _build_on_table() -> void:
 	var y := TableWorld.TABLE_Y
-	# zusammengefaltete Zeitung hinten rechts
-	var paper := _mat(Color(0.86, 0.83, 0.74), 0.9)
-	var news := Node3D.new()
-	news.position = Vector3(0.82, y + 0.004, -0.3)
-	news.rotation.y = -0.35
-	add_child(news)
-	_box_in(news, Vector3(0.2, 0.008, 0.28), Vector3.ZERO, paper)
-	var title := _label("BAHNHOFS-ANZEIGER", FONT_SIGN, 34, Color(0.1, 0.1, 0.1))
-	title.rotation.x = -PI * 0.5
-	title.position = Vector3(0, 0.0045, -0.1)
-	title.shaded = true
-	title.pixel_size = 0.0005 # passt auf die Zeitung
-	news.add_child(title)
-	var ink := _mat(Color(0.35, 0.34, 0.32), 0.9)
-	for k in 9: # Textspalten
-		for col in 2:
-			_box_in(news, Vector3(0.078, 0.001, 0.006), Vector3(-0.045 + col * 0.09, 0.0045, -0.06 + k * 0.016), ink)
 	# Fahrkarte vorne rechts
 	var ticket := Node3D.new()
 	ticket.position = Vector3(0.95, y + 0.0015, 0.1)
@@ -585,6 +522,41 @@ func _build_on_table() -> void:
 	for k in 3:
 		var cube := _box_in(self, Vector3(0.014, 0.012, 0.014), Vector3(0.74 + k * 0.018, y + 0.006, -0.06 + (k % 2) * 0.012), sugar)
 		cube.rotation.y = k * 0.7
+
+
+## LED-Anzeige der Leben: Blechkasten an der Rückwand, links unter der Fahrplantafel.
+func _build_lives_panel() -> void:
+	lives_panel = LedLives.new()
+	lives_panel.position = Vector3(-0.8, 1.3, BACK_Z)
+	add_child(lives_panel)
+
+
+## Aufgeschlagene Zeitung auf der hinteren linken Bank (Doppelseite mit leichtem Falz).
+func _build_newspaper() -> void:
+	var root := Node3D.new()
+	root.position = Vector3(-WIN_X - 0.1, 0.47, BACK_Z + 0.5)
+	root.rotation.y = 0.14
+	add_child(root)
+	var tex := load(TEX + "newspaper.png") as Texture2D
+	var size := Vector2(0.6, 0.41)
+	for k in 2: # linke und rechte Seite, am Falz leicht geknickt
+		var page := MeshInstance3D.new()
+		var pm := PlaneMesh.new()
+		pm.size = Vector2(size.x * 0.5, size.y)
+		page.mesh = pm
+		var m := StandardMaterial3D.new()
+		m.albedo_texture = tex
+		m.uv1_scale = Vector3(0.5, 1, 1)
+		m.uv1_offset = Vector3(0.5 * k, 0, 0)
+		m.roughness = 0.95
+		m.cull_mode = BaseMaterial3D.CULL_DISABLED
+		m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+		page.material_override = m
+		var hinge := Node3D.new()
+		hinge.rotation.z = -0.06 if k == 0 else 0.06 # Seiten heben sich zum Rand hin leicht
+		root.add_child(hinge)
+		page.position.x = (-0.25 if k == 0 else 0.25) * size.x * 1.0
+		hinge.add_child(page)
 
 
 func _build_benches() -> void:

@@ -170,11 +170,10 @@ func build(opponent: OpponentData) -> void:
 	props = TableProps.new()
 	props.chip_style = room_id == Rooms.CASINO # Pokerchips statt Goldmünzen
 	props.lamp_style = room_id == Rooms.CASINO # grüne Bankerlampe statt Kerzen
-	props.tea_style = room_id == Rooms.STATION # Teegläser statt Kerzen
-	if station != null: # vorbeifahrender Zug: Bild zittert leicht, Gläser wackeln
-		station.train_passing.connect(func(strength: float) -> void:
-			shake(0.35 * strength)
-			props.rattle(0.25))
+	if station != null:
+		props.external_lives = station.lives_panel # LED-Anzeige an der Wand statt Kerzen
+		# vorbeifahrender Zug: Bild zittert leicht
+		station.train_passing.connect(func(strength: float) -> void: shake(0.35 * strength))
 	add_child(props)
 	_deck_pile = _pile_mesh()
 	_deck_pile.position = DECK_POS

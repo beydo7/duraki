@@ -105,12 +105,13 @@ Ein Run = 3 normale Gegner + Boss, 3 Leben (Kerzen). Wer verliert, ist der Durak
   Texturen und Geräusche: `tools/generate_casino.py` → `assets/rooms/casino/`.
   **Bahnhofswartesaal** (`StationRoom`, ebenfalls ganz in Code): unten grüne, darüber weiße Kacheln,
   Schachbrett-Fliesen, Holzbänke, Heizkörper, Heißwasserkessel, zwei Fenster zum Bahnsteig, Fahrplantafel
-  „DURAKI BAHNHOF“ mit deutschen Städten (Hannover, Neustadt am Rübenberge …), große Bahnhofsuhr rechts an der Wand (echte Uhrzeit), brummende Neonröhren, die
+  „DURAKI BAHNHOF“ mit deutschen Städten (Hannover, Neustadt am Rübenberge …), brummende Neonröhren, die
   ab und zu flackern. Alle 40–80 s rauscht draußen ein Zug vorbei (Signal `train_passing`): Licht huscht
-  durch den Raum, das Bild zittert leicht (`TableWorld.shake`, nur mit Kamera-Schwenk), die Teegläser
-  wackeln (ohne Klirren); danach klappt die Tafel eine Zeile weiter. Leben = **Teegläser in Metallhaltern** (`TeaGlasses`,
-  `TableProps.tea_style`): Leben weg → ein Glas wird leer getrunken. Auf dem Holztisch: Zeitung „BAHNHOFS-ANZEIGER“, Fahrkarte,
-  Zucker. Texturen und Geräusche: `tools/generate_station.py` → `assets/rooms/station/`.
+  durch den Raum, das Bild zittert leicht (`TableWorld.shake`, nur mit Kamera-Schwenk); danach klappt die
+  Tafel eine Zeile weiter. Leben = **LED-Anzeige** an der Rückwand links unter der Tafel (`LedLives`, über
+  `TableProps.external_lives`): eine rote LED pro Leben, Leben weg → LED blinkt und geht aus.
+  Aufgeschlagene Zeitung „Bahnhofs-Anzeiger“ auf der hinteren linken Bank; auf dem Holztisch Fahrkarte
+  und Zucker. Texturen und Geräusche: `tools/generate_station.py` → `assets/rooms/station/`.
   F8-Menü: Raum für alle Tische erzwingen (`Rooms.forced`, „ZUFÄLLIG“ = normal).
 - **Der Weg** zeigt den Raum scharf wie im Duell (`RoomBackdrop.blur = 0`, MSAA 4×).
 - **Tutorial**: zeigt zum Start eine Glücksmünze und einen Spiegel und erklärt Relikte und Item-Plätze

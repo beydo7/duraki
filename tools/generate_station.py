@@ -7,8 +7,8 @@ Schreibt nach assets/rooms/station/:
   tiles.png        glasierte weiße Wandkacheln mit Fugen (kachelbar, wird grün eingefärbt)
   floor.png        Fliesenboden, abgetretenes Schachbrett (kachelbar)
   plaster.png      fleckiger Wandputz über den Kacheln (kachelbar)
+  newspaper.png    aufgeschlagene Zeitung „Bahnhofs-Anzeiger“ (Doppelseite)
   train_pass.wav   ein Zug rauscht draußen vorbei (Rumpeln, Schienenstöße, Pfiff)
-  glass_clink.wav  Teegläser klirren in ihren Haltern
   neon_buzz.wav    Brummen der Neonröhre (Schleife)
   neon_tick.wav    leises Klicken, wenn die Röhre flackert
 """
@@ -16,7 +16,7 @@ import sys
 from pathlib import Path
 
 import numpy as np
-from PIL import Image, ImageDraw, ImageFilter
+from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "assets" / "rooms" / "station"
@@ -86,6 +86,110 @@ def plaster():
     return Image.fromarray((base * k[..., None]).clip(0, 255).astype(np.uint8))
 
 
+FONTS = ROOT / "assets" / "fonts"
+
+
+def font(name, size):
+    return ImageFont.truetype(str(FONTS / name), size)
+
+
+def newspaper():
+    """Aufgeschlagene Doppelseite (2048 × 1400): Kopf, Schlagzeilen, Spalten, Bild, Falz."""
+    W, H = 2048, 1400
+    rng = np.random.default_rng(31)
+    img = Image.new("RGB", (W, H), (226, 219, 198))
+    d = ImageDraw.Draw(img)
+    ink = (30, 28, 26)
+    grey = (120, 116, 108)
+    serif_b = lambda n: font("OldStandard-Bold.ttf", n)
+    serif = lambda n: font("OldStandard-Regular.ttf", n)
+    cond = lambda n: font("Oswald-Variable.ttf", n)
+
+    def text_block(x0, y0, x1, y1, line=22):
+        """Spaltentext als feine graue Zeilen (unlesbar klein, wie echte Zeitung von weitem)."""
+        y = y0
+        while y < y1:
+            end = x1 if rng.random() > 0.12 else x0 + (x1 - x0) * rng.uniform(0.3, 0.8)
+            d.line([(x0, y), (end, y)], fill=grey, width=5)
+            y += line
+            if rng.random() < 0.07:
+                y += line  # Absatz
+
+    def columns(x0, y0, x1, y1, n):
+        cw = (x1 - x0 - (n - 1) * 26) / n
+        for k in range(n):
+            cx = x0 + k * (cw + 26)
+            text_block(cx, y0, cx + cw, y1)
+            if k < n - 1:
+                d.line([(cx + cw + 13, y0), (cx + cw + 13, y1)], fill=(170, 164, 150), width=2)
+
+    def train_picture(x0, y0, x1, y1):
+        """Kleines Zeitungsfoto: Dampflok im Nebel (grau, gerastert)."""
+        pic = Image.new("L", (int(x1 - x0), int(y1 - y0)), 170)
+        pd = ImageDraw.Draw(pic)
+        w, h = pic.size
+        pd.rectangle([0, int(h * 0.72), w, h], fill=110)  # Bahnsteig
+        pd.rectangle([int(w * 0.12), int(h * 0.38), int(w * 0.75), int(h * 0.72)], fill=45)  # Kessel
+        pd.rectangle([int(w * 0.6), int(h * 0.22), int(w * 0.88), int(h * 0.72)], fill=35)  # Führerhaus
+        pd.rectangle([int(w * 0.2), int(h * 0.2), int(w * 0.28), int(h * 0.38)], fill=40)  # Schornstein
+        for k in range(4):
+            cx = int(w * (0.16 + k * 0.17))
+            pd.ellipse([cx - 34, int(h * 0.66), cx + 34, int(h * 0.66) + 68], fill=25)
+        for k in range(6):  # Dampfwolke
+            cx, cy = int(w * (0.22 - k * 0.04)), int(h * (0.15 - k * 0.02))
+            pd.ellipse([cx - 60, cy - 40, cx + 60, cy + 40], fill=215)
+        pic = pic.filter(ImageFilter.GaussianBlur(3))
+        a = np.asarray(pic).astype(np.float32)
+        yy, xx = np.mgrid[0:h, 0:w]
+        dots = (np.sin(xx * 0.9) * np.sin(yy * 0.9) * 22)  # Druckraster
+        pic = Image.fromarray((a + dots).clip(0, 255).astype(np.uint8)).convert("RGB")
+        img.paste(pic, (int(x0), int(y0)))
+        d.rectangle([x0, y0, x1, y1], outline=ink, width=3)
+
+    half = W // 2
+    m = 70
+    # --- linke Seite: Titelseite
+    d.text((half / 2, 120), "Bahnhofs-Anzeiger", font=serif_b(100), fill=ink, anchor="mm")
+    d.line([(m, 200), (half - m, 200)], fill=ink, width=5)
+    d.text((m, 222), "Nr. 47 · Ausgabe für Reisende", font=cond(32), fill=ink)
+    d.text((half - m, 222), "Preis 10 Pfennig", font=cond(32), fill=ink, anchor="ra")
+    d.line([(m, 270), (half - m, 270)], fill=ink, width=2)
+    d.text((m, 300), "Durak-Turnier im Wartesaal:", font=serif_b(66), fill=ink)
+    d.text((m, 380), "Wölfin bleibt ungeschlagen", font=serif_b(66), fill=ink)
+    train_picture(m, 480, half - m, 900)
+    d.text((m, 912), "Der Nachtzug nach Hannover fuhr pünktlich ab.", font=serif(30), fill=ink)
+    columns(m, 975, half - m, H - m, 3)
+    # --- rechte Seite: Vermischtes
+    x0 = half + m
+    d.text((x0, 70), "Vermischtes", font=cond(48), fill=ink)
+    d.text((W - m, 78), "Seite 2", font=cond(34), fill=ink, anchor="ra")
+    d.line([(x0, 140), (W - m, 140)], fill=ink, width=4)
+    d.text((x0, 165), "Zug nach Neustadt am Rübenberge", font=serif_b(52), fill=ink)
+    d.text((x0, 228), "mit 40 Minuten Verspätung", font=serif_b(52), fill=ink)
+    columns(x0, 310, W - m, 700, 3)
+    d.line([(x0, 725), (W - m, 725)], fill=ink, width=2)
+    d.text((x0, 745), "Wer schiebt, gewinnt? Die Regeln des Durak", font=serif_b(42), fill=ink)
+    columns(x0, 815, x0 + (W - m - x0) * 0.6, H - m, 2)
+    # Kleinanzeigen-Kasten
+    bx = x0 + (W - m - x0) * 0.64
+    d.rectangle([bx, 815, W - m, H - m], outline=ink, width=3)
+    d.text(((bx + W - m) / 2, 850), "ANZEIGEN", font=cond(36), fill=ink, anchor="mm")
+    yy = 900
+    for line in ("Kartenspiel gesucht", "Kofferträger frei", "Glückskarte verloren"):
+        d.text((bx + 24, yy), line, font=serif(28), fill=ink)
+        text_block(bx + 24, yy + 50, W - m - 24, yy + 110)
+        yy += 140
+    # Falz in der Mitte und vergilbte Ränder
+    arr = np.asarray(img).astype(np.float32)
+    xs = np.abs(np.arange(W) - half) / half
+    fold = 1.0 - 0.18 * np.exp(-(xs * 40) ** 2)
+    edge = np.minimum(np.minimum(np.arange(W)[None, :], W - np.arange(W)[None, :]),
+                      np.minimum(np.arange(H)[:, None], H - np.arange(H)[:, None])) / 60.0
+    yellow = 1.0 - 0.1 * np.exp(-edge)
+    arr *= (fold[None, :] * yellow)[..., None]
+    return Image.fromarray(arr.clip(0, 255).astype(np.uint8))
+
+
 # --- Geräusche --------------------------------------------------------------------
 
 def save_wav(name, x, peak=0.85):
@@ -128,19 +232,6 @@ def train_pass():
     return sx.reverb(sx.lowpass(buf, 3000), 0.3, 0.15)
 
 
-def glass_clink():
-    """Teegläser klappern in den Metallhaltern (mehrere leise Klirrer)."""
-    buf = np.zeros(int(1.6 * sx.SR))
-    rng = np.random.default_rng(4)
-    at = 0.0
-    while at < 1.2:
-        f = rng.uniform(2600, 4200)
-        sx.place(buf, sx.chime(f, 0.25), at, rng.uniform(0.25, 0.6))
-        sx.place(buf, sx.clack(1800, 0.02), at, 0.15)
-        at += rng.uniform(0.05, 0.16)
-    return sx.reverb(buf, 0.15, 0.1)
-
-
 def neon_buzz():
     """Netzbrummen (100 Hz) mit Obertönen, genau 2 s, damit die Schleife nahtlos ist."""
     dur = 2.0
@@ -162,8 +253,8 @@ if __name__ == "__main__":
     tiles().save(OUT / "tiles.png")
     floor().save(OUT / "floor.png")
     plaster().save(OUT / "plaster.png")
+    newspaper().save(OUT / "newspaper.png")
     print("Texturen geschrieben:", OUT)
     save_wav("train_pass.wav", train_pass(), 0.8)
-    save_wav("glass_clink.wav", glass_clink(), 0.5)
     save_wav("neon_buzz.wav", neon_buzz(), 0.4)
     save_wav("neon_tick.wav", neon_tick(), 0.4)
