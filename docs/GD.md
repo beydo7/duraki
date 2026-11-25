@@ -88,6 +88,13 @@ Ein Run = 3 normale Gegner + Boss, 3 Leben (Kerzen). Wer verliert, ist der Durak
   geheimen Raucher (eine Zigarette zu Ende), Kettenraucher (6 Zigaretten in einem Run = die ganze Schachtel) und Alkoholiker (Whiskeyflasche im Hauptmenü leer getrunken). Geheime zeigen ein „?“ und
   eine zensierte Aufgabe, bis sie erreicht sind. Meldung oben in der Mitte (Autoload `Pause`).
   Belohnungen: noch offen (Leon entscheidet).
+- **Räume** (`scenes/match/rooms/`, `Rooms.for_floor`): Tisch 1, 3 und Boss im Hinterzimmer, Tisch 2 im
+  **Alten Casino**. Das Casino ist ganz in Code gebaut (kein Blender): Damast-Tapete, Teppich, Vorhänge,
+  Kronleuchter, Neonschild „КАЗИНО“, zwei alte Spielautomaten mit großem Hebel (anklickbar: Walzen
+  drehen, selten 7-7-7), größerer abgerundeter Pokertisch, kleines Roulette (anklickbar), Würfel,
+  Cocktailglas, Pokerchips statt Goldmünzen (`TableProps.chip_style`) – kein Aschenbecher, keine
+  Zigaretten. Texturen und Geräusche: `tools/generate_casino.py` → `assets/rooms/casino/`.
+  F8-Menü: Raum für alle Tische erzwingen (`Rooms.forced`).
 - **Der Weg** zeigt den Raum scharf wie im Duell (`RoomBackdrop.blur = 0`, MSAA 4×).
 - **Tutorial**: zeigt zum Start eine Glücksmünze und einen Spiegel und erklärt Relikte und Item-Plätze
   oben rechts. Nach dem Sieg öffnet sich der Händler mit 15 Gold und fünf Erklärschritten

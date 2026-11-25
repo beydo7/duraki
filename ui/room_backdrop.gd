@@ -42,6 +42,8 @@ func _ready() -> void:
 	_view.add_child(_vp)
 	world = TableWorld.new()
 	_vp.add_child(world)
+	if not merchant: # Weg: der Raum des nächsten Tisches
+		world.room_id = Rooms.for_floor(Run.floor_index)
 	world.build_room(opponent, not merchant)
 	if merchant:
 		_build_merchant_table()

@@ -91,6 +91,14 @@ func _ready() -> void:
 		Run.add_gold(10)
 		_refresh("+10 Gold.")))
 
+	root.add_child(_head("RAUM (für alle Tische, bis zum Neustart)"))
+	var rooms := HBoxContainer.new()
+	rooms.add_theme_constant_override("separation", 8)
+	root.add_child(rooms)
+	rooms.add_child(_button("NORMAL", func() -> void: _set_room(&"")))
+	for id: StringName in Rooms.NAMES:
+		rooms.add_child(_button(String(Rooms.NAMES[id]).to_upper(), func() -> void: _set_room(id)))
+
 	root.add_child(_head("PROFIL"))
 	root.add_child(_button("ALLES FREISCHALTEN – alle Decks und alle Abzeichen", func() -> void:
 		Profile.unlock_all()
@@ -102,6 +110,17 @@ func _ready() -> void:
 	# Profil-Knopf und Rückmeldung nach oben holen, damit man sie ohne Scrollen sieht
 	root.move_child(_status, 1)
 	UIKit.appear(panel, 0.0, Vector2(0, 20), 0.25)
+
+
+## Raum erzwingen; im Duell wird der Tisch dafür neu aufgebaut.
+func _set_room(id: StringName) -> void:
+	Rooms.forced = id
+	var name := "normal (je nach Tisch)" if id == &"" else String(Rooms.NAMES[id])
+	if match_node != null and "duel" in match_node and match_node.duel != null:
+		close()
+		Run.goto(Run.SCENE_MATCH)
+		return
+	_refresh("Raum: %s – gilt ab dem nächsten Tisch." % name)
 
 
 func _unhandled_input(event: InputEvent) -> void:

@@ -55,6 +55,7 @@ func _ready() -> void:
 	hud = %HUD
 	world = TableWorld.new()
 	%Viewport.add_child(world)
+	world.room_id = Rooms.for_floor(Run.floor_index) # Raum dieses Tisches (z. B. Casino)
 	world.build(opponent)
 	Settings.apply_viewport(%Viewport)
 	Settings.changed.connect(_on_settings_changed)

@@ -62,6 +62,10 @@ var props: TableProps
 var ashtray: Ashtray
 ## Whiskeyflasche (im Hauptmenü zum Nachschenken anklickbar)
 var whiskey: WhiskeyBottle
+## Welcher Raum gebaut wird (Rooms.HINTERZIMMER, Rooms.CASINO …) – vor build()/build_room() setzen.
+var room_id: StringName = Rooms.HINTERZIMMER
+## Nur im Casino: Raum mit Roulette und Spielautomaten
+var casino: CasinoRoom
 ## Kamera schwenkt leicht mit der Maus (aus im Menü-Hintergrund möglich).
 var sway_strength := 1.0
 
@@ -106,14 +110,15 @@ func _ready() -> void:
 func build_room(opponent: OpponentData, markings := true) -> void:
 	_build_environment()
 	_build_models()
-	ashtray = Ashtray.new()
-	# Zigarette des Gegners: Filter zeigt zu ihm (Platz gegenüber)
-	ashtray.notch_dir = (Vector3(0, 0, -TABLE_SIZE.y * 0.5) - Ashtray.BACK_CENTER) * Vector3(1, 0, 1)
-	add_child(ashtray)
-	ashtray.hide_model_parts(self)
-	whiskey = WhiskeyBottle.new()
-	add_child(whiskey)
-	whiskey.hide_model_parts(self)
+	if room_id == Rooms.HINTERZIMMER: # Aschenbecher und Whiskey gehören zum Hinterzimmer
+		ashtray = Ashtray.new()
+		# Zigarette des Gegners: Filter zeigt zu ihm (Platz gegenüber)
+		ashtray.notch_dir = (Vector3(0, 0, -TABLE_SIZE.y * 0.5) - Ashtray.BACK_CENTER) * Vector3(1, 0, 1)
+		add_child(ashtray)
+		ashtray.hide_model_parts(self)
+		whiskey = WhiskeyBottle.new()
+		add_child(whiskey)
+		whiskey.hide_model_parts(self)
 	if markings:
 		_build_markings()
 	_build_lights()
@@ -142,19 +147,26 @@ func _on_settings_changed() -> void:
 
 func build(opponent: OpponentData) -> void:
 	build_room(opponent)
-	# eigener Aschenbecher mit Zigarette vorne links neben den Kerzen (anklickbar)
-	ashtray = Ashtray.new()
-	ashtray.center = PLAYER_ASHTRAY_POS
-	ashtray.notch_dir = Vector3(0.5, 0, 0.87)
-	ashtray.interactive = true
-	ashtray.starts_empty = true # die Zigarette kommt aus der Schachtel daneben
-	add_child(ashtray)
-	var pack := CigarettePack.new()
-	pack.ashtray = ashtray
-	pack.position = Vector3(-0.52, TABLE_Y, 0.2) # rechts neben dem Aschenbecher, vor den Kerzen
-	pack.rotation.y = 0.35
-	add_child(pack)
+	if room_id == Rooms.HINTERZIMMER:
+		# eigener Aschenbecher mit Zigarette vorne links neben den Kerzen (anklickbar)
+		ashtray = Ashtray.new()
+		ashtray.center = PLAYER_ASHTRAY_POS
+		ashtray.notch_dir = Vector3(0.5, 0, 0.87)
+		ashtray.interactive = true
+		ashtray.starts_empty = true # die Zigarette kommt aus der Schachtel daneben
+		add_child(ashtray)
+		var pack := CigarettePack.new()
+		pack.ashtray = ashtray
+		pack.position = Vector3(-0.52, TABLE_Y, 0.2) # rechts neben dem Aschenbecher, vor den Kerzen
+		pack.rotation.y = 0.35
+		add_child(pack)
+	elif casino != null:
+		# im Casino: Roulette und Spielautomaten zum Anklicken
+		casino.roulette.interactive = true
+		for s in casino.slots:
+			s.interactive = true
 	props = TableProps.new()
+	props.chip_style = room_id == Rooms.CASINO # Pokerchips statt Goldmünzen
 	add_child(props)
 	_deck_pile = _pile_mesh()
 	_deck_pile.position = DECK_POS
@@ -1009,6 +1021,11 @@ func _build_environment() -> void:
 
 
 func _build_models() -> void:
+	if room_id == Rooms.CASINO: # ganz in Code gebaut, ohne die Hinterzimmer-Modelle
+		casino = CasinoRoom.new()
+		add_child(casino)
+		casino.apply_environment(_env)
+		return
 	for scene in MODELS:
 		add_child(scene.instantiate())
 	for part in NO_SHADOW:
@@ -1044,6 +1061,10 @@ func _build_lights() -> void:
 	add_child(lamp)
 	_lamp = lamp
 
+	if casino != null:
+		casino.add_lights(self) # Kronleuchter, Neonschild, Automaten
+		_build_lights_common()
+		return
 	for side in [-1, 1]:
 		var stage := SpotLight3D.new()
 		stage.position = Vector3(side * 1.25, 1.95, -1.6)
@@ -1061,7 +1082,11 @@ func _build_lights() -> void:
 	rim.light_energy = 2.2
 	rim.omni_range = 2.2
 	add_child(rim)
+	_build_lights_common()
 
+
+## Lichtkegel aufs Spielfeld und Fülllicht – in jedem Raum gleich.
+func _build_lights_common() -> void:
 	# eigener Lichtkegel auf das Mittelfeld, damit die Tischkarten herausstechen
 	var field := SpotLight3D.new()
 	field.position = Vector3(0, 1.75, TABLE_ROW_Z + 0.35)
