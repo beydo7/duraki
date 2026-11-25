@@ -4,7 +4,7 @@ extends Node3D
 ##
 ## Unten grüne, darüber weiße Wandkacheln, Schachbrett-Fliesenboden, Holzbänke an den
 ## Wänden, ein Kipjatok (Heißwasserkessel). Hinten zwei hohe Fenster zum Bahnsteig, dazwischen
-## eine Fahrplantafel mit kyrillischen Städtenamen und darüber eine Bahnhofsuhr (zeigt die
+## eine Fahrplantafel „DURAKI BAHNHOF“ mit deutschen Städten und darüber eine Bahnhofsuhr (zeigt die
 ## echte Uhrzeit). Über dem Tisch hängt eine Neonröhre, die brummt und ab und zu flackert.
 ##
 ## Ab und zu rauscht draußen ein Zug vorbei: Licht aus den Abteilfenstern huscht durch den
@@ -41,18 +41,18 @@ const CAR_LEN := 6.2
 
 ## Abfahrten auf der Tafel: Zug-Nr., Ziel, Zeit, Gleis. Oben fährt als Nächstes ab.
 const DEPARTURES := [
-	["017", "МОСКВА", "23:40", "1"],
-	["105", "ЛЕНИНГРАД", "00:15", "2"],
-	["042", "КИЕВ", "01:05", "1"],
-	["211", "МИНСК", "02:30", "3"],
-	["088", "ОДЕССА", "03:10", "2"],
-	["002", "ВЛАДИВОСТОК", "05:55", "4"],
-	["133", "НОВОСИБИРСК", "06:20", "1"],
-	["076", "РИГА", "07:45", "3"],
-	["019", "ТБИЛИСИ", "08:30", "2"],
-	["154", "СЕВАСТОПОЛЬ", "09:05", "4"],
-	["061", "КАЗАНЬ", "10:40", "1"],
-	["120", "МУРМАНСК", "11:15", "3"],
+	["017", "HANNOVER", "23:40", "1"],
+	["105", "FRANKFURT", "00:15", "2"],
+	["042", "MÜNCHEN", "01:05", "1"],
+	["211", "KÖLN", "02:30", "3"],
+	["088", "BERLIN", "03:10", "2"],
+	["002", "NEUSTADT AM RÜBENBERGE", "05:55", "4"],
+	["133", "HAMBURG", "06:20", "1"],
+	["076", "DRESDEN", "07:45", "3"],
+	["019", "LEIPZIG", "08:30", "2"],
+	["154", "STUTTGART", "09:05", "4"],
+	["061", "BREMEN", "10:40", "1"],
+	["120", "NÜRNBERG", "11:15", "3"],
 ]
 const ROWS := 6
 
@@ -426,10 +426,10 @@ func _build_board() -> void:
 	var h := 0.95
 	_box_in(self, Vector3(w + 0.08, h + 0.08, 0.05), Vector3(0, y, z), _mat(Color(0.3, 0.3, 0.28), 0.5)) # Rahmen
 	_box_in(self, Vector3(w, h, 0.06), Vector3(0, y, z + 0.01), _mat(Color(0.03, 0.035, 0.04), 0.8))
-	var head := _label("ОТПРАВЛЕНИЕ ПОЕЗДОВ", FONT_SIGN, 64, Color(0.95, 0.95, 0.9))
+	var head := _label("DURAKI BAHNHOF", FONT_SIGN, 64, Color(0.95, 0.95, 0.9))
 	head.position = Vector3(0, y + h * 0.5 - 0.07, z + 0.045)
 	add_child(head)
-	var cols := [[-0.86, "№"], [-0.62, "НАЗНАЧЕНИЕ"], [0.38, "ВРЕМЯ"], [0.7, "ПУТЬ"]]
+	var cols := [[-0.86, "ZUG"], [-0.62, "ZIEL"], [0.38, "ZEIT"], [0.7, "GLEIS"]]
 	for col in cols:
 		var l := _label(col[1], FONT_BOARD, 26, Color(0.7, 0.72, 0.7))
 		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
