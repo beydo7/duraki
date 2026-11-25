@@ -137,6 +137,12 @@ func _open_gift() -> void:
 		for c in inner.get_children():
 			if c is Control:
 				(c as Control).mouse_filter = Control.MOUSE_FILTER_IGNORE
+		# goldener Strich unter jeder Karte (wie beim ausgewählten), nicht nur unter der ersten
+		var line := Panel.new()
+		line.add_theme_stylebox_override("panel", card.get_theme_stylebox("focus"))
+		line.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+		line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		card.add_child(line)
 		UIKit.hover(card, 1.05)
 		card.pressed.connect(func() -> void:
 			Sfx.play(&"coins")
@@ -495,6 +501,8 @@ const TUTORIAL_STEPS := [
 	["KARTEN", "Links: verbesserte Karten für dein Deck (Gold, Glas, Glück). Sie ersetzen die normale Karte gleichen Rangs und gleicher Farbe."],
 	["RELIKTE", "In der Mitte: Relikte wirken dauerhaft, den ganzen Run lang. Im Duell stehen sie oben rechts als Symbole – Maus drüber zeigt die Wirkung."],
 	["ITEMS", "Rechts: Items setzt du im Duell einmal ein, du kannst höchstens 2 tragen. Im Duell sind sie oben rechts in den runden Plätzen – anklicken zum Einsetzen."],
+	["DREI AKTE", "Ein Run hat drei Akte. In jedem Akt spielst du an drei Tischen und dann gegen einen Boss – zusammen also zwölf Tische. Mit jedem Akt werden die Punkteziele höher."],
+	["BOSS & ENDLOS", "Nach jedem Boss wartet ein besonderer Händler: Du bekommst ein Relikt geschenkt und alles kostet 30 % weniger. Hast du alle drei Bosse besiegt, beginnt der Endlos-Modus: kein Punkteziel mehr – sammle so viele Punkte wie möglich für die Bestenliste, bis deine letzte Kerze erlischt."],
 	["WEITER", "Neu mischen legt für etwas Gold neue Waren aus. Unten links siehst du deinen Besitz. Mit dem roten Knopf geht es zum nächsten Tisch – hier beendest du damit das Tutorial."],
 ]
 var tutorial_step := -1
