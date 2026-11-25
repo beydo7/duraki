@@ -3,7 +3,7 @@ extends Node3D
 ## Raum „Bahnhofswartesaal“ – ganz in Code gebaut (kein Blender-Modell).
 ##
 ## Unten grüne, darüber weiße Wandkacheln, Schachbrett-Fliesenboden, Holzbänke an den
-## Wänden, ein Kipjatok (Heißwasserkessel). Hinten zwei hohe Fenster zum Bahnsteig, dazwischen
+## Wänden, ein Heißwasserkessel. Hinten zwei hohe Fenster zum Bahnsteig, dazwischen
 ## eine Fahrplantafel „DURAKI BAHNHOF“ mit deutschen Städten und darüber eine Bahnhofsuhr (zeigt die
 ## echte Uhrzeit). Über dem Tisch hängt eine Neonröhre, die brummt und ab und zu flackert.
 ##
@@ -547,7 +547,7 @@ func _build_on_table() -> void:
 	news.rotation.y = -0.35
 	add_child(news)
 	_box_in(news, Vector3(0.2, 0.008, 0.28), Vector3.ZERO, paper)
-	var title := _label("ВЕЧЕРНИЙ ВОКЗАЛ", FONT_SIGN, 34, Color(0.1, 0.1, 0.1))
+	var title := _label("BAHNHOFS-ANZEIGER", FONT_SIGN, 34, Color(0.1, 0.1, 0.1))
 	title.rotation.x = -PI * 0.5
 	title.position = Vector3(0, 0.0045, -0.1)
 	title.shaded = true
@@ -562,12 +562,12 @@ func _build_on_table() -> void:
 	ticket.position = Vector3(0.95, y + 0.0015, 0.1)
 	ticket.rotation.y = 0.5
 	add_child(ticket)
-	_box_in(ticket, Vector3(0.06, 0.002, 0.03), Vector3.ZERO, _mat(Color(0.82, 0.74, 0.5), 0.8))
-	var tl := _label("БИЛЕТ", FONT_SIGN, 18, Color(0.35, 0.15, 0.1))
+	_box_in(ticket, Vector3(0.07, 0.002, 0.034), Vector3.ZERO, _mat(Color(0.82, 0.74, 0.5), 0.8))
+	var tl := _label("FAHRKARTE", FONT_SIGN, 18, Color(0.35, 0.15, 0.1))
 	tl.rotation.x = -PI * 0.5
 	tl.position.y = 0.0012
 	tl.shaded = true
-	tl.pixel_size = 0.0008
+	tl.pixel_size = 0.00042
 	ticket.add_child(tl)
 	# Zuckerstückchen
 	var sugar := _mat(Color(0.97, 0.96, 0.93), 0.9)
@@ -615,7 +615,7 @@ func _bench(pos: Vector3, rot: float, length: float) -> void:
 		_box_in(root, Vector3(0.05, 0.03, 0.4), Vector3(sx * length * 0.5, 0.65, -0.04), iron)
 
 
-## Kipjatok: Heißwasserkessel mit Hahn an der rechten Wand.
+## Heißwasserkessel mit Hahn an der rechten Wand (für Tee).
 func _build_kettle() -> void:
 	var tin := _mat(Color(0.55, 0.57, 0.52), 0.4)
 	tin.metallic = 0.7
@@ -626,10 +626,11 @@ func _build_kettle() -> void:
 	_cyl_in(self, 0.21, 0.21, 0.04, Vector3(x, 1.42, z), tin)
 	var tap := _cyl_in(self, 0.015, 0.015, 0.12, Vector3(x - 0.24, 0.92, z), _mat(Color(0.7, 0.55, 0.3), 0.3))
 	tap.rotation.z = PI * 0.5
-	var sign := _label("КИПЯТОК", FONT_SIGN, 48, Color(0.95, 0.92, 0.8))
+	var sign := _label("HEISSWASSER", FONT_SIGN, 48, Color(0.95, 0.92, 0.8))
 	sign.position = Vector3(x - 0.205, 1.15, z)
 	sign.rotation.y = -PI * 0.5
 	sign.shaded = true
+	sign.pixel_size = 0.0008 # passt auf den runden Kessel
 	add_child(sign)
 
 

@@ -104,12 +104,12 @@ Ein Run = 3 normale Gegner + Boss, 3 Leben (Kerzen). Wer verliert, ist der Durak
   Grün → geheimer Erfolg „Alles auf Grün“. Leise Geräusche (`roulette*.wav`, -14 dB).
   Texturen und Geräusche: `tools/generate_casino.py` → `assets/rooms/casino/`.
   **Bahnhofswartesaal** (`StationRoom`, ebenfalls ganz in Code): unten grüne, darüber weiße Kacheln,
-  Schachbrett-Fliesen, Holzbänke, Heizkörper, Kipjatok-Kessel, zwei Fenster zum Bahnsteig, Fahrplantafel
+  Schachbrett-Fliesen, Holzbänke, Heizkörper, Heißwasserkessel, zwei Fenster zum Bahnsteig, Fahrplantafel
   „DURAKI BAHNHOF“ mit deutschen Städten (Hannover, Neustadt am Rübenberge …), Bahnhofsuhr (echte Uhrzeit), brummende Neonröhren, die
   ab und zu flackern. Alle 40–80 s rauscht draußen ein Zug vorbei (Signal `train_passing`): Licht huscht
   durch den Raum, das Bild zittert leicht (`TableWorld.shake`, nur mit Kamera-Schwenk), die Teegläser
   klirren; danach klappt die Tafel eine Zeile weiter. Leben = **Teegläser in Metallhaltern** (`TeaGlasses`,
-  `TableProps.tea_style`): Leben weg → ein Glas wird leer getrunken. Auf dem Holztisch: Zeitung, Fahrkarte,
+  `TableProps.tea_style`): Leben weg → ein Glas wird leer getrunken. Auf dem Holztisch: Zeitung „BAHNHOFS-ANZEIGER“, Fahrkarte,
   Zucker. Texturen und Geräusche: `tools/generate_station.py` → `assets/rooms/station/`.
   F8-Menü: Raum für alle Tische erzwingen (`Rooms.forced`, „ZUFÄLLIG“ = normal).
 - **Der Weg** zeigt den Raum scharf wie im Duell (`RoomBackdrop.blur = 0`, MSAA 4×).
