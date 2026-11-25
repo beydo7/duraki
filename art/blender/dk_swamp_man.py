@@ -13,7 +13,7 @@ import math
 import random
 
 import bpy
-from mathutils import Vector, noise
+from mathutils import Matrix, Vector, noise
 
 import dk
 import geo
@@ -33,6 +33,103 @@ def mossy(c, n, bias=0.0):
     return n.z > 0.32 + bias and noise.noise(c * 5.5) + 0.7 * n.z > 0.5 + bias
 
 
+def head(fig, m, moss, rnd):
+    """Kopf als hoher Schlammhügel, der ohne Hals in die Schultern übergeht: schwerer Stirnwulst,
+    tiefe Augenhöhlen mit Glut, Nasenschlitze, aufgerissenes Maul mit Schlammzähnen; darüber
+    senkrechte Rinnsale, Tropfen, Moos auf dem Scheitel, Zweige und Pilze."""
+    rig, hb, C = fig.rig, fig.rig.head, alt.C
+    dome = geo.ellipsoid(Vector((0.13, 0.135, 0.19)), C + Vector((0, 0.0, 0.03)), 72, 48)
+    for v in dome.verts:
+        k = v.co - C
+        if k.z < -0.02:
+            f = 1 + 0.6 * min(1.0, (-0.02 - k.z) / 0.14) ** 1.4
+            v.co.x, v.co.y = C.x + k.x * f, C.y + k.y * f
+    parts = [dome]
+    brow, rad = [], []
+    for i in range(11):
+        u = i / 10 * 2 - 1
+        x = u * 0.1
+        brow.append(C + Vector((x, -0.116 + 0.05 * u * u, 0.085 - 0.02 * (1 - abs(u)) ** 1.5)))
+        rad.append(0.027 - 0.011 * abs(u))
+    parts.append(geo.tube(brow, rad, seg=14))
+    for s in (-1, 1):
+        parts.append(geo.ellipsoid(Vector((0.05, 0.045, 0.06)), C + Vector((s * 0.088, -0.088, -0.025)), 20, 14))
+    parts.append(geo.ellipsoid(Vector((0.022, 0.022, 0.04)), C + Vector((0, -0.128, 0.012)), 16, 12))
+    parts.append(geo.ellipsoid(Vector((0.105, 0.07, 0.06)), C + Vector((0, -0.075, -0.105)), 24, 16))
+    face = rig.headpart("Face", geo.merge(*parts), m["mud"], smooth=True, sharp_angle=None)
+    hd.organic(face, voxel=0.0035, smooth=3, faces=60000, uv_tile=0.3)
+    # Rinnsale: senkrechte Furchen, dazu grobe Beulen
+    def flow(p):
+        streak = 1 - abs(noise.noise(Vector((p.x * 34, p.y * 34, p.z * 4.5))))
+        return 0.006 * streak ** 2 + 0.006 * noise.noise(p * 9)
+    dk.displace(face, flow)
+    eyes = [C + Vector((s * 0.056, -0.128, 0.03)) for s in (-1, 1)]
+    cut = [geo.ellipsoid(Vector((0.04, 0.045, 0.038)), e, 28, 18) for e in eyes]
+    for s in (-1, 1):
+        cut.append(geo.ellipsoid(Vector((0.0055, 0.03, 0.016)), C + Vector((s * 0.012, -0.15, -0.018)), 12, 8))
+        mo = geo.ellipsoid(Vector((0.05, 0.06, 0.02)), Vector((0, 0, 0)), 24, 14)
+        geo.transform(mo, Matrix.Translation(C + Vector((s * 0.03, -0.14, -0.078))) @ Matrix.Rotation(s * 0.2, 4, "Y"))
+        cut.append(mo)
+    dk.carve(face, cut)
+    dk.rebox(face, 0.3)
+    tree = dk.bvh(face)
+
+    def surf(x, z, lift=0.0):
+        hit = tree.ray_cast(C + Vector((x, -0.8, z)), Vector((0, 1, 0)))
+        if hit[0] is None:
+            return C + Vector((x, -0.13, z)), Vector((0, -1, 0))
+        return hit[0] + hit[1] * lift, hit[1]
+    # Glut-Augen tief in den Höhlen
+    orbs, cores = [], []
+    for i, e in enumerate(eyes):
+        c = e + Vector((0, 0.03, 0))
+        orbs.append(geo.ellipsoid(Vector((0.026, 0.02, 0.026)), c, 24, 16))
+        cores.append(geo.ellipsoid(Vector((0.012, 0.006, 0.012)), c + Vector((0, -0.017, 0)), 16, 10))
+        rig.marker("EyeL" if i == 0 else "EyeR", hb, c + Vector((0, -0.016, 0)))
+    rig.headpart("Glow_Eyes", geo.merge(*orbs), m["eye"], smooth=True, sharp_angle=None)
+    rig.headpart("Glow_EyeCores", geo.merge(*cores), m["eyecore"], smooth=True, sharp_angle=None)
+    # Maul: schwarzer Rachen, krumme Schlammzähne oben und unten
+    rig.headpart("Void_Mouth", geo.ellipsoid(Vector((0.09, 0.03, 0.03)), C + Vector((0, -0.108, -0.08)), 24, 12),
+                 dk.ch.void(), smooth=True, sharp_angle=None)
+    teeth = []
+    for k in range(9):
+        u = k / 8 * 2 - 1
+        x = u * 0.062 + rnd.uniform(-0.003, 0.003)
+        top = surf(x, -0.05 - 0.012 * u * u)[0]
+        L = rnd.uniform(0.012, 0.024)
+        teeth.append(geo.tube([top + Vector((0, 0.01, 0.004)), top + Vector((0, 0.012, -0.01)), top + Vector((rnd.uniform(-0.003, 0.003), 0.012, -0.01 - L))],
+                              [0.0065, 0.0055, 0.0012], seg=8))
+    for k in range(8):
+        u = (k + 0.5) / 8 * 2 - 1
+        x = u * 0.058 + rnd.uniform(-0.003, 0.003)
+        bot = surf(x, -0.108 - 0.012 * u * u)[0]
+        L = rnd.uniform(0.01, 0.02)
+        teeth.append(geo.tube([bot + Vector((0, 0.01, -0.004)), bot + Vector((0, 0.012, 0.008)), bot + Vector((rnd.uniform(-0.003, 0.003), 0.012, 0.008 + L))],
+                              [0.006, 0.005, 0.0012], seg=8))
+    rig.headpart("Mouth_Teeth", geo.merge(*teeth), m["tooth"], smooth=True, sharp_angle=None)
+    # Tropfen: unter dem Stirnwulst, über die Wangen, vom Kinn
+    drips = []
+    for k in range(26):
+        zone = k % 3
+        if zone == 0:
+            x, z, L = rnd.choice((-1, 1)) * rnd.uniform(0.085, 0.125), rnd.uniform(0.02, 0.07), rnd.uniform(0.04, 0.09)
+        elif zone == 1:
+            x, z, L = rnd.uniform(-0.12, 0.12), rnd.uniform(-0.05, -0.02), rnd.uniform(0.03, 0.07)
+            if abs(x) < 0.07:
+                z = -0.112
+        else:
+            x, z, L = rnd.uniform(-0.09, 0.09), rnd.uniform(-0.125, -0.112), rnd.uniform(0.03, 0.08)
+        drips.append(alt.drip(surf, x, z, L, rnd.uniform(0.004, 0.0065), rnd))
+    rig.headpart("Face_Drips", geo.merge(*drips), m["mud"], smooth=True, sharp_angle=None)
+    alt.twigs_and_shrooms(rig, m, tree, rnd)
+    # Moos auf dem Scheitel und in Polstern an den Seiten
+    base = dk.fur_base(face, "MoosBasis", faces=14000, tile=0.12,
+                       keep=lambda c, n: n.z > 0.2 and ((c - C).z > 0.15 or ((c - C).z > 0.02 and noise.noise(c * 8) > 0.05)))
+    dk.shell_fur(base, "HeadMoss_Fur", "Sumpf_Moospolster", moss, length=0.02, lean=(0, 0, -0.1), uneven=0.6)
+    bpy.data.objects.remove(base, do_unlink=True)
+    alt.scale_head(rig, 1.7)
+
+
 def build():
     rnd = random.Random(21)
     hd.clear_scene()
@@ -41,10 +138,17 @@ def build():
         dk.aim_arm(mrig, sfx, Vector((s * 0.34, -0.7, -0.62)))
         dk.grip_pose(mrig, sfx, curl=(40, 62, 44))
     m = alt.materials()
+    dk.brighten(m["mud"], 0.82)
+    for key in ("mud", "head"):  # weniger Glitzern im Lampenlicht
+        bsdf = next(nd for nd in m[key].node_tree.nodes if nd.type == "BSDF_PRINCIPLED")
+        bsdf.inputs["Roughness"].default_value = 0.72
+        bsdf.inputs["Specular IOR Level"].default_value = 0.3
     moss = dk.tex_fur_shells("moss", (0.03, 0.045, 0.012), (0.2, 0.27, 0.07), shells=12, clumps=700, radius=6.5, seed=61)
     fig = dk.Figure(body, mrig, parts, waist=0.42)
     tb = fig.rig.torso
-    nc = dk.old_head(fig, alt, rnd, m)
+    nc = dk.to_torso(mrig.pose.bones["neck01"].head)
+    fig.rig.head.location = Vector((0, nc.y - 0.03, alt.HEAD_Y))
+    head(fig, m, moss, rnd)
     skin_ob = fig.torso(m["mud"], arm_stub=0.07)
     torso = dk.part_of(skin_ob, "Body", m["mud"], lambda c, n: True, tile=0.3)
     tree = dk.bvh(torso)

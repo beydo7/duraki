@@ -880,12 +880,35 @@ def preview_eyes(color=(1.0, 0.62, 0.15), radius=0.012, strength=6.0) -> None:
         ob.location = mk.location
 
 
+def _vertex_colors(encode: bool) -> None:
+    """Vertexfarben „Col“ (Fellzeichnung) für den Export sRGB-kodieren bzw. wieder zurückrechnen.
+    Godot (GL Compatibility) behandelt COLOR_0 aus glTF wie sRGB – lineare Werte kämen viel zu
+    dunkel an. In Blender bleiben die Werte linear, damit die Vorschau stimmt."""
+    for me in bpy.data.meshes:
+        attr = me.color_attributes.get("Col")
+        if attr is None:
+            continue
+        a = np.empty(len(attr.data) * 4, dtype=np.float32)
+        attr.data.foreach_get("color", a)
+        a = a.reshape(-1, 4)
+        c = np.clip(a[:, :3], 0, 1)
+        if encode:
+            a[:, :3] = np.where(c <= 0.0031308, c * 12.92, 1.055 * c ** (1 / 2.4) - 0.055)
+        else:
+            a[:, :3] = np.where(c <= 0.04045, c / 12.92, ((c + 0.055) / 1.055) ** 2.4)
+        attr.data.foreach_set("color", a.ravel())
+
+
 def export_character(path: str) -> None:
     """Exportiert alles außer den Vorschau-Objekten als .glb."""
     import os
     os.makedirs(os.path.dirname(path), exist_ok=True)
     for ob in bpy.context.scene.objects:
         ob.select_set(not ob.name.startswith("Preview_"))
-    bpy.ops.export_scene.gltf(filepath=path, export_format="GLB", use_selection=True, export_apply=True,
-                              export_yup=True, export_cameras=False, export_lights=False, export_texcoords=True,
-                              export_normals=True, export_image_format="AUTO")
+    _vertex_colors(True)
+    try:
+        bpy.ops.export_scene.gltf(filepath=path, export_format="GLB", use_selection=True, export_apply=True,
+                                  export_yup=True, export_cameras=False, export_lights=False, export_texcoords=True,
+                                  export_normals=True, export_image_format="AUTO")
+    finally:
+        _vertex_colors(False)

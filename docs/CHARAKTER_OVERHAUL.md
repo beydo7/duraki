@@ -79,15 +79,26 @@ Knochenmann), haben die neue Armbauweise (`dk.sleeve`) und neue Porträts. In Go
 
 Die alten `hd_<id>.py` bleiben im Repo, weil vier Figuren ihre Köpfe (und Materialien) daraus holen.
 
-Noch nicht gemacht (ehrliche Liste):
-- **Köpfe von Knochenmann, Wölfin, Krähe, Sumpfmann sind die alten** – nur Körper, Arme, Hände,
-  Kleidung sind neu. Eigens modellierte Köpfe (anatomischer Schädel, Wolfskopf mit Schalen-Fell)
-  wären der nächste Qualitätsschritt.
-- Bandit: Narbe / Riss im Tuch (Pascal entscheidet). Hexe: Haare steif. Gaukler: Rauten am Wams
-  verzerrt. Wölfin: Pfotenfell wirkt borstig. Sumpfmann: Körper wirkt im Spiel heller als der Kopf.
+Nachtrag (25.11., spät) – Köpfe der vier übrigen Figuren und Bandit:
+- **Knochenmann:** Schädel neu aus Grundformen mit echten, herausgeschnittenen Höhlen (`dk.carve`):
+  Augenhöhlen mit Rand, birnenförmige Nasenöffnung, Jochbeine/Jochbogen, Schläfen; schlanker
+  Unterkiefer mit Ästen. Zähne, Zylinder, Kerze aus `hd_bone_man.py`.
+- **Sumpfmann:** Kopf neu als Schlammhügel mit Stirnwulst, tiefen Augenhöhlen, Nasenschlitzen,
+  aufgerissenem Maul mit Zähnen, senkrechten Rinnsalen; Moos als Schalen.
+- **Wölfin:** Schädel/Schnauze/Ohren/Kapuze bleiben, das Fell ist neu: Schalen-Fell mit Zeichnung
+  als Vertexfarbe, Länge und Strichrichtung je Stelle (`dk.shell_fur(lengths, leans, colors)`),
+  dazu eine Wangenkrause. Export kodiert die Vertexfarben für Godot (`hd._vertex_colors`).
+- **Krähe:** Schädel und Schnabel bleiben, Gefieder neu: dichter, struppiger Scheitel, zwei
+  Federtöne, kräftigere Brauen, kleinere Augen.
+- **Bandit:** Narbe über dem linken Auge, Riss im Tuch mit schiefem Gebiss.
+
+Noch offen (ehrliche Liste):
+- Wölfin und Krähe haben weiterhin die alte Schädelform (nur Fell/Gefieder neu).
+- Sumpfmann: Maul wirkt im Spiel als große schwarze Fläche, Zähne klein. Hexe: Haare steif.
+  Gaukler: Rauten am Wams verzerrt. Wölfin: Fellkanten aus der Nähe stufig.
 - `build_models.py` läuft mit den `dk_*`-Figuren nur in einem Blender mit Fenster (MPFB braucht
-  den 3D-View-Kontext); im Hintergrundmodus schlägt es fehl.
-- Dateigrößen: Wölfin 37 MB (Schalen-Fell), übrige 15–30 MB.
+  den 3D-View-Kontext).
+- Dateigrößen: Wölfin 35 MB (Schalen-Fell), übrige 16–30 MB.
 
 Zum Ansehen in Blender (Pascals PC): `charakter_overhaul\blend\alle_acht.blend` (alle acht
 nebeneinander) bzw. je Figur `art/blender/opponents/<id>.blend`. Hilfsskripte im Arbeitsordner:

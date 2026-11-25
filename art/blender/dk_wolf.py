@@ -8,9 +8,11 @@ befellte Hände mit Krallen.
 """
 from __future__ import annotations
 
+import math
 import random
 
 import bpy
+import numpy as np
 from mathutils import Vector
 
 import dk
@@ -24,6 +26,86 @@ TARGETS = {**dk.both("hand-fingers-diameter-incr", 0.5), **dk.both("hand-fingers
            "neck-scale-horiz-incr": 0.6, "neck-scale-depth-incr": 0.5}
 
 
+GREY, LIGHT, DARK = (0.42, 0.39, 0.37), (0.8, 0.76, 0.69), (0.19, 0.18, 0.18)
+
+
+def _ss(e0, e1, v):
+    t = np.clip((v - e0) / (e1 - e0), 0, 1)
+    return t * t * (3 - 2 * t)
+
+
+def face_fur(rig, m, sample_bm, face, rnd):
+    """Gesichtsfell als Schalen: Zeichnung (hell/grau/dunkel/schwarz) als Vertexfarbe, kurz an
+    Schnauze und Augen, lang an den Wangen; Strich von der Nase weg nach außen und hinten."""
+    base = dk.fur_base(face, "FurBase", faces=9000)
+    co, no = dk.verts(base)
+    k = co - np.array(alt.C[:], dtype=np.float32)
+    x, y, z = k[:, 0], k[:, 1], k[:, 2]
+    ax = np.abs(x)
+    white, dark, black = alt.face_masks(x, z)
+    side = _ss(0.0, 0.06, y)[:, None]  # hinter den Wangen: einfach grau (die Maske gilt nur von vorn)
+    lin = [np.array(hd.srgb_to_linear(c), dtype=np.float32) for c in (GREY, LIGHT, DARK)]
+    col = lin[0][None, :] * (1 - white[:, None]) + lin[1][None, :] * white[:, None]
+    col = col * (1 - dark[:, None]) + lin[2][None, :] * dark[:, None]
+    col = col * (1 - 0.93 * black[:, None])
+    col = col * (1 - side) + lin[0][None, :] * side
+    cheek = _ss(0.04, 0.095, ax) * _ss(0.045, -0.03, z)
+    muzzle = _ss(-0.1, -0.14, y)
+    eye = np.zeros_like(x)
+    for ex, ez in alt.EYES:
+        eye = np.maximum(eye, np.exp(-((x - ex) ** 2 + (z - ez) ** 2) / (2 * 0.02 ** 2)) * (y < -0.02))
+    L = 0.008 + 0.017 * cheek + 0.004 * _ss(0.06, 0.12, z)
+    L = L * (1 - muzzle) + 0.0032 * muzzle
+    L = L * (1 - eye) + 0.0018 * eye
+    L = np.maximum(L * (1 - black), 0.0012)
+    flow = np.stack([np.sign(x) * np.minimum(1, ax / 0.04) * 0.9, 0.55 + 0 * x, 0.45 * _ss(0.03, 0.09, z) - 0.7 * cheek], axis=1)
+    lean = dk.tangent(flow.astype(np.float32), no) * 1.1
+    dk.shell_fur(base, "Face_Fur", "Wolf_Fell", m["shells"], lengths=L, leans=lean, colors=col, uneven=0.35)
+    bpy.data.objects.remove(base, do_unlink=True)
+    ruff(rig, m, rnd)
+
+
+def ruff(rig, m, rnd):
+    """Wangenkrause: spitze Fellzacken entlang des Kiefers, die unter der Kapuze hervorstehen."""
+    C = alt.C
+    parts = []
+    for s in (-1, 1):
+        for row, (out, scale) in enumerate(((0.0, 1.0), (-0.012, 0.75))):
+            for i in range(7):
+                t = (i + 0.5 * row) / 6.5
+                p = C + Vector((s * (0.1 - 0.055 * t + out), -0.035 - 0.05 * t, 0.012 - 0.105 * t))
+                d = Vector((s * (0.95 - 0.6 * t), -0.25, -(0.3 + 0.75 * t))).normalized()
+                Ln = (0.05 + 0.02 * math.sin(math.pi * t)) * scale * rnd.uniform(0.85, 1.15)
+                r = 0.02 * scale
+                parts.append(geo.tube([p - d * 0.02, p + d * Ln * 0.45, p + d * Ln], [r, r * 0.7, 0.002], seg=10))
+    ob = rig.headpart("Face_Ruff", geo.merge(*parts), m["furskin"], smooth=True, sharp_angle=None)
+    hd.organic(ob, voxel=0.004, smooth=2, faces=2600, uv_tile=0.09)
+    co, no = dk.verts(ob)
+    k = co - np.array(C[:], dtype=np.float32)
+    tipness = _ss(0.02, -0.1, k[:, 2])
+    lin = [np.array(hd.srgb_to_linear(c), dtype=np.float32) for c in (LIGHT, GREY)]
+    col = lin[0][None, :] * (1 - 0.35 * tipness[:, None]) + lin[1][None, :] * 0.35 * tipness[:, None]
+    flow = np.stack([np.sign(k[:, 0]) * 0.7, -0.1 + 0 * k[:, 0], -0.8 + 0 * k[:, 0]], axis=1).astype(np.float32)
+    dk.shell_fur(ob, "Face_Ruff_Fur", "Wolf_Fell", m["shells"], lengths=np.full(len(co), 0.014), leans=dk.tangent(flow, no) * 1.3,
+                 colors=col, uneven=0.4)
+
+
+def neck_fur(rig, m, tree, rnd):
+    """Kehle und Hals: helle Säule unter dem Kinn, das Fell fällt zur Brust."""
+    C = alt.C
+    nb = geo.tube([C + Vector((0, 0.0, -0.04)), C + Vector((0, 0.01, -0.14)), C + Vector((0, 0.02, -0.26))],
+                  [0.085, 0.092, 0.1], seg=32)
+    geo.box_uv(nb, 0.09)
+    neck = rig.headpart("Neck", nb, m["chest"], smooth=True, sharp_angle=None)
+    co, no = dk.verts(neck)
+    front = _ss(0.3, -0.4, no[:, 1])
+    lin = [np.array(hd.srgb_to_linear(c), dtype=np.float32) for c in (LIGHT, GREY)]
+    col = lin[1][None, :] * (1 - front[:, None]) + lin[0][None, :] * front[:, None]
+    flow = np.tile(np.array([[0.0, -0.15, -1.0]], dtype=np.float32), (len(co), 1))
+    dk.shell_fur(neck, "Neck_Fur", "Wolf_Fell", m["shells"], lengths=np.full(len(co), 0.022), leans=dk.tangent(flow, no) * 0.8,
+                 colors=col, uneven=0.4)
+
+
 def build():
     rnd = random.Random(17)
     hd.clear_scene()
@@ -32,14 +114,13 @@ def build():
         dk.aim_arm(mrig, sfx, Vector((s * 0.3, -0.72, -0.62)))
         dk.grip_pose(mrig, sfx, curl=(36, 60, 42))
     m = alt.materials()
-    fur = dk.tex_fur_shells("pelt", (0.2, 0.19, 0.185), (0.74, 0.72, 0.68), shells=14, clumps=1100, radius=4.5, seed=71)
+    m["shells"] = dk.tex_fur_shells("fell", (0.42, 0.42, 0.42), (1.0, 1.0, 1.0), shells=12, clumps=1000, radius=4.8, seed=71)
     paw = dk.tex_fur_shells("paw", (0.14, 0.135, 0.13), (0.5, 0.49, 0.47), shells=8, clumps=2200, radius=3.2, seed=72)
     fig = dk.Figure(body, mrig, parts, waist=0.42)
     tb = fig.rig.torso
+    # Kopf: Schädel, Augen, Nase, Ohren und Kapuze aus hd_wolf – Fell neu (Schalen statt Karten)
+    alt.face_fur, alt.neck_fur, alt.brows = face_fur, neck_fur, (lambda *a, **k: None)
     nc = dk.old_head(fig, alt, rnd, m)
-    for ob in list(fig.rig.head.children):  # alte Halsfell-Karten: das Brustfell übernimmt
-        if "Neck" in ob.name:
-            bpy.data.objects.remove(ob, do_unlink=True)
     skin_ob = fig.torso(m["furskin"], arm_stub=0.055)
 
     def neckline(c):  # tiefer, runder Ausschnitt vorn; hinten hochgeschlossen
@@ -47,8 +128,14 @@ def build():
             return nc.z - 0.05
         return nc.z - 0.27 + 2.6 * c.x * c.x
     bodice = dk.part_of(skin_ob, "Body", m["bodice"], lambda c, n: c.z < neckline(c), grow=0.008, tile=0.22)
-    pelt = dk.part_of(skin_ob, "Pelt", m["furskin"], lambda c, n: c.z > neckline(c) - 0.03, tile=0.1)
-    dk.shell_fur(pelt, "Body_Chest_Fur", "Wolf_Pelz", fur, length=0.038, lean=(0, -0.04, -0.12))
+    pelt = dk.part_of(skin_ob, "Pelt", m["furskin"], lambda c, n: c.z > neckline(c) - 0.03, tile=0.09)
+    co, no = dk.verts(pelt)
+    center = np.exp(-(co[:, 0] / 0.11) ** 2) * (no[:, 1] < 0.2)
+    lin = [np.array(hd.srgb_to_linear(c), dtype=np.float32) for c in (GREY, LIGHT)]
+    col = lin[0][None, :] * (1 - center[:, None]) + lin[1][None, :] * center[:, None]
+    flow = np.stack([co[:, 0] * 1.5, -0.1 + 0 * co[:, 0], -1.0 + 0 * co[:, 0]], axis=1).astype(np.float32)
+    dk.shell_fur(pelt, "Body_Chest_Fur", "Wolf_Fell", m["shells"], lengths=np.full(len(co), 0.034),
+                 leans=dk.tangent(flow, no) * 1.3, colors=col, uneven=0.4)
     bpy.data.objects.remove(pelt, do_unlink=True)
     # Saum am Ausschnitt
     btree = dk.bvh(bodice)

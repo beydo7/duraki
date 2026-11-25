@@ -2,14 +2,14 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://ckp635fidcut"
+uid="uid://sl4c7f01hv18"
 path.s3tc="res://.godot/imported/swamp_man_mud_color.png-b208d024e6e86b0952f18e9e746a07b0.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
 }
 generator_parameters={
-"md5": "c3f148bf441d95730d52fe48ccd8dd0a"
+"md5": "1db6dd76398ecfe379a12177be6635a0"
 }
 
 [deps]

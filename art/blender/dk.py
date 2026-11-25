@@ -491,24 +491,32 @@ def tex_fur_shells(name, root, tip, shells=16, size=256, clumps=900, radius=5.5,
 
 
 def shell_fur(base_ob, name, mat_name, imgs, length=0.045, lean=(0.0, 0.0, -0.35), parent=None, uneven=0.3,
-              child=False):
+              child=False, lengths=None, leans=None, colors=None):
     """Fell aus Schalen: Kopien der Grundform, nach außen versetzt, jede mit dünneren Büscheln.
-    Das Objekt heißt `*_Fur` (Godot: kein Schattenwurf, wenig Glanz)."""
+    Das Objekt heißt `*_Fur` (Godot: kein Schattenwurf, wenig Glanz).
+    Optional je Vertex der Grundform (Reihenfolge wie im Mesh): lengths (m), leans (n×3, Vielfache der
+    Länge – Strichrichtung des Fells), colors (n×3 linear – Fellzeichnung als Vertexfarbe; die
+    Schalenbilder sollten dann hell/grau sein)."""
     from mathutils import noise
     src = bmesh.new()
     src.from_mesh(base_ob.data)
     src.normal_update()
     lean = Vector(lean)
     n = len(imgs)
+    nv = len(src.verts)
+    Ls, leanv = [], []
+    for k, v in enumerate(src.verts):
+        L = float(lengths[k]) if lengths is not None else length
+        Ls.append(L * (1 - uneven * 0.5 + uneven * (0.5 + 0.5 * noise.noise(v.co * 14))))
+        leanv.append(Vector(leans[k]) if leans is not None else lean)
     out = bmesh.new()
     out.loops.layers.uv.verify()
     tmp_me = bpy.data.meshes.new("tmp")
     for i in range(n):
         t = i / (n - 1)
         b = src.copy()
-        for v in b.verts:
-            L = length * (1 - uneven * 0.5 + uneven * (0.5 + 0.5 * noise.noise(v.co * 14)))
-            v.co += v.normal * (L * t) + lean * (L * t * t)
+        for k, v in enumerate(b.verts):
+            v.co += v.normal * (Ls[k] * t) + leanv[k] * (Ls[k] * t * t)
         for f in b.faces:
             f.material_index = i
         b.to_mesh(tmp_me)
@@ -519,8 +527,18 @@ def shell_fur(base_ob, name, mat_name, imgs, length=0.045, lean=(0.0, 0.0, -0.35
     me = bpy.data.meshes.new(name)
     out.to_mesh(me)
     out.free()
+    if colors is not None:
+        rgba = np.ones((nv, 4), dtype=np.float32)
+        rgba[:, :3] = np.asarray(colors, dtype=np.float32)
+        attr = me.color_attributes.new("Col", "FLOAT_COLOR", "POINT")
+        attr.data.foreach_set("color", np.tile(rgba, (n, 1)).ravel())
+        me.color_attributes.active_color = attr
+        me.color_attributes.render_color_index = 0
     for i, img in enumerate(imgs):
-        me.materials.append(hd.material(f"{mat_name}_{i:02d}", img, rough=0.92, spec=0.1, alpha_clip=i > 0))
+        mat = hd.material(f"{mat_name}_{i:02d}", img, rough=0.92, spec=0.1, alpha_clip=i > 0)
+        if colors is not None:
+            vertex_tint(mat)
+        me.materials.append(mat)
     for p in me.polygons:
         p.use_smooth = True
     ob = bpy.data.objects.new(name, me)
@@ -531,6 +549,68 @@ def shell_fur(base_ob, name, mat_name, imgs, length=0.045, lean=(0.0, 0.0, -0.35
         ob.parent = parent if parent is not None else base_ob.parent
         ob.matrix_basis = base_ob.matrix_basis.copy()
     return ob
+
+
+def vertex_tint(mat, layer="Col"):
+    """Grundfarbe = Textur × Vertexfarbe (der glTF-Export schreibt das als COLOR_0, Godot
+    multipliziert es ins Albedo)."""
+    nt = mat.node_tree
+    bsdf = next(n for n in nt.nodes if n.type == "BSDF_PRINCIPLED")
+    link = next((l for l in nt.links if l.to_node == bsdf and l.to_socket.name == "Base Color"), None)
+    if link is None or link.from_node.type == "MIX":
+        return
+    src = link.from_socket
+    vc = nt.nodes.new("ShaderNodeVertexColor")
+    vc.layer_name = layer
+    mix = nt.nodes.new("ShaderNodeMix")
+    mix.data_type = "RGBA"
+    mix.blend_type = "MULTIPLY"
+    mix.inputs[0].default_value = 1.0
+    nt.links.new(src, mix.inputs[6])
+    nt.links.new(vc.outputs["Color"], mix.inputs[7])
+    nt.links.new(mix.outputs[2], bsdf.inputs["Base Color"])
+
+
+def verts(ob):
+    """Positionen und Normalen eines Meshes als Arrays (n×3)."""
+    n = len(ob.data.vertices)
+    co = np.empty(n * 3, dtype=np.float32)
+    no = np.empty(n * 3, dtype=np.float32)
+    ob.data.vertices.foreach_get("co", co)
+    ob.data.vertices.foreach_get("normal", no)
+    return co.reshape(-1, 3), no.reshape(-1, 3)
+
+
+def fur_base(ob, name, faces=None, tile=0.09, keep=None):
+    """Vereinfachte Kopie einer Form als Träger für Schalen-Fell (eigene Box-UVs)."""
+    cp = bpy.data.objects.new(name, ob.data.copy())
+    bpy.context.scene.collection.objects.link(cp)
+    cp.parent = ob.parent
+    cp.matrix_basis = ob.matrix_basis.copy()
+    if faces and len(cp.data.polygons) > faces:
+        md = cp.modifiers.new("Weniger", "DECIMATE")
+        md.ratio = faces / len(cp.data.polygons)
+        dg = bpy.context.evaluated_depsgraph_get()
+        me = bpy.data.meshes.new_from_object(cp.evaluated_get(dg))
+        cp.modifiers.clear()
+        old = cp.data
+        cp.data = me
+        bpy.data.meshes.remove(old)
+    bm = bmesh.new()
+    bm.from_mesh(cp.data)
+    if keep is not None:
+        bm.normal_update()
+        keep_faces(bm, lambda f: keep(f.calc_center_median(), f.normal))
+    geo.box_uv(bm, tile)
+    bm.to_mesh(cp.data)
+    bm.free()
+    return cp
+
+
+def tangent(vecs, normals):
+    """Vektoren in die Tangentialebene legen und normieren (n×3)."""
+    v = vecs - normals * np.sum(vecs * normals, axis=1, keepdims=True)
+    return v / np.maximum(np.linalg.norm(v, axis=1, keepdims=True), 1e-6)
 
 
 def tex_knit(name, base, dark, size=512, cols=22, rows=30, seed=3):
@@ -884,3 +964,56 @@ def brighten(mat, factor: float) -> None:
             n.image.pixels.foreach_set(a.ravel())
             n.image.pack()
             return
+
+
+def carve(ob, cutters, solver="EXACT"):
+    """Formen (bmesh-Liste) per Boolean aus einem Objekt herausschneiden (echte Höhlen)."""
+    objs = []
+    for i, bm in enumerate(cutters):
+        bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+        o = to_object(f"Schnitt{i}", bm, None, ob.parent)  # gleicher Raum wie das Objekt
+        o.matrix_basis = ob.matrix_basis.copy()
+        objs.append(o)
+        md = ob.modifiers.new(f"Schnitt{i}", "BOOLEAN")
+        md.operation = "DIFFERENCE"
+        md.object = o
+        try:
+            md.solver = solver
+        except TypeError:
+            pass
+    bpy.context.view_layer.update()
+    dg = bpy.context.evaluated_depsgraph_get()
+    dg.update()
+    me = bpy.data.meshes.new_from_object(ob.evaluated_get(dg))
+    ob.modifiers.clear()
+    old = ob.data
+    ob.data = me
+    me.materials.clear()
+    for mt in old.materials:
+        me.materials.append(mt)
+    bpy.data.meshes.remove(old)
+    for o in objs:
+        bpy.data.objects.remove(o, do_unlink=True)
+    for p in me.polygons:
+        p.use_smooth = True
+    return ob
+
+
+def displace(ob, fn) -> None:
+    """Jeden Vertex entlang seiner Normale um fn(co) versetzen (Furchen, Beulen)."""
+    bm = bmesh.new()
+    bm.from_mesh(ob.data)
+    bm.normal_update()
+    for v in bm.verts:
+        v.co += v.normal * fn(v.co)
+    bm.normal_update()
+    bm.to_mesh(ob.data)
+    bm.free()
+
+
+def rebox(ob, tile) -> None:
+    bm = bmesh.new()
+    bm.from_mesh(ob.data)
+    geo.box_uv(bm, tile)
+    bm.to_mesh(ob.data)
+    bm.free()

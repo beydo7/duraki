@@ -8,11 +8,12 @@ rotes Halstuch über Mund und Nase, Strickpullover, Lammfellmantel mit Fellkrage
 from __future__ import annotations
 
 import math
+import random
 
 import bmesh
 import bpy
 import numpy as np
-from mathutils import Vector
+from mathutils import Vector, noise
 
 import dk
 import geo
@@ -64,6 +65,8 @@ def materials(parts):
     m["hat_imgs"] = dk.tex_fur_shells("hatfur", (0.17, 0.11, 0.065), (0.47, 0.34, 0.21), shells=14, seed=11)
     m["wool_imgs"] = dk.tex_fur_shells("wool", (0.4, 0.32, 0.2), (0.78, 0.68, 0.5), shells=10, clumps=520, radius=7.5,
                                       seed=12)
+    m["scar"] = hd.material("Bandit_Narbe", color=(0.3, 0.15, 0.13, 1), rough=0.8, spec=0.1)
+    m["tooth"] = hd.material("Bandit_Zahn", color=(0.62, 0.5, 0.26, 1), rough=0.45, spec=0.4)
     m["plain"] = hd.material("Bandit_Unterfell", color=(0.1, 0.06, 0.03, 1), rough=0.95)
     return m
 
@@ -136,10 +139,100 @@ def bandana(fig, m, hm, tree):
             for i in range(n_t + 1)]
     uvs = [[(j / n_a * 6, i / n_t * 4) for j in range(n_a + 1)] for i in range(n_t + 1)]
     mb.grid(rows, uvs)
+    # Riss über dem Mund: ausgefranstes Loch, dahinter gefletschte Zähne
+    zm = mouth_z(tree, ze)
+
+    def torn(a, z):
+        u = a / 0.5
+        if abs(u) >= 1:
+            return False
+        half = 0.021 * (1 - u * u) ** 0.6 + 0.007 * noise.noise(Vector((a * 14, z * 30, 2.0)))
+        mid = zm - 0.004 - 0.012 * u * u + 0.004 * math.sin(a * 23)
+        return abs(z - mid) < half
+    doomed = []
+    for f in mb.bm.faces:
+        c = f.calc_center_median() - axis
+        if torn(math.atan2(c.x, -c.y), c.z):
+            doomed.append(f)
+    bmesh.ops.delete(mb.bm, geom=doomed, context="FACES")
+    mouth(fig, m, tree, zm)
     ob = mb.finish("Scarf", m["scarf"], parent=fig.rig.head)
     ob.modifiers.new("Dicke", "SOLIDIFY").thickness = 0.004
     hem = geo.tube([p + Vector((0, 0, 0.001)) for p in rows[0]], [0.006] * (n_a + 1), seg=8)
     fig.rig.headpart("Scarf_Hem", hem, m["scarf"], smooth=True, sharp_angle=None)
+
+
+def mouth_z(tree, ze):
+    """Höhe der Mundspalte: Profil in der Gesichtsmitte abtasten (Nasenspitze → Oberlippe)."""
+    zs = [ze - 0.002 * i for i in range(130)]
+    ys = []
+    for z in zs:
+        hit = dk.surface(tree, 0.0, z)
+        ys.append(hit[0].y if hit else 9.0)
+    i = min(range(len(ys)), key=lambda k: ys[k])        # Nasenspitze
+    while i < len(ys) - 2 and ys[i + 1] >= ys[i]:        # zurück bis unter die Nase
+        i += 1
+    while i < len(ys) - 2 and ys[i + 1] <= ys[i]:        # vor bis zur Oberlippe
+        i += 1
+    return zs[i] - 0.014
+
+
+def mouth(fig, m, tree, zm):
+    """Hinter dem Riss: dunkler Mund und ein schiefes Gebiss (Unterkiefer vorgeschoben, zwei Hauer)."""
+    hb = fig.rig.head
+    bm = bmesh.new()
+    cols = []
+    for k in range(17):
+        x = (k / 16 * 2 - 1) * 0.062
+        col = []
+        for dz in (0.03, 0.01, -0.012, -0.034):
+            hit = dk.surface(tree, x, zm + dz, lift=0.002)
+            col.append(bm.verts.new(hit[0] if hit else Vector((x, -0.2, zm + dz))))
+        cols.append(col)
+    for k in range(16):
+        for r in range(3):
+            bm.faces.new((cols[k][r], cols[k + 1][r], cols[k + 1][r + 1], cols[k][r + 1]))
+    fig.rig.headpart("Void_Mouth", bm, dk.ch.void(), smooth=True, sharp_angle=None)
+    rnd = random.Random(5)
+    teeth = []
+    for k in range(9):
+        u = k / 8 * 2 - 1
+        x = u * 0.047 + rnd.uniform(-0.002, 0.002)
+        big = k in (2, 6)
+        h = (0.03 if big else rnd.uniform(0.013, 0.02))
+        w = 0.0062 if big else rnd.uniform(0.0045, 0.0058)
+        hit = dk.surface(tree, x, zm - 0.02, lift=0.0055)
+        if not hit:
+            continue
+        p, n = hit
+        tip = p + Vector((rnd.uniform(-0.003, 0.003), 0, h)) + n * 0.002
+        teeth.append(geo.tube([p - Vector((0, 0, 0.004)), p.lerp(tip, 0.55), tip], [w, w * 0.85, w * (0.35 if big else 0.55)],
+                              seg=8))
+    for k in range(7):  # obere Reihe, kürzer, halb vom Tuch verdeckt
+        u = k / 6 * 2 - 1
+        hit = dk.surface(tree, u * 0.04, zm + 0.014, lift=0.004)
+        if hit:
+            p = hit[0]
+            teeth.append(geo.tube([p + Vector((0, 0, 0.004)), p - Vector((0, 0, rnd.uniform(0.008, 0.013)))],
+                                  [0.0052, 0.004], seg=8))
+    fig.rig.headpart("Mouth_Teeth", geo.merge(*teeth), m["tooth"], smooth=True, sharp_angle=None)
+
+
+def scar(fig, m, tree, eye):
+    """Alte Narbe über dem linken Auge (vom Spieler aus): von der Stirn durch die Braue bis auf die Wange."""
+    parts = []
+    for pts in ([(-0.03, 0.085), (-0.027, 0.072), (-0.022, 0.06), (-0.017, 0.047), (-0.012, 0.035), (-0.006, 0.02)],
+                [(0.004, -0.022), (0.008, -0.034), (0.012, -0.045), (0.015, -0.058), (0.016, -0.07), (0.014, -0.09)]):
+        path = []
+        for dx, dz in pts:
+            hit = dk.surface(tree, eye.x + dx + 0.002 * math.sin(dz * 190), eye.z + dz, lift=-0.0009)
+            if hit:
+                path.append(hit[0])
+        if len(path) > 2:
+            n = len(path)
+            parts.append(geo.tube(path, [0.0012 + 0.0016 * math.sin(math.pi * (k + 0.5) / n) for k in range(n)], seg=8))
+    if parts:
+        fig.rig.headpart("Face_Scar", geo.merge(*parts), m["scar"], smooth=True, sharp_angle=None)
 
 
 def clothes(fig, m, skin_ob):
@@ -215,7 +308,9 @@ def build():
     fig.head_part("brows", "Face_Brows", m["brow"])
     hm = dk.head_metrics(face, bpy.data.objects["EyeL"].location.z)
     hat(fig, m, hm)
-    bandana(fig, m, hm, dk.bvh(face))
+    ftree = dk.bvh(face)
+    bandana(fig, m, hm, ftree)
+    scar(fig, m, ftree, bpy.data.objects["EyeL"].location)
     skin_ob = fig.torso(m["skin"], arm_stub=0.055)
     clothes(fig, m, skin_ob)
     bpy.data.objects.remove(skin_ob, do_unlink=True)
