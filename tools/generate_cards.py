@@ -56,9 +56,11 @@ GOLD_DIM = (168, 136, 82)
 CORAL = (255, 36, 52)  # knalliges Rot (Herz)
 ORANGE = (255, 128, 24)  # Karo: orange, damit man es von Herz unterscheidet
 SILVER = (176, 182, 196)  # Kreuz: grau, damit man es von Pik unterscheidet
+BLACK = (8, 8, 12)  # Pik: schwarz mit feiner Goldkante (sonst unsichtbar auf dem dunklen Grund)
+EDGE = (236, 200, 124, 255)
 STAR = (206, 196, 255)
 
-SUITS = {"h": ("♥", CORAL), "d": ("♦", ORANGE), "c": ("♣", SILVER), "s": ("♠", GOLD)}
+SUITS = {"h": ("♥", CORAL), "d": ("♦", ORANGE), "c": ("♣", SILVER), "s": ("♠", BLACK)}
 RANK_TEXT = {6: "6", 7: "7", 8: "8", 9: "9", 10: "10", 11: "J", 12: "D", 13: "K", 14: "A"}
 
 L, C, R = 0.31, 0.5, 0.69
@@ -93,12 +95,19 @@ def glow(img, radius, strength=0.8):
     return Image.fromarray(a.clip(0, 255).astype(np.uint8), "RGBA")
 
 
+def _dark(color):
+    return sum(color[:3]) < 80
+
+
 def glyph(text, size, color, fnt=FONT_SYM):
     f = font(fnt, size)
-    box = f.getbbox(text)
+    # schwarze Symbole (Pik) bekommen eine feine Goldkante, sonst verschwinden sie im dunklen Grund
+    sw = max(2, int(size * 0.045)) if _dark(color) else 0
+    box = f.getbbox(text, stroke_width=sw)
     w, h = box[2] - box[0], box[3] - box[1]
     tile = Image.new("RGBA", (w + 8, h + 8), (0, 0, 0, 0))
-    ImageDraw.Draw(tile).text((4 - box[0], 4 - box[1]), text, font=f, fill=color)
+    ImageDraw.Draw(tile).text((4 - box[0], 4 - box[1]), text, font=f, fill=color,
+                              stroke_width=sw, stroke_fill=EDGE if sw else None)
     return tile
 
 
@@ -159,7 +168,9 @@ def draw_index(art, rank, sym, color):
     d = ImageDraw.Draw(tile)
     tx = RANK_TEXT[rank]
     f = font(FONT_IDX, (0.1 if len(tx) > 1 else 0.125) * W)
-    d.text((tile.width / 2, 0.075 * W), tx, font=f, fill=rgba(color), anchor="mm")
+    sw = max(2, int(0.004 * W)) if _dark(color) else 0
+    d.text((tile.width / 2, 0.075 * W), tx, font=f, fill=rgba(color), anchor="mm",
+           stroke_width=sw, stroke_fill=EDGE if sw else None)
     put(tile, glyph(sym, 0.085 * W, rgba(color)), (tile.width / 2, 0.19 * W))
     pos = (0.115 * W, 0.185 * W)
     put(art, tile, pos)
@@ -651,6 +662,8 @@ def glass_version(art, suit="s"):
     # helle Linien (Gold, Koralle) voll dunkel, dunkle Flächen (z. B. Bildfelder) nur zart getönt
     lum = small[..., :3] @ np.array((0.299, 0.587, 0.114), np.float32)
     lines[..., 3] = small[..., 3] * np.clip(lum / 150.0, 0.18, 1.0)
+    # schwarze Pik-Symbole voll dunkel (nicht als „dunkle Fläche“ nur zart tönen)
+    lines[..., 3] = np.where(lum < 20, small[..., 3], lines[..., 3])
     glass.alpha_composite(Image.fromarray(lines.clip(0, 255).astype(np.uint8), "RGBA"))
     return glass
 

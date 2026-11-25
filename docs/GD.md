@@ -117,7 +117,7 @@ Ein Run = 3 normale Gegner + Boss, 3 Leben (Kerzen). Wer verliert, ist der Durak
 - Relikte stehen höchstens zu fünft in einer Reihe (Duell und Weg). Händler: „Dein Besitz“ klein unten,
   Relikte/Items nur als Symbol mit Tooltip; Item-Texte brechen fest in ihrer Spalte um.
 - Farben der Kartenfarben (`tools/generate_cards.py`): Herz knallrot (`CORAL`), Karo orange (`ORANGE`),
-  Kreuz grau (`SILVER`), Pik gold – so unterscheidet man Herz/Karo und Kreuz/Pik leichter. Gold-, Glas- und
+  Kreuz grau (`SILVER`), Pik schwarz mit feiner Goldkante (`BLACK`, sonst unsichtbar auf dem dunklen Grund) – so unterscheidet man Herz/Karo und Kreuz/Pik leichter. Gold-, Glas- und
   Glückskarten übernehmen das (eigene dunkle Töne auf Gold/Glas). HUD-Farben passend (`UIKit.SUIT_COLORS`).
 - **Regel: Auf Karten steht nie ein Schriftzug der Verbesserung** (kein GOLD/GLAS/GLÜCK) – auch nicht bei
   künftigen Kartenarten. Man erkennt sie am Bild.
