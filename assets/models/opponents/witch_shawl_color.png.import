@@ -2,14 +2,14 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dk380i4gtdisk"
+uid="uid://bqqte4frfol06"
 path.s3tc="res://.godot/imported/witch_shawl_color.png-c6ca69d8f2bfbb8a46a2a546826d40bd.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
 }
 generator_parameters={
-"md5": "472f7fd00986fddd702fcc670cfde649"
+"md5": "46c2cde211692592efdc16fd98d9369c"
 }
 
 [deps]

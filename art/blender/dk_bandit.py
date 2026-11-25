@@ -171,6 +171,7 @@ def clothes(fig, m, skin_ob):
             return False
         return not (c.z > nc.z - 0.03 and math.hypot(c.x, c.y - nc.y) < 0.21)
     dk.keep_faces(bm, keep)
+    dk.smooth_boundary(bm)
     geo.box_uv(bm, 0.3)
     coat = dk.to_object("Body_Coat", bm, m["coat"], tb)
     tree = dk.bvh(coat)

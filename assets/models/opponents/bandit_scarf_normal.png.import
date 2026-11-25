@@ -2,14 +2,14 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://ytbule7ue21a"
+uid="uid://c0di8186kmc8q"
 path.s3tc="res://.godot/imported/bandit_scarf_normal.png-dda42abc3b329c9596f543e5c2df52cc.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
 }
 generator_parameters={
-"md5": "db8200c18f9572d0eed464ea9b4c81db"
+"md5": "353cc59f460c45c6f8ebebe52c660b4f"
 }
 
 [deps]

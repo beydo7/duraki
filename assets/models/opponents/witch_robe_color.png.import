@@ -2,14 +2,14 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cgrhm8clrc5gg"
+uid="uid://bobcd5cq5pui6"
 path.s3tc="res://.godot/imported/witch_robe_color.png-642634493d3699f2a8143105cd6bdd5d.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
 }
 generator_parameters={
-"md5": "51079860ddc31c0d98c628bd8949adb5"
+"md5": "d5a48b1f145f61c59374ad4e4d97bb4c"
 }
 
 [deps]

@@ -1024,12 +1024,12 @@ def _hd(module):
 
 
 CHARACTERS = {
-    "bandit": _hd("hd_bandit"),
+    "bandit": _hd("dk_bandit"),
     "swamp_man": _hd("hd_swamp_man"),
     "crow": _hd("hd_crow"),
     "wolf": _hd("hd_wolf"),
-    "jester": _hd("hd_jester"),
+    "jester": _hd("dk_jester"),
     "bone_man": _hd("hd_bone_man"),
-    "witch": _hd("hd_witch"),
-    "giant": _hd("hd_giant"),
+    "witch": _hd("dk_witch"),
+    "giant": _hd("dk_giant"),
 }

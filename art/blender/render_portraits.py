@@ -25,10 +25,11 @@ EYE_COLORS = {"bandit": (0.95, 0.92, 0.8), "swamp_man": (1.0, 0.62, 0.15), "crow
 NO_GLOW = {"bandit", "wolf"}
 
 FRAMING = {
-           # HD-Figuren (größere Köpfe)
-           "witch": (1.4, 55, 0.05), "giant": (1.3, 55, 0.0), "crow": (1.35, 55, -0.03),
-           "bandit": (1.45, 55, 0.05), "swamp_man": (1.6, 55, 0.0), "wolf": (1.5, 55, 0.06),
-           "jester": (1.7, 55, 0.1), "bone_man": (1.75, 55, 0.14)}
+           # überarbeitete Figuren (dk_*.py): Head-Empty sitzt am Hals, das Gesicht darüber
+           "bandit": (1.5, 55, 0.17), "witch": (1.5, 55, 0.16), "giant": (1.6, 55, 0.15), "jester": (1.7, 55, 0.1),
+           # HD-Figuren alter Bauart
+           "crow": (1.35, 55, -0.03), "swamp_man": (1.6, 55, 0.0), "wolf": (1.5, 55, 0.06),
+           "bone_man": (1.75, 55, 0.14)}
 
 
 def render(name: str) -> None:

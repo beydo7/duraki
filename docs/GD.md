@@ -249,6 +249,8 @@ zwei Ebenen: Karten = Spielwelt, HUD = Plakat darüber.
 
 ### Gegner / 3D-Modelle
 Modelle aus Blender (Skripte in `art/blender/`), Vorlage ist das Konzeptblatt „Am Spieltisch“.
+**Seit 25.11. läuft die Charakter-Überarbeitung (`docs/CHARAKTER_OVERHAUL.md`):** Bandit, Hexe, Riese und
+Gaukler sind auf anatomischer MPFB-Basis neu gebaut (`dk.py`, `dk_<id>.py`); die übrigen vier folgen.
 HD-Versionen auf aktuellem Stand: **Bandit** (`hd_bandit.py`), **Sumpfmann** (`hd_swamp_man.py`),
 **Wölfin** (`hd_wolf.py`), **Gaukler** (`hd_jester.py`), **Knochenmann** (`hd_bone_man.py`, Kerze auf
 dem Hut mit flackerndem Licht über den Marker `FlameLight`), **Hexe** (`hd_witch.py`, Laterne mit

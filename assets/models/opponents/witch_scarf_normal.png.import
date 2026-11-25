@@ -2,14 +2,14 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://buebdnj66527b"
+uid="uid://dq6cdrwt7cfbk"
 path.s3tc="res://.godot/imported/witch_scarf_normal.png-34f8dde4f141d5d8232b462cb8e8e65f.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
 }
 generator_parameters={
-"md5": "c1cddc1bc8f00fe1c1dab27d07bc0d7b"
+"md5": "250bf7227566575995e36875bceb9f43"
 }
 
 [deps]

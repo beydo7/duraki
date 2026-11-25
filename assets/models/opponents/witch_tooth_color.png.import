@@ -2,14 +2,14 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://by1nbsyqsbv2l"
+uid="uid://d0gba6ls68b0n"
 path.s3tc="res://.godot/imported/witch_tooth_color.png-97049290183719915f6f35e10aa87cfc.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
 }
 generator_parameters={
-"md5": "1df082459595f55092fbcc34a4da1064"
+"md5": "7ddbd4433ff2aeaf06683898c7b95517"
 }
 
 [deps]

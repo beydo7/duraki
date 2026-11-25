@@ -61,20 +61,26 @@ Nicht-menschliche Figuren (Krähe, Wölfin, Sumpfmann) bekommen Hände/Körperba
 MPFB-Basis; Köpfe werden eigens modelliert (Schädel-Grundform, dann Details), Knochenmann aus
 einem anatomischen Schädel.
 
-## 5. Stand (25.11.2026, abends)
+## 5. Stand (25.11.2026, spät)
 
-- [x] Analyse, Sicherung, Werkzeuge
-- [x] Pipeline `dk.py`: Mensch → gestellte Spielteile, Schalen-Fell, Strick, Hauttextur
-- [x] Pilotfigur **Bandit** (`dk_bandit.py`) gebaut und in Godot getestet (Cloud-Kopie):
-      echtes Gesicht mit Augen/Brauen, Uschanka und Lammfellkragen aus Schalen-Fell, Halstuch als
-      gespanntes Tuch, Strickpullover, Mantel auf echten Schultern, anatomische Hände am Fächer.
-      Export liegt in `charakter_overhaul\export\bandit.glb`, Szene in `charakter_overhaul\blend\`,
-      Vergleichs-Renderings in `charakter_overhaul\renders\ist` und `\neu`.
-      **Noch nicht ins Projekt übernommen** – wartet auf Pascals Abnahme des Stils.
-- Offen am Piloten: Unterkante des Halstuchs säubern, Augen leicht schielend (Blick ausrichten),
-  Haut-Details (Stoppeln, Schmutz, ggf. Narbe), Fellkante an der Silhouette, Ärmelansatz.
-- [ ] Danach: Hexe, Riese, Gaukler (Mensch-Basis), Knochenmann, Wölfin, Krähe, Sumpfmann;
-      je Figur Porträt neu, `docs/GD.md` und `docs/CHARAKTERE.md` anpassen.
+Fertig, in Godot getestet und **ins Projekt übernommen** (Modelle, .blend, Texturen, Porträts):
+
+| Figur | Skript | Neu |
+|---|---|---|
+| Bandit | `dk_bandit.py` | Gesicht/Hände/Oberkörper aus MPFB, Schalen-Fell (Mütze, Kragen, Stulpen), Strick, Mantel |
+| Hexe | `dk_witch.py` | altes Gesicht mit Hakennase und spitzem Kinn, Kopftuch auf dem Schädel geformt, Tuch und Kleid auf echten Schultern, Zahnkette, Laterne |
+| Riese | `dk_giant.py` | massiger Körper mit echter Anatomie, graue Haut, genähte Narben, Eisenring am Hals, nackte Arme mit Schellen |
+| Gaukler | `dk_jester.py` | Maske/Kappe/Krause aus `hd_jester.py` bleiben, neu: Oberkörper im Rautenwams, Bauschärmel mit Rüschen, echte Hände |
+
+Arme (alle vier): `dk.sleeve` – Ober-/Unterarm mit runden Gelenkenden, unregelmäßige Stauchfalten,
+Stulpe/Futter/Schelle/Rüsche am Handgelenk; das Handgelenk sitzt genau am Ärmelende.
+
+Noch alter Stand: **Knochenmann, Wölfin, Krähe, Sumpfmann** (`hd_*.py`). Für sie müssen die Köpfe
+eigens modelliert und die Kleidung (Umhang, Federkragen, Moos) auf den neuen Körper umgebaut werden.
+
+Offen / Ideen: Narbe und Riss im Tuch beim Banditen (Pascal fragen), Haare der Hexe weicher,
+Rauten am Gaukler-Wams entzerren, `build_models.py` läuft mit den `dk_*`-Figuren nur in einem
+Blender mit Fenster (MPFB braucht den 3D-View-Kontext).
 
 ## 6. Bedienung
 

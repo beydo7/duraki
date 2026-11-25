@@ -2,14 +2,14 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://btrdt4k68gwwg"
+uid="uid://mrrkgjcd5uax"
 path.s3tc="res://.godot/imported/bandit_coat_normal.png-d65af0499f43c9da3d657aa60b82f73c.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
 }
 generator_parameters={
-"md5": "cba21badbb337c1e2d3fe4b67591c666"
+"md5": "03daaf421f4a48ae9001eafacb9f52d3"
 }
 
 [deps]

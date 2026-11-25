@@ -179,6 +179,19 @@ def keep_faces(bm, keep) -> None:
     bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context="VERTS")
 
 
+def smooth_boundary(bm, repeat: int = 8) -> None:
+    """Ausgeschnittene Kanten (Mantelöffnung, Halsausschnitt) glätten statt Treppenstufen."""
+    for _ in range(repeat):
+        new = {}
+        for v in bm.verts:
+            if v.is_boundary:
+                nb = [e.other_vert(v).co for e in v.link_edges if e.is_boundary]
+                if len(nb) == 2:
+                    new[v] = v.co * 0.5 + (nb[0] + nb[1]) * 0.25
+        for v, c in new.items():
+            v.co = c
+
+
 def close_holes(bm) -> None:
     edges = [e for e in bm.edges if e.is_boundary]
     if edges:
@@ -214,10 +227,16 @@ def to_object(name, bm, mat, parent=None, location=(0, 0, 0)):
 class Figure:
     """Zerlegt einen gestellten MPFB-Menschen in die Spielteile."""
 
-    def __init__(self, body, rig, parts, head_scale=1.12, neck_cut=1.47, torso_top=1.515, waist=1.03):
+    def __init__(self, body, rig, parts, head_scale=1.12, waist=0.35):
+        """waist: wie weit unter den Schultergelenken die Büste endet (Meter am Menschen)."""
+        global ANCHOR
         self.body, self.mrig, self.parts = body, rig, parts
         self.head_scale = head_scale
         pb = rig.pose.bones
+        sh = (pb["upperarm01.L"].head + pb["upperarm01.R"].head) * 0.5
+        ANCHOR = Vector((0.0, sh.y, sh.z))  # jeder Mensch ist anders groß → Bezugspunkt je Figur
+        nz = pb["neck01"].head.z
+        neck_cut, torso_top, waist = nz - 0.017, nz + 0.028, sh.z - waist
         self.pivot_src = (pb["neck02"].head + pb["neck02"].tail) * 0.5
         self.rig = ch.Rig(1.25)
         self.rig.head.location = to_torso(self.pivot_src)
@@ -243,10 +262,11 @@ class Figure:
         transform(bm, lambda p: self.to_head(ob.matrix_world @ p))
         return to_object(name, bm, mat, self.rig.head)
 
-    def eye_markers(self):
+    def eye_markers(self, t=0.5):
+        """t = 0.5: Augenmitte; t ≈ 1: vorn auf der Hornhaut (dort sitzt dann die Glut-Pupille)."""
         pb = self.mrig.pose.bones
         for name, bone in (("EyeL", "eye.R"), ("EyeR", "eye.L")):  # Spiel: L = vom Spieler aus links
-            p = pb[bone].head.lerp(pb[bone].tail, 0.5)
+            p = pb[bone].head.lerp(pb[bone].tail, t)
             self.rig.marker(name, self.rig.head, self.to_head(p))
 
     def torso(self, mat, subdiv=1, arm_stub=0.1):
@@ -531,7 +551,7 @@ ARM = 0.34  # Länge von Ober- und Unterarm im Spiel (opponent_figure.gd: ARM_SE
 
 
 def sleeve(name, mat, radii, cap0=True, cap1=True, fold0=0.0, fold1=0.0, cuff=None, seed=0, tile=0.3,
-           n_r=44, n_z=44):
+           n_r=44, n_z=44, lining=False, band=None, uv_u=2.4, ruffle=None):
     """Ärmelstück für die Zwei-Segment-Arme: Länge 1 entlang Z (−0.5 körpernah … +0.5), das Spiel
     streckt es auf ARM Meter. `radii` = [(t, Radius in m), …]. Kugelkappen an den Enden lassen
     Schulter und Ellbogen wie ein durchgehender, gebeugter Ärmel aussehen. fold0/fold1: Stauchfalten
@@ -549,12 +569,16 @@ def sleeve(name, mat, radii, cap0=True, cap1=True, fold0=0.0, fold1=0.0, cuff=No
     ring = [k / n_r * math.tau for k in range(n_r)]
     rows, uvs = [], []
 
-    def add(z, r, fold=0.0):
+    def add(z, r, fold=0.0, creases=()):
         row, uvr = [], []
         for a in ring:
             rr = r + fold * (0.65 + 0.35 * noise.noise(Vector((math.cos(a) * 1.3, math.sin(a) * 1.3, z * 3 + seed))))
+            for amp, d, sh in creases:  # Stauchfalten: unregelmäßig, laufen schräg aus
+                ph = 3.0 * noise.noise(Vector((math.cos(a) * 0.9, math.sin(a) * 0.9, sh)))
+                env = 0.5 + 0.5 * noise.noise(Vector((math.cos(a) * 1.7 + sh, math.sin(a) * 1.7, d * 6)))
+                rr += amp * 0.012 * math.exp(-d / 0.06) * env * math.sin(d / 0.05 * math.tau + ph)
             row.append(Vector((rr * math.cos(a), rr * math.sin(a), z)))
-            uvr.append((a / math.tau * 2.4, z * ARM / tile))
+            uvr.append((a / math.tau * uv_u, z * ARM / tile))
         rows.append(row)
         uvs.append(uvr)
 
@@ -566,10 +590,8 @@ def sleeve(name, mat, radii, cap0=True, cap1=True, fold0=0.0, fold1=0.0, cuff=No
     for i in range(n_z + 1):
         t = i / n_z
         d0, d1 = t * ARM, (1 - t) * ARM
-        fold = fold0 * 0.011 * math.exp(-d0 / 0.075) * math.sin(d0 / 0.03 * math.tau + seed) \
-            + fold1 * 0.011 * math.exp(-d1 / 0.075) * math.sin(d1 / 0.03 * math.tau + seed * 1.7)
-        fold += 0.004 * math.sin(t * 9 + seed)  # leichte Längswellen
-        add(-0.5 + t, r_at(t), fold)
+        add(-0.5 + t, r_at(t), 0.004 * math.sin(t * 9 + seed),
+            ((fold0, d0, seed + 0.3), (fold1, d1, seed + 5.1)))
     if cap1:
         for k in range(1, 8):
             phi = k / 8 * math.pi / 2
@@ -577,8 +599,51 @@ def sleeve(name, mat, radii, cap0=True, cap1=True, fold0=0.0, fold1=0.0, cuff=No
     mb = hd.MeshBuilder()
     vs = mb.grid(rows, uvs, close=True)
     mb.bm.faces.new(list(reversed(vs[0])))
-    mb.bm.faces.new(vs[-1])
+    if cap1 or not (cuff or lining):
+        mb.bm.faces.new(vs[-1])
     mats = [mat]
+
+    def extra(rws, uv_rows, material):
+        first = len(mb.bm.faces)
+        mb.grid(rws, uv_rows, close=True)
+        mb.bm.faces.ensure_lookup_table()
+        for fi in range(first, len(mb.bm.faces)):
+            mb.bm.faces[fi].material_index = len(mats)
+        mats.append(material)
+
+    if lining and not cuff:  # offenes Ärmelende: dunkles Futter nach innen
+        lr = [(1.0, r1), (0.985, r1 * 0.86), (0.9, r1 * 0.6)]
+        extra([[Vector((r * math.cos(a), r * math.sin(a), -0.5 + t)) for a in ring] for t, r in lr],
+              [[(a / math.tau, t) for a in ring] for t, r in lr],
+              hd.material(mat.name + "_Futter", color=(0.03, 0.02, 0.02, 1), rough=0.95, spec=0.1))
+    if band:  # Eisenschelle o. Ä.: (t0, t1, Dicke, Material)
+        b0, b1, bt, bmat = band
+        br = [(b0, r_at(b0) - 0.002), (b0, r_at(b0) + bt), (b0 + 0.012, r_at(b0) + bt + 0.004),
+              (b1 - 0.012, r_at(b1) + bt + 0.004), (b1, r_at(b1) + bt), (b1, r_at(b1) - 0.002)]
+        extra([[Vector((r * math.cos(a), r * math.sin(a), -0.5 + t)) for a in ring] for t, r in br],
+              [[(a / math.tau * 3, t * 2) for a in ring] for t, r in br], bmat)
+    if ruffle:  # gefältelte Rüsche am Handgelenk: (Material, Falten, Breite)
+        rmat, n_pl, wide = ruffle
+        fine = [k / (n_pl * 8) * math.tau for k in range(n_pl * 8)]
+        for layer, (ta, flare) in enumerate(((0.9, wide), (0.95, wide * 0.8))):
+            rr, ru = [], []
+            for i in range(7):
+                u = i / 6
+                row, uvr = [], []
+                for a in fine:
+                    ph = n_pl * a + layer * math.pi / 2
+                    f = math.copysign(abs(math.sin(ph)) ** 0.6, math.sin(ph))
+                    r = r_at(1.0) * 0.92 + flare * u + 0.004 * math.cos(ph) * u
+                    row.append(Vector((r * math.cos(a), r * math.sin(a), -0.5 + ta + (0.1 * u + 0.022 * f * u))))
+                    uvr.append((a / math.tau * n_pl, u))
+                rr.append(row)
+                ru.append(uvr)
+            first = len(mb.bm.faces)
+            mb.grid(rr, ru, close=True)
+            mb.bm.faces.ensure_lookup_table()
+            for fi in range(first, len(mb.bm.faces)):
+                mb.bm.faces[fi].material_index = len(mats)
+        mats.append(rmat)
     if cuff:
         t0, thick, imgs, mat_name, fur = cuff
         n = len(imgs)
@@ -614,3 +679,108 @@ def sleeve(name, mat, radii, cap0=True, cap1=True, fold0=0.0, fold1=0.0, cuff=No
     for extra in mats[1:]:
         ob.data.materials.append(extra)
     return ob
+
+
+# --- Kopfbedeckung, Haare, Glut-Augen -------------------------------------------------------
+
+def cover_point(hm, a, t, margin=0.014, front=0.085, back=-0.09, tree=None):
+    """Punkt einer Haube über dem Schädel: a = Winkel (0 vorn), t = 0 Rand … 1 Scheitel.
+    Der Rand liegt vorn `front` über der Augenhöhe und fällt nach hinten auf `back`."""
+    c = Vector((0, hm["yc"], hm["eye"]))
+    R = Vector((hm["x"] + margin, (hm["yb"] - hm["yf"]) * 0.5 + margin, hm["top"] - hm["eye"] + margin))
+    rim = back + (front - back) * (0.5 + 0.5 * math.cos(a)) ** 1.5
+    el0 = math.asin(max(-0.95, min(0.95, rim / R.z)))
+    el = el0 + (math.pi / 2 - el0) * t
+    d = Vector((R.x * math.cos(el) * math.sin(a), -R.y * math.cos(el) * math.cos(a), R.z * math.sin(el)))
+    if tree is not None:
+        dn = d.normalized()
+        hit = tree.ray_cast(c + dn * 0.8, -dn)
+        if hit[0] is not None:
+            d = dn * max(d.length, 0.8 - hit[3] + margin)
+    return c + d, d.normalized()
+
+
+def head_cover(name, mat, parent, hm, tree=None, n_a=80, n_t=22, thickness=0.005, wrinkle=0.005, **kw):
+    from mathutils import noise
+    mb = hd.MeshBuilder()
+    rows, uvs = [], []
+    for i in range(n_t + 1):
+        row, uvr = [], []
+        for j in range(n_a):
+            a = j / n_a * math.tau
+            p, n = cover_point(hm, a, i / n_t, tree=tree, **kw)
+            p += n * wrinkle * (noise.noise(p * 16) + 0.6 * abs(noise.noise(p * 7)))
+            row.append(p)
+            uvr.append((j / n_a * 4, i / n_t * 2))
+        rows.append(row)
+        uvs.append(uvr)
+    mb.grid(rows, uvs, close=True)
+    ob = mb.finish(name, mat, parent=parent)
+    ob.modifiers.new("Dicke", "SOLIDIFY").thickness = thickness
+    return ob, rows[0]
+
+
+def hanging_hair(name, mat, parent, starts, rnd, length=(0.2, 0.34), width=(0.018, 0.03)):
+    """Strähnen (Alpha-Karten), die von den Startpunkten (Punkt, Normale) herabhängen."""
+    mb = hd.MeshBuilder()
+    spans = []
+    for p, n in starts:
+        d = Vector((n.x * 0.25, n.y * 0.25, -1.0)) + Vector((rnd.uniform(-0.12, 0.12), rnd.uniform(-0.12, 0.12), 0))
+        first = len(mb.bm.faces)
+        hd.add_feather(mb, p, n, d, rnd.uniform(*length), rnd.uniform(*width), lift=rnd.uniform(0.08, 0.22),
+                       curl=rnd.uniform(-0.15, 0.05), cup=0.1, twist=rnd.uniform(-0.6, 0.6), along=7, across=2,
+                       shape=0.4, sink=0.002)
+        spans.append((first, len(mb.bm.faces), n.copy()))
+    mb.bm.faces.ensure_lookup_table()
+    flip = []
+    for a0, b0, n in spans:
+        if b0 > a0:
+            mb.bm.faces[a0].normal_update()
+            if mb.bm.faces[a0].normal.dot(n) < 0:
+                flip.extend(mb.bm.faces[i] for i in range(a0, b0))
+    bmesh.ops.reverse_faces(mb.bm, faces=flip)
+    return mb.finish(name, mat, parent=parent)
+
+
+def glow_eyes(fig, name, color, strength=0.55):
+    """Echte Augäpfel, aber glühend (für Figuren mit eye_glow = true)."""
+    mat = hd.material(name, color=(*color, 1), rough=0.3, emission=(*color, 1), emission_strength=strength)
+    return fig.head_part("eyes", "Glow_Eyes", mat)
+
+
+def surface(tree, x, z, lift=0.0, y0=-1.5):
+    """Punkt und Normale auf einer Oberfläche, von vorn (−Y) getroffen."""
+    hit = tree.ray_cast(Vector((x, y0, z)), Vector((0, 1, 0)))
+    if hit[0] is None:
+        return None
+    return hit[0] + hit[1] * lift, hit[1]
+
+
+def skin_tile(name, color_img, seed=63, contrast=0.16, bump=2.5):
+    """Kachelnde Haut für nackte Arme: Farbe = Median der Körpertextur, nur leichte Wolken und Poren."""
+    a = image_array(color_img)[..., :3] ** 2.2
+    med = np.median(a.reshape(-1, 3)[::37], axis=0)
+    size = 512
+    big, fine = hd.fractal(size, 2.4, seed), hd.fractal(size, 0.9, seed + 1)
+    col = med[None, None, :] * (1 - contrast + 2 * contrast * big)[..., None]
+    return (hd.to_image(name + "_color", np.clip(col, 0, 1) ** (1 / 2.2)),
+            hd.to_image(name + "_normal", hd.height_to_normal(big * 0.3 + fine * 0.25, bump), non_color=True))
+
+
+def tint_image(name, img, color):
+    """Bild einfärben (Alpha bleibt): z. B. graue statt schwarzer Brauen."""
+    a = image_array(img)
+    lum = a[..., :3].mean(axis=2, keepdims=True)
+    rgb = np.clip((0.35 + lum) * np.array(color, dtype=np.float32)[None, None, :], 0, 1)
+    return hd.to_image(name, rgb, alpha=a[..., 3])
+
+
+def cyl_uv(bm, u_rep: float, v_scale: float) -> None:
+    """Zylinder-Abwicklung um die Hochachse (Naht hinten) – für gemusterte Stoffe am Rumpf."""
+    uv = bm.loops.layers.uv.verify()
+    for f in bm.faces:
+        us = [math.atan2(l.vert.co.x, -l.vert.co.y) / math.tau * u_rep for l in f.loops]
+        if max(us) - min(us) > u_rep * 0.5:
+            us = [u + u_rep if u < 0 else u for u in us]
+        for l, u in zip(f.loops, us):
+            l[uv].uv = (u, l.vert.co.z * v_scale)
