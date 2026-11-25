@@ -53,10 +53,12 @@ ROBE_DARK = (26, 22, 52)
 SKIN = (58, 52, 96)
 GOLD = (236, 200, 124)
 GOLD_DIM = (168, 136, 82)
-CORAL = (255, 36, 52)  # knalliges Rot (Herz/Karo)
+CORAL = (255, 36, 52)  # knalliges Rot (Herz)
+ORANGE = (255, 128, 24)  # Karo: orange, damit man es von Herz unterscheidet
+SILVER = (176, 182, 196)  # Kreuz: grau, damit man es von Pik unterscheidet
 STAR = (206, 196, 255)
 
-SUITS = {"h": ("♥", CORAL), "d": ("♦", CORAL), "c": ("♣", GOLD), "s": ("♠", GOLD)}
+SUITS = {"h": ("♥", CORAL), "d": ("♦", ORANGE), "c": ("♣", SILVER), "s": ("♠", GOLD)}
 RANK_TEXT = {6: "6", 7: "7", 8: "8", 9: "9", 10: "10", 11: "J", 12: "D", 13: "K", 14: "A"}
 
 L, C, R = 0.31, 0.5, 0.69
@@ -643,7 +645,7 @@ def glass_version(art, suit="s"):
     a[..., 3] = np.where(rim | inner, 255, a[..., 3])
     glass = Image.fromarray(a.clip(0, 255).astype(np.uint8), "RGBA")
     small = np.array(art.resize((w, h), Image.LANCZOS)).astype(np.float32)
-    ink = np.array((150, 52, 62) if suit in ("h", "d") else (26, 44, 70), np.float32)
+    ink = np.array({"h": (150, 52, 62), "d": (168, 84, 20), "c": (64, 68, 80)}.get(suit, (26, 44, 70)), np.float32)
     lines = np.zeros_like(small)
     lines[..., :3] = ink
     # helle Linien (Gold, Koralle) voll dunkel, dunkle Flächen (z. B. Bildfelder) nur zart getönt
@@ -658,7 +660,9 @@ def glass_version(art, suit="s"):
 GOLD_LEAF_TOP = (222, 178, 92)
 GOLD_LEAF_BOT = (146, 102, 40)
 ENGRAVE = (22, 20, 44)
-DEEP_RED = (156, 26, 34)  # Herz/Karo auf Gold kräftiger, sonst zu blass
+DEEP_RED = (156, 26, 34)  # Herz auf Gold kräftiger, sonst zu blass
+DEEP_ORANGE = (184, 78, 8)  # Karo auf Gold
+DEEP_SILVER = (70, 74, 88)  # Kreuz auf Gold
 CLOVER = (92, 214, 120)
 
 
@@ -683,11 +687,14 @@ def gold_version(art, seed):
     bg = Image.fromarray(a.clip(0, 255).astype(np.uint8), "RGBA")
     ar = np.asarray(art).astype(np.float32)
     rr, gg, bb = ar[..., 0], ar[..., 1], ar[..., 2]
-    goldish = (rr > 120) & (gg > 90) & (bb < 170) & (gg > bb + 25)
-    coral = (rr > 180) & (gg < 150) & (bb < 150)
-    for i in range(3):
-        ar[..., i] = np.where(goldish, ENGRAVE[i], ar[..., i])
-        ar[..., i] = np.where(coral, DEEP_RED[i], ar[..., i])
+    red = (rr > 200) & (gg < 80) & (bb < 110)
+    orange = (rr > 200) & (gg >= 80) & (gg < 160) & (bb < 90)
+    silver = (np.abs(rr - gg) < 22) & (bb > rr) & (bb - rr < 40) & (rr > 120)
+    goldish = (rr > 120) & (gg > 90) & (bb < 170) & (gg > bb + 25) & ~orange
+    for mask, col in ((goldish, ENGRAVE), (red, DEEP_RED), (orange, DEEP_ORANGE), (silver, DEEP_SILVER)):
+        sel = mask.copy()
+        for i in range(3):
+            ar[..., i] = np.where(sel, col[i], ar[..., i])
     bg.alpha_composite(Image.fromarray(ar.clip(0, 255).astype(np.uint8), "RGBA"))
     return bg
 

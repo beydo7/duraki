@@ -706,7 +706,7 @@ func set_run_info(lives: int, gold: int, deck: int, trump_suit: int) -> void:
 		_deck = deck
 	_trump_symbol.text = Card.SUIT_SYMBOLS[trump_suit]
 	# Farben wie auf den Karten: Herz/Karo korallenrot, Kreuz/Pik gold
-	_trump_symbol.add_theme_color_override("font_color", Color("e8685e") if trump_suit <= Card.Suit.DIAMONDS else Card3D.COLOR_TRUMP)
+	_trump_symbol.add_theme_color_override("font_color", [Color("ff3d4a"), Color("ff8a1c"), Color("b8bcc8"), Card3D.COLOR_TRUMP][trump_suit])
 	_trump_caption.text = "TRUMPF · %s" % String(Card.SUIT_NAMES[trump_suit]).to_upper()
 
 
@@ -842,8 +842,7 @@ func add_known(card: Card) -> void:
 	mini.tooltip_text = "%s – diese Karte hat er auf der Hand (Spiegel)." % card
 	mini.mouse_filter = Control.MOUSE_FILTER_PASS
 	# Rang und Farbe groß drauf, damit man sie in der kleinen Größe lesen kann
-	var red := card.suit <= Card.Suit.DIAMONDS
-	var l := UIKit.poster_label(card.get_label(), UIKit.SYMBOL_FONT, 15, Color("ff7a70") if red else Color("f3d58f"))
+	var l := UIKit.poster_label(card.get_label(), UIKit.SYMBOL_FONT, 15, [Color("ff6a70"), Color("ff9a3c"), Color("c8ccd8"), Color("f3d58f")][card.suit])
 	l.add_theme_color_override("font_outline_color", Color(0.04, 0.03, 0.08))
 	l.add_theme_constant_override("outline_size", 5)
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER

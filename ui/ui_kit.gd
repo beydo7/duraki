@@ -24,7 +24,7 @@ const GOLD := Color(0.95, 0.74, 0.3)
 const RED := Color(0.96, 0.34, 0.3)
 const CHIPS := Color(0.67, 0.57, 1.0) # Lila wie das Nachtlicht (nicht Balatro-Blau)
 const MULT := Color(0.91, 0.71, 0.27) # Gold (nicht Balatro-Rot)
-const SUIT_COLORS := [Color(1, 0.24, 0.3), Color(1, 0.3, 0.28), Color(0.75, 0.9, 1.0), Color(0.82, 0.78, 1.0)]
+const SUIT_COLORS := [Color(1, 0.24, 0.3), Color(1, 0.55, 0.15), Color(0.72, 0.74, 0.8), Color(0.82, 0.78, 1.0)] # Herz rot, Karo orange, Kreuz grau
 
 const DISPLAY_FONT := preload("res://assets/fonts/RussoOne-Regular.ttf")
 const BODY_FONT := preload("res://assets/fonts/Oswald-Variable.ttf")
