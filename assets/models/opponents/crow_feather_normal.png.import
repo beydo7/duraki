@@ -2,14 +2,14 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cg8d5f4cniw5s"
+uid="uid://ixdnuvojhbqr"
 path.s3tc="res://.godot/imported/crow_feather_normal.png-6a95f0e44e948e6c970fd841ae082d4f.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
 }
 generator_parameters={
-"md5": "9e8946d293673643f7ca6f15bbdc0b78"
+"md5": "80da228e57d1319ee7657e0350a8872a"
 }
 
 [deps]

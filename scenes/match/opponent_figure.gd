@@ -286,7 +286,7 @@ func _process(delta: float) -> void:
 	var dim := 0.3 if _slump > 0.0 else 1.0
 	_eye_mat.emission_energy_multiplier = glow * 1.7 * dim
 	for l in _eye_lights:
-		l.light_energy = (0.02 + glow * 0.02) * dim
+		l.light_energy = (0.004 + glow * 0.004) * dim # nur ein Hauch Glut im Gesicht (HD-Gesichter sind nah)
 	if _under_light != null:
 		_under_light.light_energy = (0.12 + sin(_t * 1.1) * 0.03 + _laugh * 0.25) * dim
 
@@ -413,8 +413,9 @@ func _build() -> void:
 		if marker != null:
 			var lamp := OmniLight3D.new()
 			lamp.light_color = eye_color.lightened(0.2)
-			lamp.light_energy = 1.2
-			lamp.omni_range = 0.9
+			lamp.light_energy = 0.7
+			lamp.omni_range = 0.75
+			lamp.omni_attenuation = 1.6
 			lamp.position = marker.position
 			props.add_child(lamp)
 	model.free()

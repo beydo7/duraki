@@ -1,4 +1,4 @@
-# Gegner in HD bauen – Rezept (Stand: Bandit, Nov. 2026)
+# Gegner in HD bauen – Rezept (Stand: alle acht Gegner, Nov. 2026)
 
 Vorlage für alle Gegner ist das Konzeptblatt **„Am Spieltisch“** (4 × 2 Felder: Bandit, Sumpfmann,
 Krähe, Wölfin / Gaukler, Knochenmann, Hexe, Riese). Jeder Gegner soll so detailliert werden wie
@@ -88,3 +88,9 @@ Preview_*                      nur Blender-Vorschau, wird nicht exportiert
 - Fingernägel/Krallen nicht zu hell und nicht glänzend.
 - Lange Blender-Aufrufe brechen ab → Bauen, Vorschau und Rendern in getrennten Aufrufen.
 - `preview_setup()` löscht Preview_* → `preview_cards`/`preview_arms` danach aufrufen.
+- Federn: einzelne Alpha-Federkarten (`tex_feather_card` in `hd_crow.py`) in Lagen von unten nach
+  oben, unter allen Karten eine geschlossene Unterlage mit gekacheltem Gefieder – sonst sieht man
+  durch die Lücken. Federn in Godot heller anlegen als in Cycles (Alpha-Material = wenig Glanz).
+- Schnabel/Horn nicht unter Rauheit 0.6, sonst wirkt er in Godot wie Chrom.
+- Offene Kanten (Kragen, Federunterlage) in den Hals bzw. Körper hineinführen, sonst sieht man
+  in Godot einen Ring.

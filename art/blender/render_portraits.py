@@ -17,15 +17,16 @@ OUT = os.path.join(REPO, "assets", "portraits")
 
 # Kamera-Abstand/Brennweite je Charakter (Hüte und Hörner brauchen mehr Platz)
 # Augenfarben wie in data/opponents/*.tres
-EYE_COLORS = {"bandit": (0.95, 0.92, 0.8), "swamp_man": (1.0, 0.62, 0.15), "crow": (1.0, 0.62, 0.15),
+EYE_COLORS = {"bandit": (0.95, 0.92, 0.8), "swamp_man": (1.0, 0.62, 0.15), "crow": (0.95, 0.92, 0.82),
               "wolf": (1.0, 0.7, 0.15), "jester": (1.0, 0.78, 0.3), "bone_man": (1.0, 0.55, 0.15),
-              "witch": (0.7, 0.35, 1.0), "giant": (1.0, 0.35, 0.1)}
+              "witch": (1.0, 0.78, 0.3), "giant": (1.0, 0.75, 0.25)}
 
 # Figuren mit echten Augäpfeln (eye_glow = false in data/opponents/*.tres): keine Glutkugeln
 NO_GLOW = {"bandit", "wolf"}
 
-FRAMING = {"witch": (1.0, 50, 0.04), "giant": (0.95, 60, 0.0),
+FRAMING = {
            # HD-Figuren (größere Köpfe)
+           "witch": (1.4, 55, 0.05), "giant": (1.3, 55, 0.0), "crow": (1.35, 55, -0.03),
            "bandit": (1.45, 55, 0.05), "swamp_man": (1.6, 55, 0.0), "wolf": (1.5, 55, 0.06),
            "jester": (1.7, 55, 0.1), "bone_man": (1.75, 55, 0.14)}
 

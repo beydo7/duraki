@@ -2,14 +2,14 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://xyqe6s6h6nxu"
+uid="uid://cvb1clrl3im8q"
 path.s3tc="res://.godot/imported/crow_beak_color.png-5a80b562728c61cf304d67cc59d7978f.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
 }
 generator_parameters={
-"md5": "a76d99af237e445d9ad9324cc4e6aeb8"
+"md5": "ece53885157030b5c6ce54d88c007166"
 }
 
 [deps]
