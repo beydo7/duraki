@@ -258,11 +258,16 @@ def roulette_sound():
 
 
 def roulette_land():
-    """Kugel hüpft über ein paar Stege und bleibt im Fach liegen (weiche Klicks)."""
-    buf = np.zeros(int(1.0 * sx.SR))
-    for at, v in ((0.0, 0.8), (0.16, 0.6), (0.3, 0.45), (0.41, 0.32), (0.5, 0.22)):
-        sx.place(buf, sx.lowpass(sx.clack(1300, 0.04), 2600), at, v)
-    sx.place(buf, sx.lowpass(sx.clack(900, 0.06), 2000), 0.62, 0.5)  # liegt im Fach
+    """Kugel hüpft knapp 2 s über die Stege und bleibt im Fach liegen (weiche Klicks).
+    Zeiten passen zu MiniRoulette: BOUNCE_TIME 1.9 s, 6 Sprünge, Aufprall bei t = T·√(k/6)."""
+    T, hops = 1.9, 6
+    buf = np.zeros(int(2.4 * sx.SR))
+    sx.place(buf, sx.lowpass(sx.clack(1400, 0.04), 2800), 0.0, 0.85)  # trifft auf die Stege
+    for k in range(1, hops):
+        at = T * (k / hops) ** 0.5
+        g = 0.75 * (1 - k / (hops + 1)) + 0.12
+        sx.place(buf, sx.lowpass(sx.clack(1300 - k * 40, 0.04), 2600), at, g)
+    sx.place(buf, sx.lowpass(sx.clack(900, 0.06), 2000), T, 0.4)  # liegt im Fach
     return sx.reverb(buf, 0.2, 0.1)
 
 

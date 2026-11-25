@@ -3,7 +3,7 @@ extends Node3D
 ## Teegläser in Metallhaltern (Podstakanniki) – im Bahnhofswartesaal die Leben.
 ## Pro Leben ein dampfendes Glas Tee mit Löffel. Verlierst du ein Leben, wird ein Glas
 ## leer getrunken (Tee sinkt, Dampf hört auf). Fährt draußen ein Zug vorbei, klappern
-## die Gläser (`rattle`).
+## die Gläser leise sichtbar (`rattle`, ohne Geräusch).
 
 const SND_CLINK := preload("res://assets/rooms/station/glass_clink.wav")
 const GLASS_R := 0.017
@@ -83,10 +83,7 @@ func lose_life() -> void:
 
 ## Zug fährt vorbei: Gläser klappern `seconds` lang.
 func rattle(seconds: float) -> void:
-	_rattle = maxf(_rattle, seconds)
-	if _clink_cooldown <= 0.0:
-		_clink(-16.0)
-		_clink_cooldown = 1.3
+	_rattle = maxf(_rattle, seconds) # nur sichtbar zittern, ohne Klirren
 
 
 func _clink(db: float) -> void:

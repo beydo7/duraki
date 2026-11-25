@@ -171,7 +171,7 @@ func build(opponent: OpponentData) -> void:
 	props.chip_style = room_id == Rooms.CASINO # Pokerchips statt Goldmünzen
 	props.lamp_style = room_id == Rooms.CASINO # grüne Bankerlampe statt Kerzen
 	props.tea_style = room_id == Rooms.STATION # Teegläser statt Kerzen
-	if station != null: # vorbeifahrender Zug: Bild zittert leicht, Gläser klirren
+	if station != null: # vorbeifahrender Zug: Bild zittert leicht, Gläser wackeln
 		station.train_passing.connect(func(strength: float) -> void:
 			shake(0.35 * strength)
 			props.rattle(0.25))

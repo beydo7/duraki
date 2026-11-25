@@ -4,11 +4,11 @@ extends Node3D
 ##
 ## Unten grüne, darüber weiße Wandkacheln, Schachbrett-Fliesenboden, Holzbänke an den
 ## Wänden, ein Heißwasserkessel. Hinten zwei hohe Fenster zum Bahnsteig, dazwischen
-## eine Fahrplantafel „DURAKI BAHNHOF“ mit deutschen Städten und darüber eine Bahnhofsuhr (zeigt die
-## echte Uhrzeit). Über dem Tisch hängt eine Neonröhre, die brummt und ab und zu flackert.
+## eine Fahrplantafel „DURAKI BAHNHOF“ mit deutschen Städten; rechts an der Wand eine große
+## Bahnhofsuhr (zeigt die echte Uhrzeit). Über dem Tisch hängt eine Neonröhre, die brummt und ab und zu flackert.
 ##
 ## Ab und zu rauscht draußen ein Zug vorbei: Licht aus den Abteilfenstern huscht durch den
-## Raum, das Bild zittert leicht und die Teegläser klirren (Signal `train_passing`).
+## Raum, das Bild zittert leicht und die Teegläser wackeln (Signal `train_passing`).
 ## Danach ist der Zug von der Tafel verschwunden und die Zeilen rücken nach.
 ##
 ## Der Spieltisch ist ein alter Holztisch; die Spielfläche liegt wie im Hinterzimmer auf
@@ -482,27 +482,38 @@ func _advance_board() -> void:
 
 
 func _build_clock() -> void:
-	# runde Bahnhofsuhr über der Tafel, an einer Stange von der Decke
-	var pos := Vector3(0, 2.92, BACK_Z + 0.25)
+	# große runde Bahnhofsuhr an der rechten Wand, schräg vor dem Spieler gut sichtbar
+	var root := Node3D.new()
+	root.position = Vector3(ROOM_W * 0.5 - 0.01, 1.27, -2.0)
+	root.rotation.y = -PI * 0.5 # Zifferblatt zeigt in den Raum (-x)
+	add_child(root)
 	var metal := _mat(Color(0.15, 0.16, 0.16), 0.4)
 	metal.metallic = 0.6
-	_cyl_in(self, 0.012, 0.012, CEIL - pos.y, Vector3(pos.x, (CEIL + pos.y) * 0.5, pos.z), metal)
-	var case := _cyl_in(self, 0.2, 0.2, 0.07, pos, metal)
+	var r := 0.27
+	var case := _cyl_in(root, r + 0.025, r + 0.025, 0.08, Vector3(0, 0, 0.04), metal)
 	case.rotation.x = PI * 0.5
-	var face := _cyl_in(self, 0.18, 0.18, 0.072, pos, _mat(Color(0.95, 0.94, 0.9), 0.6))
+	var face_mat := _mat(Color(0.97, 0.96, 0.92), 0.6)
+	face_mat.emission_enabled = true # etwas hinterleuchtet, damit man sie im Halbdunkel sieht
+	face_mat.emission = Color(0.9, 0.95, 0.85)
+	face_mat.emission_energy_multiplier = 0.35
+	var face := _cyl_in(root, r, r, 0.082, Vector3(0, 0, 0.04), face_mat)
 	face.rotation.x = PI * 0.5
 	var ink := _mat(Color(0.05, 0.05, 0.05), 0.5)
-	for k in 12: # Striche
-		var a := TAU * k / 12.0
-		var tick := _box_in(self, Vector3(0.012, 0.04 if k % 3 == 0 else 0.025, 0.004), pos + Vector3(sin(a) * 0.15, cos(a) * 0.15, 0.037), ink)
-		tick.rotation.z = -a
+	for k in 60: # Minuten- und Stundenstriche
+		var a2 := TAU * k / 60.0
+		var big := k % 5 == 0
+		var tick := _box_in(root, Vector3(0.016 if big else 0.005, 0.055 if big else 0.02, 0.004),
+			Vector3(sin(a2) * (r - 0.045 if big else r - 0.03), cos(a2) * (r - 0.045 if big else r - 0.03), 0.083), ink)
+		tick.rotation.z = -a2
 	var red := _mat(Color(0.85, 0.1, 0.08), 0.5)
-	for spec in [[0.09, 0.012, ink], [0.14, 0.008, ink], [0.15, 0.003, red]]:
+	for spec in [[0.15, 0.02, ink], [0.22, 0.013, ink], [0.23, 0.005, red]]:
 		var hand := Node3D.new()
-		hand.position = pos + Vector3(0, 0, 0.04 + _clock_hands.size() * 0.003)
-		add_child(hand)
-		_box_in(hand, Vector3(spec[1], spec[0], 0.003), Vector3(0, spec[0] * 0.4, 0), spec[2])
+		hand.position = Vector3(0, 0, 0.088 + _clock_hands.size() * 0.004)
+		root.add_child(hand)
+		_box_in(hand, Vector3(spec[1], spec[0], 0.004), Vector3(0, spec[0] * 0.4, 0), spec[2])
 		_clock_hands.append(hand)
+	var cap := _cyl_in(root, 0.012, 0.012, 0.01, Vector3(0, 0, 0.1), red)
+	cap.rotation.x = PI * 0.5
 
 
 func _update_clock() -> void:
