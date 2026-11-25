@@ -449,7 +449,7 @@ func _build_left() -> void:
 	_anchor(_trump_caption, Vector2.ZERO, Vector2(TRUMP_CENTER_X - 56, 664), Vector2(120, 16))
 	add_child(_trump_caption)
 	_bout_label = UIKit.poster_label("", UIKit.body_font(600, 2), 13, CREAM, 2)
-	_anchor(_bout_label, Vector2.ZERO, Vector2(110, 690), Vector2(160, 20))
+	_anchor(_bout_label, Vector2.ZERO, Vector2(150, 692), Vector2(160, 20)) # rechts neben „TRUMPF · …“, nicht darauf
 	add_child(_bout_label)
 
 
