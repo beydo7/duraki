@@ -2,14 +2,14 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://6c8vyttu3ha"
+uid="uid://chq7u8fy65t7s"
 path.s3tc="res://.godot/imported/crow_hackle_normal.png-c54451535c2cfa02b9acec75f94c8b89.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
 }
 generator_parameters={
-"md5": "8682682754b8376677b2d7265ebee69a"
+"md5": "b0b322cf2f45b3bd03a254bc6d108d7a"
 }
 
 [deps]

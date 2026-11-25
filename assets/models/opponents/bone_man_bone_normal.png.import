@@ -2,14 +2,14 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dllsotcfia6db"
+uid="uid://b3p4ahfefai6g"
 path.s3tc="res://.godot/imported/bone_man_bone_normal.png-9500a26fd46337fd28954f2f0e9d5b6e.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
 }
 generator_parameters={
-"md5": "d822837fbd8f1249df715f3a35cb9c57"
+"md5": "4cfecc4f925ed06d5d4cdbf77401d9d9"
 }
 
 [deps]

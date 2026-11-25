@@ -8,6 +8,7 @@ extends Node3D
 ## Erwartete Struktur im Modell (siehe art/blender/characters.py):
 ## Torso → Head → EyeL/EyeR(/EyeX…), optional Jaw; Hand_L, Hand_R, Sleeve;
 ## optional Props → PropLight. Teile, deren Name mit „Void“ beginnt, werden pechschwarz.
+## Marker „FlameLight*“ unter Torso/Head bekommen ein flackerndes Kerzenlicht.
 ## Ursprung = Mitte der Tischkante auf Gegnerseite, Boden (y = 0), Blick nach +Z.
 
 const DEFAULT_MODEL := preload("res://assets/models/opponents/bandit.glb")
@@ -50,6 +51,8 @@ var _jaw_open := 0.0
 var _twitch := Vector3.ZERO
 var _twitch_target := Vector3.ZERO
 var _next_twitch := 3.0
+## Kerzenflammen am Modell (Marker „FlameLight*“, z. B. Kerze auf dem Hut des Knochenmanns)
+var _flames: Array[OmniLight3D] = []
 ## Geglättete Ist-Werte: alle Ziele werden weich angefahren, damit nichts ruckt
 ## (Reaktionen setzen ihre Stärke schlagartig, Denk-Stile wechseln, Zucken …).
 const SMOOTH := 9.0
@@ -190,6 +193,9 @@ func _drink_amounts() -> Vector2:
 
 func _process(delta: float) -> void:
 	_t += delta
+	for i in _flames.size():
+		var k := _t + i * 1.7
+		_flames[i].light_energy = 0.9 * (0.86 + 0.08 * sin(k * 13.0) + 0.06 * sin(k * 29.0 + 1.3) + 0.04 * sin(k * 61.0))
 	_gesture = move_toward(_gesture, 0.0, delta * 1.8)
 	_recoil = move_toward(_recoil, 0.0, delta * 1.3)
 	_laugh = move_toward(_laugh, 0.0, delta * 0.35)
@@ -280,7 +286,7 @@ func _process(delta: float) -> void:
 	var dim := 0.3 if _slump > 0.0 else 1.0
 	_eye_mat.emission_energy_multiplier = glow * 1.7 * dim
 	for l in _eye_lights:
-		l.light_energy = (0.02 + glow * 0.02) * dim
+		l.light_energy = (0.004 + glow * 0.004) * dim # nur ein Hauch Glut im Gesicht (HD-Gesichter sind nah)
 	if _under_light != null:
 		_under_light.light_energy = (0.12 + sin(_t * 1.1) * 0.03 + _laugh * 0.25) * dim
 
@@ -335,6 +341,17 @@ func _build() -> void:
 			glow.position = eye.position + Vector3(0, -0.02, 0.15)
 			marker.get_parent().add_child(glow)
 			_eye_lights.append(glow)
+
+	# Kerzen am Modell: warmes, flackerndes Licht (bewegt sich mit Kopf bzw. Körper)
+	for marker in _torso.find_children("FlameLight*", "", true, false):
+		var flame := OmniLight3D.new()
+		flame.light_color = Color(1.0, 0.66, 0.3)
+		flame.light_energy = 0.9
+		flame.omni_range = 0.85 * s
+		flame.omni_attenuation = 1.6
+		flame.position = (marker as Node3D).position
+		marker.get_parent().add_child(flame)
+		_flames.append(flame)
 
 	# Licht von oben vorne holt das Gesicht aus der Dunkelheit …
 	var face_light := SpotLight3D.new()
@@ -396,8 +413,9 @@ func _build() -> void:
 		if marker != null:
 			var lamp := OmniLight3D.new()
 			lamp.light_color = eye_color.lightened(0.2)
-			lamp.light_energy = 1.2
-			lamp.omni_range = 0.9
+			lamp.light_energy = 0.7
+			lamp.omni_range = 0.75
+			lamp.omni_attenuation = 1.6
 			lamp.position = marker.position
 			props.add_child(lamp)
 	model.free()
@@ -430,6 +448,7 @@ func _apply_void(root: Node) -> void:
 			_void_mat = StandardMaterial3D.new()
 			_void_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 			_void_mat.albedo_color = Color(0.008, 0.004, 0.008)
+			_void_mat.cull_mode = BaseMaterial3D.CULL_DISABLED # Void-Flächen sind oft einseitige Bleche
 		(mi as MeshInstance3D).material_override = _void_mat
 		(mi as MeshInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	# Fell und Haare (viele Alpha-Büschel) werfen keine Schatten aufeinander –
@@ -443,6 +462,9 @@ func _apply_void(root: Node) -> void:
 		var m := node as MeshInstance3D
 		if m.mesh == null:
 			continue
+		# Detailstufen (LOD) aus: Godot vereinfacht sonst dünne Teile wie Rippen, Finger oder
+		# Fellbüschel schon auf Tischabstand bis zur Unsichtbarkeit. Die Figur ist immer nah.
+		m.lod_bias = 128.0
 		for i in m.mesh.get_surface_count():
 			var mat := m.mesh.surface_get_material(i) as StandardMaterial3D
 			if mat == null or m.get_surface_override_material(i) != null:

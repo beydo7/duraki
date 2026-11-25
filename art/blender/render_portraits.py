@@ -17,16 +17,19 @@ OUT = os.path.join(REPO, "assets", "portraits")
 
 # Kamera-Abstand/Brennweite je Charakter (Hüte und Hörner brauchen mehr Platz)
 # Augenfarben wie in data/opponents/*.tres
-EYE_COLORS = {"bandit": (0.95, 0.92, 0.8), "swamp_man": (1.0, 0.62, 0.15), "crow": (1.0, 0.62, 0.15),
-              "wolf": (1.0, 0.7, 0.15), "jester": (0.85, 0.35, 1.0), "bone_man": (0.55, 0.85, 1.0),
-              "witch": (0.7, 0.35, 1.0), "giant": (1.0, 0.35, 0.1)}
+EYE_COLORS = {"bandit": (0.95, 0.92, 0.8), "swamp_man": (1.0, 0.62, 0.15), "crow": (0.95, 0.92, 0.82),
+              "wolf": (1.0, 0.7, 0.15), "jester": (1.0, 0.78, 0.3), "bone_man": (1.0, 0.55, 0.15),
+              "witch": (1.0, 0.78, 0.3), "giant": (1.0, 0.75, 0.25)}
 
 # Figuren mit echten Augäpfeln (eye_glow = false in data/opponents/*.tres): keine Glutkugeln
 NO_GLOW = {"bandit", "wolf"}
 
-FRAMING = {"witch": (1.0, 50, 0.04), "jester": (1.0, 50, 0.08), "giant": (0.95, 60, 0.0),
-           # HD-Figuren (größere Köpfe)
-           "bandit": (1.45, 55, 0.05), "swamp_man": (1.6, 55, 0.0), "wolf": (1.5, 55, 0.06)}
+FRAMING = {
+           # überarbeitete Figuren (dk_*.py): Head-Empty sitzt am Hals, das Gesicht darüber
+           "bandit": (1.5, 55, 0.17), "witch": (1.5, 55, 0.16), "giant": (1.6, 55, 0.15), "jester": (1.7, 55, 0.1),
+           # HD-Figuren alter Bauart
+           "crow": (1.35, 55, -0.03), "swamp_man": (1.6, 55, 0.0), "wolf": (1.5, 55, 0.06),
+           "bone_man": (1.75, 55, 0.14)}
 
 
 def render(name: str) -> None:
@@ -62,8 +65,17 @@ def render(name: str) -> None:
     for ob in list(bpy.data.objects):
         if name not in NO_GLOW and ob.name.startswith("Eye") and ob.type == "EMPTY":
             r = 0.006 if ob.name.startswith("EyeX") else 0.011
-            bpy.ops.mesh.primitive_uv_sphere_add(radius=r, location=ob.matrix_world.translation)
-            bpy.context.active_object.data.materials.append(eye_mat)
+            # ohne bpy.ops (läuft so auch im laufenden Blender, nicht nur im Hintergrund)
+            import bmesh
+            bm = bmesh.new()
+            bmesh.ops.create_uvsphere(bm, u_segments=16, v_segments=10, radius=r)
+            me = bpy.data.meshes.new("PortraitEyeBall")
+            bm.to_mesh(me)
+            bm.free()
+            me.materials.append(eye_mat)
+            ball = bpy.data.objects.new("PortraitEyeBall", me)
+            ball.location = ob.matrix_world.translation
+            sc.collection.objects.link(ball)
             glow = bpy.data.objects.new("EyeGlow", bpy.data.lights.new("EyeGlow", "POINT"))
             glow.data.energy = 0.6
             glow.data.color = col
@@ -79,7 +91,8 @@ def render(name: str) -> None:
     sc.cycles.use_denoising = False
     sc.render.resolution_x = 384
     sc.render.resolution_y = 384
-    tmp = os.path.join("/tmp", f"portrait_{name}.png")
+    import tempfile
+    tmp = os.path.join(tempfile.gettempdir(), f"portrait_{name}.png")
     sc.render.filepath = tmp
     bpy.ops.render.render(write_still=True)
     _round(tmp, os.path.join(OUT, name + ".png"))

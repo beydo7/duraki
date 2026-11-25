@@ -2,14 +2,14 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://uw5fplr26scd"
+uid="uid://b6w10r3tno8ig"
 path.s3tc="res://.godot/imported/bone_man_bone_color.png-47706b36adc09d5479c4013179313f84.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
 }
 generator_parameters={
-"md5": "e6680dc4a0619405a6705cf42ebb7c9a"
+"md5": "0c43838ba7275038b1e2bfc80c3370a3"
 }
 
 [deps]

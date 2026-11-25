@@ -274,9 +274,14 @@ zwei Ebenen: Karten = Spielwelt, HUD = Plakat darüber.
 
 ### Gegner / 3D-Modelle
 Modelle aus Blender (Skripte in `art/blender/`), Vorlage ist das Konzeptblatt „Am Spieltisch“.
+**Charakter-Überarbeitung vom 25.11. (`docs/CHARAKTER_OVERHAUL.md`):** alle acht Gegner stehen auf
+anatomischer MPFB-Basis (`dk.py`, `dk_<id>.py`); vier Köpfe kommen noch aus den alten `hd_<id>.py`.
 HD-Versionen auf aktuellem Stand: **Bandit** (`hd_bandit.py`), **Sumpfmann** (`hd_swamp_man.py`),
-**Wölfin** (`hd_wolf.py`). Die **Krähe** (`hd_crow.py`) ist HD, aber noch vom alten Stand (steifer
-Ärmel, kein Kartenfächer in den Händen). Wie die Figuren gebaut werden: **`docs/CHARAKTERE.md`**.
+**Wölfin** (`hd_wolf.py`), **Gaukler** (`hd_jester.py`), **Knochenmann** (`hd_bone_man.py`, Kerze auf
+dem Hut mit flackerndem Licht über den Marker `FlameLight`), **Hexe** (`hd_witch.py`, Laterne mit
+Licht), **Riese** (`hd_giant.py`, genähte Narben, Eisenkragen mit Kette, Boss mit `figure_scale` 1.1)
+und **Krähe** (`hd_crow.py`, komplett neu: Alpha-Federkragen, Goldketten, Zierfibeln).
+Wie die Figuren gebaut werden: **`docs/CHARAKTERE.md`**.
 Exporte als glb in `assets/models/opponents/`, .blend-Dateien in `art/blender/opponents/`,
 Porträts per `art/blender/render_portraits.py`.
 - Gegner halten die Karten als Fächer zwischen beiden Händen; Arme mit Ellbogen (Zwei-Knochen-IK
@@ -343,8 +348,8 @@ Run: Schwierigkeit, Hinweise, Tutorial im Hauptmenü anzeigen).
 
 ## 8. Offene Punkte / nächste Schritte
 1. Juice ausbauen: rollende Zahlen beim Punkten, Sounds zu den Kartenbewegungen.
-2. Restliche Gegner in HD (Rezept `docs/CHARAKTERE.md`): als Nächstes Gaukler + Knochenmann,
-   dann Hexe + Riese, danach die Krähe auf den neuen Stand bringen. Fertig: Bandit, Sumpfmann, Wölfin.
+2. Alle acht Gegner sind in HD fertig (Rezept `docs/CHARAKTERE.md`). Feinschliff nach Bedarf
+   (z. B. Federn oben auf dem Krähenkopf, Falten der Hexe).
 3. Lila Lampen-Scheiben im Raum sind Platzhalter → echte Lampen.
 5. Die 3D-Menükarten im Hauptmenü an den Okkult-Gold-Stil der Karten anpassen.
 6. Belohnungen für die Erfolge festlegen (Leon überlegt noch).
