@@ -166,7 +166,9 @@ func _ready() -> void:
 
 	hud.setup(opponent, score.target, Run.floor_index, 0 if Run.tutorial else maxi(Run.encounters.size(), 1))
 	hud.set_relics(Run.relics, Run.items)
+	_refresh_items.call_deferred()
 	hud.item_pressed.connect(_use_item)
+	world.discard_changed.connect(_refresh_items)
 	duel.card_burned.connect(func(card: Card) -> void: world.burn(card))
 	world.props.set_lives(maxi(Run.lives, 1))
 	world.props.set_gold(Run.gold, false)
@@ -264,6 +266,7 @@ func _on_player_card(card: Card, target := -1, slot := -1) -> void:
 			_burning = -1
 			Run.use_item(i)
 			hud.set_relics(Run.relics, Run.items)
+			_refresh_items()
 			duel.burn(card)
 			Profile.unlock_achievement(&"burn")
 		return
@@ -414,6 +417,23 @@ var _drunk_saved := -1.0
 func _consume_item(i: int) -> void:
 	Run.use_item(i)
 	hud.set_relics(Run.relics, Run.items)
+	_refresh_items()
+
+
+## Kann das Item gerade eingesetzt werden? (sonst ist es im HUD ausgegraut)
+func _item_usable(id: StringName) -> bool:
+	if duel == null or duel.is_over:
+		return true
+	match id:
+		&"magnet":
+			# nur, wenn auch sichtbar etwas auf dem Ablagestapel liegt
+			return not duel.discard_pile.is_empty() and world.has_discard()
+	return true
+
+
+func _refresh_items() -> void:
+	for i in Run.items.size():
+		hud.set_item_usable(i, _item_usable(Run.items[i]))
 
 
 func _use_item(i: int) -> void:
@@ -432,7 +452,7 @@ func _use_item(i: int) -> void:
 			hud.toast("Feuerzeug: klick eine leuchtende Gegnerkarte an (Rechtsklick/Esc = abbrechen).", MatchHUD.COLOR_GOLD)
 			_render()
 		&"magnet":
-			if duel.discard_pile.is_empty():
+			if not _item_usable(&"magnet"):
 				hud.toast("Magnet: der Ablagestapel ist noch leer.", MatchHUD.COLOR_GOLD)
 				return
 			# erst der Welt sagen, woher die Karte kommt – sonst fliegt sie vom Nachziehstapel
@@ -502,6 +522,7 @@ func _use_item(i: int) -> void:
 				return
 			Run.use_item(i)
 			hud.set_relics(Run.relics, Run.items)
+			_refresh_items()
 			var card: Card = hidden[randi() % hidden.size()]
 			world.mirror_flight(func() -> void:
 				if duel.opponent_hand.has(card):
@@ -551,6 +572,7 @@ func _open_dev_menu() -> void:
 
 func refresh_after_dev() -> void:
 	hud.set_relics(Run.relics, Run.items)
+	_refresh_items()
 	world.props.set_gold(Run.gold)
 	_render()
 
@@ -615,6 +637,7 @@ func _render() -> void:
 	if defending and my_turn:
 		hud.set_danger(minf(0.1 + 0.05 * duel.unbeaten_count(), 0.3))
 	_announce_turn(my_turn, defending)
+	_refresh_items()
 	_render_score()
 
 

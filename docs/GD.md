@@ -108,7 +108,8 @@ Ein Run = 3 normale Gegner + Boss, 3 Leben (Kerzen). Wer verliert, ist der Durak
   (`ScoreTracker.relic_triggered`).
 - **Items**: Feuerzeug, Spiegel, Magnet, Runde Schnaps, Kartentausch, Maske, Falle, Bestechung (+50 Punkte).
   Händler legt je Besuch 3 zufällige aus (`Run.SHOP_ITEMS`).
-  - Magnet: Karte fliegt sichtbar vom Ablagestapel in die Hand (`TableWorld.take_from_discard` vor der
+  - Magnet: nur einsetzbar (sonst ausgegraut), wenn sichtbar etwas auf dem Ablagestapel liegt.
+    Karte fliegt sichtbar vom Ablagestapel in die Hand (`TableWorld.take_from_discard` vor der
     Änderung am Duell aufrufen, Stil „magnet“), Sound `magnet.wav`.
   - Runde Schnaps: Gegner trinkt ein Schnapsglas (`OpponentFigure.drink_shot`), taumelt danach deutlich
     (`set_drunk`) bis Rundenende; über ihm steht ein Schnapsglas-Symbol (`MatchHUD.add_status`). Eigenes

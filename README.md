@@ -72,6 +72,7 @@ godot --headless --path . -s res://tests/run_tests.gd     # Regeln, Items, Relik
 godot --headless --path . res://tests/deck_tests.tscn     # Decks, Seelen, Schwierigkeit, Abzeichen (46 Checks)
 godot --headless --path . res://tests/tutorial_test.tscn  # Tutorial einmal komplett durchspielen
 godot --headless --path . res://tests/autoplay.tscn       # komplette Runs durch alle Szenen (DURAKI_DIFF, DURAKI_RUNS)
+godot --headless --path . res://tests/hand_fuzz.tscn      # 90 s Zufallsspiel: Handkarten ohne Lücken oder Hänger
 
 # brauchen ein echtes Fenster (kein --headless):
 godot --path . res://tests/click_test.tscn                # klickt eine Handkarte an

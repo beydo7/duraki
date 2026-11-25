@@ -14,6 +14,8 @@ signal deck_hovered(on: bool)
 ## Karte aus der Hand auf den Tisch gezogen: `target` = Angriffskarte darunter (-1: freie Fläche)
 ## `slot`: Platz in der Angriffsreihe nach der Mausposition (links/rechts von den anderen)
 signal card_dropped(card: Card, target: int, slot: int)
+## Der sichtbare Ablagestapel ist gewachsen oder geschrumpft (Magnet ein-/ausgrauen).
+signal discard_changed
 
 const MODELS: Array[PackedScene] = [
 	preload("res://assets/models/room.glb"),
@@ -69,6 +71,8 @@ var _base := {} # Card3D -> Transform3D (Ziel ohne Hover)
 var revealed := {}
 ## Neue Karte startet hier statt auf dem Stapel (Card → Transform3D)
 var spawn_from := {}
+## Handkarten, die bis zum Austeilen zusammengerückt sind: Card3D -> Transform3D
+var _hold := {}
 ## Kartentausch: diese Karten wandern in den Nachziehstapel (statt auf den Ablagestapel)
 var into_deck := {}
 var _animate_trump := false
@@ -254,6 +258,27 @@ func sync(duel: DurakMatch, playable: Array[Card]) -> void:
 	if take_wait > 0.0:
 		deal_start = maxf(deal_start, now + take_wait + 0.9)
 
+	# Neue Handkarten (Austeilen) und aufgenommene Karten warten oft, bis der Tisch abgeräumt
+	# bzw. die nachgeworfene Karte gelandet ist. Bis dahin rücken die Handkarten zusammen
+	# (sonst klafft an den späteren Plätzen eine Lücke) und machen erst Platz, wenn die
+	# Karten wirklich kommen.
+	var compact := {} # Card -> Transform3D ohne die noch fehlenden Karten
+	var make_room_at := INF # wann die erste fehlende Karte losfliegt (Sekunden ab jetzt)
+	var present: Array[Card] = []
+	for c: Card in hand:
+		var pz: String = _zone.get(c, "new")
+		if pz == "hand":
+			present.append(c)
+		elif not _cards.has(c) and not spawn_from.has(c):
+			make_room_at = minf(make_room_at, deal_start - now)
+		elif pz in ["table_a", "table_d", "opp"]:
+			make_room_at = minf(make_room_at, take_wait)
+		else:
+			make_room_at = 0.0 # z. B. Magnet, Kartentausch: kommt sofort
+	if present.size() < hand.size() and make_room_at > 0.15 and make_room_at < INF:
+		for i in present.size():
+			compact[present[i]] = _player_hand_xf(i, present.size())
+
 	for card: Card in targets:
 		var xf: Transform3D = targets[card][0]
 		var face_up: bool = targets[card][1]
@@ -315,8 +340,16 @@ func sync(duel: DurakMatch, playable: Array[Card]) -> void:
 		_zone[card] = zone
 		node.in_hand = zone == "hand"
 		node.set_state(playable.has(card))
-		if not _base.has(node) or not _base[node].is_equal_approx(xf):
+		if compact.has(card) and zone == "hand" and style == "" \
+				and not (compact[card] as Transform3D).is_equal_approx(xf):
+			# erst zusammenrücken, Platz machen erst, wenn die neuen Karten kommen
 			_base[node] = xf
+			_hold[node] = compact[card]
+			_move(node, _with_hover(node, compact[card]), delay, MOVE_TIME)
+			_make_room_later(node, xf, make_room_at)
+		elif not _base.has(node) or not _base[node].is_equal_approx(xf):
+			_base[node] = xf
+			_hold.erase(node)
 			var tw := _move(node, _with_hover(node, xf), delay, MOVE_TIME, style)
 			if style != "":
 				var strong := card.suit == duel.trump_suit and style in ["play", "whirl"]
@@ -342,6 +375,7 @@ func sync(duel: DurakMatch, playable: Array[Card]) -> void:
 		var prev_zone: String = _zone.get(card, "")
 		_cards.erase(card)
 		_base.erase(node)
+		_hold.erase(node)
 		_zone.erase(card)
 		node.in_hand = false
 		node.set_state(false)
@@ -372,6 +406,22 @@ func sync(duel: DurakMatch, playable: Array[Card]) -> void:
 	_animate_trump = false
 
 
+## Handkarte rückt nach `wait` Sekunden an ihren endgültigen Platz – falls bis dahin kein
+## neuer sync etwas anderes vorhat.
+func _make_room_later(node: Card3D, xf: Transform3D, wait: float) -> void:
+	get_tree().create_timer(wait * Settings.anim_time_factor(), false).timeout.connect(func() -> void:
+		if not is_instance_valid(node):
+			return
+		if _hold.has(node) and _base.has(node) and (_base[node] as Transform3D).is_equal_approx(xf):
+			_hold.erase(node)
+			_move(node, _with_hover(node, xf), 0.0, MOVE_TIME))
+
+
+## Wo eine Handkarte gerade ruht (zusammengerückt oder an ihrem Platz).
+func _rest_xf(node: Card3D) -> Transform3D:
+	return _hold.get(node, _base[node])
+
+
 ## Welche Angriffskarte der letzten Runde hat `card` geschlagen? (-1: keine)
 func _beaten_slot(card: Card, attacks: Array, defs: Array, trump: Card.Suit) -> int:
 	for i in attacks.size():
@@ -387,6 +437,7 @@ func _to_discard(node: Card3D, delay: float) -> void:
 		_discard_count += 1
 		_discard_pile.visible = true
 		_set_pile_height(_discard_pile, DISCARD_POS, _discard_count)
+		discard_changed.emit()
 		node.queue_free())
 
 
@@ -483,11 +534,17 @@ func _impact(pos: Vector3, strong: bool) -> void:
 
 # --- Items ------------------------------------------------------------------------------
 
+## Liegt sichtbar mindestens eine Karte auf dem Ablagestapel?
+func has_discard() -> bool:
+	return _discard_count > 0
+
+
 ## Magnet: eine Karte vom Ablagestapel holen – Stapel wird niedriger, Karte fliegt von dort.
 func take_from_discard(card: Card) -> void:
 	_discard_count = maxi(0, _discard_count - 1)
 	_set_pile_height(_discard_pile, DISCARD_POS, _discard_count)
 	_discard_pile.visible = _discard_count > 0
+	discard_changed.emit()
 	spawn_from[card] = Transform3D(Basis(Vector3.FORWARD, PI), DISCARD_POS + Vector3(0, 0.03, 0))
 
 
@@ -511,6 +568,7 @@ func burn(card: Card) -> void:
 		return
 	_cards.erase(card)
 	_base.erase(node)
+	_hold.erase(node)
 	_zone.erase(card)
 	if node.has_meta("tween"):
 		(node.get_meta("tween") as Tween).kill()
@@ -641,7 +699,7 @@ func _input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion and not (event.button_mask & MOUSE_BUTTON_MASK_LEFT):
 		# Loslassen verpasst (z. B. über der Oberfläche): Ziehen abbrechen
 		if _dragging and _base.has(_drag_node):
-			_move(_drag_node, _base[_drag_node], 0.0, 0.18)
+			_move(_drag_node, _rest_xf(_drag_node), 0.0, 0.18)
 		_drag_node = null
 		_dragging = false
 		return
@@ -666,7 +724,7 @@ func _input(event: InputEvent) -> void:
 		var p := _mouse_on_table(event.position, 0.0)
 		# erst zurück an den Platz – klappt der Zug, legt sync die Karte gleich auf den Tisch
 		if _base.has(node):
-			_move(node, _base[node], 0.0, 0.18)
+			_move(node, _rest_xf(node), 0.0, 0.18)
 		if p.z > PLAYER_HAND_POS.z - 0.18:
 			return # zurück in die Hand gezogen: nichts tun
 		card_dropped.emit(node.card, _drop_target(p), _drop_slot(p))
@@ -718,7 +776,10 @@ func _on_hover(node: Card3D, hovered: bool) -> void:
 	# nur Handkarten heben/senken – eine Karte, die gerade auf den Tisch fliegt, darf ihre
 	# Bewegung nicht verlieren (sonst fehlen Landegeräusch und Aufprall)
 	if _base.has(node) and node.in_hand:
-		_move(node, _with_hover(node, _base[node]), 0.0, 0.12)
+		# Karte wartet noch im Stapel aufs Austeilen: nicht vorziehen
+		if Time.get_ticks_msec() / 1000.0 < float(node.get_meta("move_starts", 0.0)):
+			return
+		_move(node, _with_hover(node, _rest_xf(node)), 0.0, 0.12)
 
 
 func _with_hover(node: Card3D, xf: Transform3D) -> Transform3D:
@@ -796,6 +857,7 @@ func _move(node: Node3D, to: Transform3D, delay: float, time := MOVE_TIME, style
 	var f := Settings.anim_time_factor()
 	time *= f
 	delay *= f
+	node.set_meta("move_starts", Time.get_ticks_msec() / 1000.0 + delay)
 	if delay > 0.0:
 		tw.tween_interval(delay)
 	match style:
