@@ -25,6 +25,7 @@ const ACHIEVEMENTS := {
 	&"chain_smoker": ["📦", "Kettenraucher", "Rauche in einem Run die ganze Schachtel (6 Zigaretten).", true],
 	&"alcoholic": ["🥃", "Alkoholiker", "Trink die Whiskeyflasche leer.", true],
 	&"all_green": ["🟢", "Alles auf Grün", "Lass im Casino die Roulettekugel auf der grünen 0 landen.", true],
+	&"jackpot": ["🎰", "Jackpot", "Zieh im Casino am Spielautomaten drei Siebenen.", true],
 }
 ## Zigaretten pro Schachtel (pro Run eine Schachtel: zweimal 3 Stück)
 const PACK_SIZE := 6

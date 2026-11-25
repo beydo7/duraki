@@ -7,7 +7,8 @@ extends Node3D
 ## Kleines Easter Egg (`interactive`): Die ersten Klicks stupsen den Kessel nur leicht an,
 ## beim 5. Klick kurz hintereinander wird richtig gedreht. Die Kugel läuft gegenläufig, wird
 ## langsamer, hüpft eine Weile über die Stege und bleibt in einem Fach liegen; das Fach
-## leuchtet kurz und dezent in seiner Farbe auf (rot, silbrig für Schwarz, grün). Jedes Fach ist
+## und sein Zahlenfeld außen blinken kurz und dezent in ihrer Farbe (rot, silbrig für Schwarz,
+## grün). Jedes Fach ist
 ## gleich wahrscheinlich wie beim echten (europäischen) Roulette: 37 Fächer, die grüne 0
 ## kommt also mit 1/37 (ca. 2,7 %). Grün → Erfolg „Alles auf Grün“.
 
@@ -51,6 +52,7 @@ var _bounce_v0 := 0.0 # Geschwindigkeit relativ zum Kessel beim ersten Aufprall
 var _bounce_len := 0.0 # Dauer des Hüpfens (Sekunden)
 var _bounce_r0 := 0.0
 var _flash: MeshInstance3D
+var _flash_outer: MeshInstance3D # Zahlenfeld außen, blinkt mit
 var _flash_mat: StandardMaterial3D
 var _clicks := 0
 var _last_click := -10.0
@@ -137,6 +139,15 @@ func _ready() -> void:
 	_flash.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_flash.visible = false
 	_wheel.add_child(_flash)
+	# äußeres Zahlenfeld (Ring mit den Zahlen, im Bild zwischen 0,65 R und 0,82 R)
+	_flash_outer = MeshInstance3D.new()
+	var fom := PlaneMesh.new()
+	fom.size = Vector2(R * 0.16, step * R * 0.737 * 0.92)
+	_flash_outer.mesh = fom
+	_flash_outer.material_override = _flash_mat
+	_flash_outer.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_flash_outer.visible = false
+	_wheel.add_child(_flash_outer)
 	# Drehkreuz in der Mitte
 	var post := _cyl(0.006, 0.009, 0.022, Vector3(0, 0.011, 0), gold)
 	post.reparent(_wheel, false)
@@ -257,12 +268,20 @@ func _flash_pocket(p: int) -> void:
 	var a := _pocket_angle(p)
 	_flash.position = Vector3(cos(a) * POCKET_R, 0.0006, -sin(a) * POCKET_R)
 	_flash.rotation.y = a
+	_flash_outer.position = Vector3(cos(a) * R * 0.737, 0.0006, -sin(a) * R * 0.737)
+	_flash_outer.rotation.y = a
 	_flash_mat.albedo_color = Color(col, 0.0)
 	_flash.visible = true
+	_flash_outer.visible = true
+	# zweimal kurz aufblinken, dann langsam ausklingen (Fach und Zahlenfeld gemeinsam)
 	var tw := create_tween()
-	tw.tween_property(_flash_mat, "albedo_color:a", 0.9, 0.15)
+	tw.tween_property(_flash_mat, "albedo_color:a", 0.9, 0.12)
+	tw.tween_property(_flash_mat, "albedo_color:a", 0.15, 0.16)
+	tw.tween_property(_flash_mat, "albedo_color:a", 0.9, 0.12)
 	tw.tween_property(_flash_mat, "albedo_color:a", 0.0, 1.3).set_trans(Tween.TRANS_SINE)
-	tw.tween_callback(func() -> void: _flash.visible = false)
+	tw.tween_callback(func() -> void:
+		_flash.visible = false
+		_flash_outer.visible = false)
 
 
 func _on_input(_cam: Node, event: InputEvent, _p: Vector3, _n: Vector3, _i: int) -> void:

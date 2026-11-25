@@ -14,6 +14,7 @@ Schreibt nach assets/rooms/casino/:
   roulette.wav    Kugel rollt leise im Kessel und wird langsamer
   roulette_land.wav  Kugel hüpft über die Stege und bleibt im Fach liegen
   roulette_tick.wav  leiser Klick beim Anstupsen (Easter Egg: 5× klicken)
+  lamp_chain.wav  Zugkette der Bankerlampe: Rasseln und Schalter-Klick
 """
 import math
 import os
@@ -271,6 +272,23 @@ def roulette_land():
     return sx.reverb(buf, 0.2, 0.1)
 
 
+def lamp_chain():
+    """Zugkette der Bankerlampe: Kügelchen rasseln leise, dann der Schalter „klack“."""
+    buf = np.zeros(int(0.6 * sx.SR))
+    rng = np.random.default_rng(17)
+    at = 0.0
+    for k in range(7):  # Kette rasselt beim Runterziehen
+        sx.place(buf, sx.lowpass(sx.clack(rng.uniform(3800, 5200), 0.012), 7000), at, 0.18 + 0.05 * rng.random())
+        at += rng.uniform(0.008, 0.02)
+    sx.place(buf, sx.lowpass(sx.clack(2100, 0.025), 5000), 0.11, 0.9)  # Schalter rastet ein
+    sx.place(buf, sx.lowpass(sx.clack(1500, 0.03), 3500), 0.125, 0.5)
+    at = 0.2
+    for k in range(5):  # Kette schwingt zurück
+        sx.place(buf, sx.lowpass(sx.clack(rng.uniform(3500, 4800), 0.01), 6500), at, 0.1 * (1 - k / 6))
+        at += rng.uniform(0.02, 0.05)
+    return sx.reverb(buf, 0.12, 0.06)
+
+
 def roulette_tick():
     """Leiser Holzklick, wenn man den Kessel nur anstupst."""
     buf = np.zeros(int(0.25 * sx.SR))
@@ -291,3 +309,4 @@ if __name__ == "__main__":
     save_wav("roulette.wav", roulette_sound(), 0.6)
     save_wav("roulette_land.wav", roulette_land(), 0.6)
     save_wav("roulette_tick.wav", roulette_tick(), 0.5)
+    save_wav("lamp_chain.wav", lamp_chain(), 0.55)

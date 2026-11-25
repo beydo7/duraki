@@ -5,8 +5,8 @@ extends Node3D
 ## großer Hebel an der rechten Seite. Kein Touchscreen.
 ##
 ## `interactive`: Klick auf den Automaten zieht den Hebel, die Walzen drehen sich und
-## halten nacheinander an. Drei Siebenen (selten) → Glocke, Münzen, die Lichter blinken.
-## Rein zur Deko, ändert nichts am Spiel.
+## halten nacheinander an. Drei Siebenen (ca. 1 %) → Glocke, Münzen, die Lichter blinken
+## und der geheime Erfolg „Jackpot“. Ändert sonst nichts am Spiel.
 
 signal pulled
 signal jackpot
@@ -16,7 +16,8 @@ const SND_PULL := preload("res://assets/rooms/casino/slot_pull.wav")
 const SND_SPIN := preload("res://assets/rooms/casino/slot_spin.wav")
 const SND_WIN := preload("res://assets/rooms/casino/slot_win.wav")
 const SYMBOLS := 5 # 7, Kirsche, Glocke, BAR, Zitrone (wie im Walzenband)
-const JACKPOT_CHANCE := 0.1
+## Drei Siebenen: etwa 1 von 100 Zügen (Erfolg „Jackpot“)
+const JACKPOT_CHANCE := 0.01
 
 const W := 0.46 # Breite des Gehäuses
 const D := 0.36 # Tiefe
@@ -321,6 +322,8 @@ func _spin() -> void:
 				if win:
 					_flash = 1.0
 					_play(SND_WIN, -6.0)
+					if interactive:
+						Profile.unlock_achievement(&"jackpot")
 					jackpot.emit())
 
 

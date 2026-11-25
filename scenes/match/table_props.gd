@@ -105,6 +105,7 @@ func set_lives(count: int) -> void:
 		_lamp.rotation.y = 0.5 # schräg zur Tischmitte
 		add_child(_lamp)
 		_lamp.set_lives(count)
+		_lamp.interactive = true # Zugkette anklickbar
 		return
 	for c in _candles:
 		(c.root as Node3D).queue_free()

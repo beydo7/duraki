@@ -4,7 +4,11 @@ extends Node3D
 ## Steht im Casino dort, wo im Hinterzimmer die Kerzen stehen, und zeigt die Leben:
 ## auf dem Messingfuß leuchtet pro Leben ein kleines rotes Lämpchen. Verlierst du ein
 ## Leben, flackert die Lampe und ein Lämpchen geht aus; beim letzten geht die Lampe aus.
+## Zugkette: anklicken (wenn `interactive`) → die Kette wird ein Stück heruntergezogen
+## und schnellt zurück, mit Klick-Geräusch geht die Lampe an bzw. aus.
 ## Ganz in Code gebaut (kein Blender). Maße in echten Metern, am Ende verkleinert.
+
+const SND_CHAIN := preload("res://assets/rooms/casino/lamp_chain.wav")
 
 const SIZE := 0.75 # Verkleinerung gegenüber einer echten Lampe (passt zu den Karten)
 const SHADE_LEN := 0.26
@@ -23,6 +27,18 @@ var _glow: OmniLight3D
 var _lives := 0
 ## 1 = an, 0 = aus (Flackern beim Lebensverlust)
 var _power := 1.0
+## Schalter der Zugkette: 1 = an, 0 = aus (weich überblendet)
+var _switch := 1.0
+var _on := true
+var _chain: Node3D
+var _pulling := false
+## Kette anklickbar (nur im Duell)
+var interactive := false:
+	set(v):
+		interactive = v
+		if _chain_area != null:
+			_chain_area.input_ray_pickable = v
+var _chain_area: Area3D
 var _t := 0.0
 
 
@@ -37,11 +53,47 @@ func _process(delta: float) -> void:
 	_t += delta
 	# ganz leichtes Netzbrummen im Licht, sonst ruhig (keine Kerze)
 	var hum := 1.0 + 0.015 * sin(_t * 31.0)
-	_spot.light_energy = 4.0 * _power * hum
-	_glow.light_energy = 0.6 * _power * hum
-	_inner.emission_energy_multiplier = 1.6 * _power
-	_bulb.emission_energy_multiplier = 4.0 * _power
-	_glass.emission_energy_multiplier = 0.55 * _power
+	var p := _power * _switch
+	_spot.light_energy = 4.0 * p * hum
+	_glow.light_energy = 0.6 * p * hum
+	_inner.emission_energy_multiplier = 1.6 * p
+	_bulb.emission_energy_multiplier = 4.0 * p
+	_glass.emission_energy_multiplier = 0.55 * p
+
+
+## An der Zugkette ziehen: Kette runter und zurück, Lampe an/aus.
+func pull_chain() -> void:
+	if _pulling:
+		return
+	_pulling = true
+	_on = not _on
+	_play_chain()
+	var tw := create_tween()
+	tw.tween_property(_chain, "position:y", -0.028, 0.12).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.tween_callback(func() -> void:
+		var sw := create_tween()
+		sw.tween_property(self, "_switch", 1.0 if _on else 0.0, 0.06))
+	tw.tween_property(_chain, "position:y", 0.0, 0.35).set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
+	tw.tween_callback(func() -> void: _pulling = false)
+
+
+func _play_chain() -> void:
+	if DisplayServer.get_name() == "headless" or not is_inside_tree():
+		return
+	var pl := AudioStreamPlayer.new()
+	pl.bus = &"SFX"
+	pl.stream = SND_CHAIN
+	pl.volume_db = -10.0
+	add_child(pl)
+	pl.play()
+	pl.finished.connect(pl.queue_free)
+
+
+func _on_chain_input(_cam: Node, event: InputEvent, _p: Vector3, _n: Vector3, _i: int) -> void:
+	if interactive and event is InputEventMouseButton and event.pressed \
+			and event.button_index == MOUSE_BUTTON_LEFT:
+		get_viewport().set_input_as_handled()
+		pull_chain()
 
 
 ## Lämpchen für die Leben setzen (einmal beim Aufbau).
@@ -170,7 +222,9 @@ func _build() -> void:
 	bulb.rotation.z = PI * 0.5
 	bulb.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	shade.add_child(bulb)
-	# Zugkette rechts am Schirm (Kügelchen mit Messinggriff)
+	# Zugkette rechts am Schirm (Kügelchen mit Messinggriff), beweglich und anklickbar
+	_chain = Node3D.new()
+	shade.add_child(_chain)
 	var bead := SphereMesh.new()
 	bead.radius = 0.0035
 	bead.height = 0.007
@@ -179,7 +233,7 @@ func _build() -> void:
 		b.mesh = bead
 		b.material_override = brass
 		b.position = Vector3(SHADE_LEN * 0.36, -0.012 - k * 0.0085, SHADE_R * 0.55)
-		shade.add_child(b)
+		_chain.add_child(b)
 	var grip := MeshInstance3D.new()
 	var gm := CylinderMesh.new()
 	gm.top_radius = 0.004
@@ -188,7 +242,18 @@ func _build() -> void:
 	grip.mesh = gm
 	grip.material_override = brass
 	grip.position = Vector3(SHADE_LEN * 0.36, -0.12, SHADE_R * 0.55)
-	shade.add_child(grip)
+	_chain.add_child(grip)
+	# großzügige Klickfläche um Kette und Griff (dünne Kette wäre schwer zu treffen)
+	_chain_area = Area3D.new()
+	_chain_area.input_ray_pickable = interactive
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3(0.06, 0.15, 0.06)
+	shape.shape = box
+	shape.position = Vector3(SHADE_LEN * 0.36, -0.07, SHADE_R * 0.55)
+	_chain_area.add_child(shape)
+	_chain_area.input_event.connect(_on_chain_input)
+	_chain.add_child(_chain_area)
 	# Licht: warmer Kegel nach unten auf den Tisch, dazu ein schwaches grünliches Leuchten
 	_spot = SpotLight3D.new()
 	_spot.light_color = Color(1.0, 0.84, 0.6)
