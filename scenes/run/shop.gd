@@ -87,7 +87,7 @@ func _open_gift() -> void:
 		Run.take_boss_gift(null)
 		return
 	var shade := ColorRect.new()
-	shade.color = Color(0, 0, 0, 0.72)
+	shade.color = Color(0, 0, 0, 0.86)
 	shade.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
 	shade.mouse_filter = MOUSE_FILTER_STOP
 	add_child(shade)

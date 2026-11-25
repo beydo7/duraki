@@ -13,7 +13,8 @@ Stand: 22.11.2026 · Godot 4.7.2 (GL Compatibility) · Build 0.6
 Duraki ist ein **Roguelike auf Basis von Schiebe-Durak (Perevodnoy)**. Man sitzt nachts in einem
 Hinterzimmer (Ich-Perspektive, 3D) an einem Kartentisch und spielt nacheinander gegen unheimliche
 Gestalten. Die Wertung funktioniert wie bei **Balatro** (Chips × Mult, Punkteziel pro Tisch).
-Ein Run = 3 normale Gegner + Boss, 3 Leben (Kerzen). Wer verliert, ist der Durak.
+Ein Run = 3 Akte mit je 3 normalen Gegnern + Boss (12 Tische), 3 Leben (Kerzen). Nach dem
+3. Boss beginnt der Endlos-Modus. Wer verliert, ist der Durak.
 
 ## 2. Regeln (fest, nicht verhandelbar)
 
@@ -37,12 +38,28 @@ Ein Run = 3 normale Gegner + Boss, 3 Leben (Kerzen). Wer verliert, ist der Durak
 - Rundenende: Fertig/abgewehrter Angriff → Chips × Mult; Gegner muss nehmen → × 2 („Volltreffer“);
   du musst nehmen → 0.
 - Ist der Gegner am Ende der Durak: +15 pro Karte auf seiner Hand.
-- Punkteziele: 300 / 380 / 450 / 550 (Boss), danach × 1,25. Ziel erreicht → Tisch gewonnen,
-  sonst ein Leben weg.
+- Punkteziele pro Akt: 300 / 380 / 450 / 550 (Boss), jeder weitere Akt × 1,6 (`Run.ACT_GROWTH`).
+  Ziel erreicht → Tisch gewonnen, sonst ein Leben weg.
 
 ## 4. Run-Struktur & Meta
 
-- `scripts/autoload/run_state.gd` (Autoload `Run`): Weg → Duell → Händler → … → Boss → Run-Ende.
+- `scripts/autoload/run_state.gd` (Autoload `Run`): Weg → Duell → Händler → … → Boss → Boss-Händler
+  → nächster Akt … → 3. Boss → Boss-Händler → **Endlos-Modus** → Run-Ende.
+- **3 Akte** (`Run.ACTS`, `FIGHTS_PER_ACT` = 4): je 3 normale Gegner (leichtere zuerst) und ein Boss.
+  Der Weg zeigt nur den aktuellen Akt („AKT 2 VON 3“), das Duell oben „AKT 2/3 · TISCH 1/3“.
+  `Run.act_of()`, `act_pos()`, `act_floors()`.
+- **Boss-Händler** (nach jedem Boss, `Run.boss_shop`): 30 % Rabatt auf alles (`BOSS_DISCOUNT`, alter
+  Preis durchgestrichen) und vorher ein Relikt geschenkt (1 von 3, `boss_gift_choices`).
+- **Endlos-Modus** (`Run.endless`, nach dem 3. Boss): kein Punkteziel, gespielt wird bis einer Durak
+  ist. Gegner Durak → Punkte bleiben, Gold, neues Deck und neuer zufälliger Gegner (auch Bosse).
+  Selbst Durak → ein Leben weg und zum Händler, danach weiter. Leben 0 → Ergebnis kommt in die
+  **Bestenliste** (`Profile.endless_records`, vorerst lokal, oben rechts im Startmenü; online mit
+  Freunden folgt). Gekaufte Karten/Relikte bleiben. Erfolg „Durchgezogen“ = alle drei Bosse.
+- **Platzhalter-Gegner** (bis es genug echte gibt): Der Fremde, Die Fremde, Der Schattenfürst (Boss),
+  Die Graue Herrin (Boss) – Kapuzengestalt aus Grundformen (`tools/build_placeholder.gd` →
+  `assets/models/placeholder/shadow_figure.tscn`), Porträts `assets/portraits/placeholder_*.png`.
+  Durch echte Gegner ersetzen: einfach die `placeholder_*.tres` löschen, sobald 9 normale + 3 Bosse da sind.
+- **F8**: Gegner überspringen, zum Boss des Akts, Boss-Händler, Endlos-Modus starten.
 - **Händler** nach jedem Sieg: Relikte (Ass im Ärmel, Glücksmünze, Samowar, Wodka), verbesserte
   Karten (Gold/Glas/Glück), Verbesserungen (Farb-Schliff, Trumpf-Kenner, Pflaster, Sparschwein),
   Neu mischen, Zinsen (je 5 Gold +1, max. 5).
@@ -85,7 +102,7 @@ Ein Run = 3 normale Gegner + Boss, 3 Leben (Kerzen). Wer verliert, ist der Durak
 - **Erfolge** (`Profile.ACHIEVEMENTS`, gespeichert in profile.cfg, Index-Reiter ERFOLGE): Lehrling,
   Erster Sieg, Weitergeschoben, Brandstifter, Volltreffer (100+ Punkte in einer Runde), Sammler
   (5 Relikte), Riesentöter (Boss), Durchgezogen (Run gewonnen), Eiskalt (Run auf Schwer) und die
-  geheimen Raucher (eine Zigarette zu Ende), Kettenraucher (6 Zigaretten in einem Run = die ganze Schachtel) und Alkoholiker (Whiskeyflasche im Hauptmenü leer getrunken), Alles auf Grün (Casino-Roulette landet auf der 0). Geheime zeigen ein „?“ und
+  geheimen Raucher (eine Zigarette zu Ende), Kettenraucher (6 Zigaretten in einem Run = die ganze Schachtel) und Alkoholiker (Whiskeyflasche im Hauptmenü leer getrunken), Alles auf Grün (Casino-Roulette landet auf der 0), Jackpot (drei Siebenen am Casino-Automaten, ca. 1 %). Geheime zeigen ein „?“ und
   eine zensierte Aufgabe, bis sie erreicht sind. Meldung oben in der Mitte (Autoload `Pause`).
   Belohnungen: noch offen (Leon entscheidet).
 - **Räume** (`scenes/match/rooms/`, `Rooms.for_floor`): Jeder Tisch spielt in einem zufälligen Raum
@@ -101,7 +118,9 @@ Ein Run = 3 normale Gegner + Boss, 3 Leben (Kerzen). Wer verliert, ist der Durak
   **Roulette** (Easter Egg, `MiniRoulette`): 1–4 Klicks stupsen den Kessel nur an, beim 5. Klick kurz
   hintereinander wird gedreht. Das Fach wird vorher gleichverteilt gezogen (37 Fächer wie beim
   europäischen Roulette, grüne 0 = 1/37), die Kugel rollt dorthin und hüpft über die letzten Stege.
-  Grün → geheimer Erfolg „Alles auf Grün“. Leise Geräusche (`roulette*.wav`, -14 dB).
+  Grün → geheimer Erfolg „Alles auf Grün“. Fach und Zahlenfeld blinken in ihrer Farbe. Leise
+  Geräusche (`roulette*.wav`, -14 dB). Bankerlampe: Zugkette anklicken schaltet sie an/aus
+  (`lamp_chain.wav`).
   Texturen und Geräusche: `tools/generate_casino.py` → `assets/rooms/casino/`.
   **Bahnhofswartesaal** (`StationRoom`, ebenfalls ganz in Code): unten grüne, darüber weiße Kacheln,
   Schachbrett-Fliesen, Holzbänke, Heizkörper, Heißwasserkessel, zwei Fenster zum Bahnsteig, Fahrplantafel
@@ -181,7 +200,8 @@ Ein Run = 3 normale Gegner + Boss, 3 Leben (Kerzen). Wer verliert, ist der Durak
 - Gegner-Animationen laufen über geglättete Werte (`OpponentFigure.SMOOTH`), nichts springt mehr.
 - **Nachwerfen**: nimmt der Gegner, erscheint ein Banner „<NAME> GIBT AUF – DU DARFST NACHWERFEN“,
   die Zugtafel wird gold („<NAME> NIMMT – NACHWERFEN!“) und der Rand leuchtet gold.
-- Gegner (`data/opponents/`): Bandit, Sumpfmann, Krähe, Wölfin, Gaukler, Knochenmann, Hexe, Riese (Boss).
+- Gegner (`data/opponents/`): Bandit, Sumpfmann, Krähe, Wölfin, Gaukler, Knochenmann, Hexe, Riese (Boss),
+  dazu die vier Platzhalter (siehe oben).
 
 ## 5. Look & Feel
 
@@ -340,6 +360,8 @@ Run: Schwierigkeit, Hinweise, Tutorial im Hauptmenü anzeigen).
 - `godot --headless --path . res://tests/autoplay.tscn` → 5 komplette Runs automatisch
   (`DURAKI_DIFF=0/1/2` wählt die Schwierigkeit, `DURAKI_RUNS=n` die Anzahl)
 - `godot --headless --path . res://tests/tutorial_test.tscn` → Tutorial komplett durchspielen
+- `godot --headless --path . res://tests/relic_tests.tscn` → jedes Relikt im echten Ablauf (28 Checks),
+  auch Relikte, die mitten im Duell dazukommen (wirken sofort, `match.gd` `_apply_relics`)
 - Absturz-Suche unter Windows: `Spiel_starten.bat` schreibt das Log nach `logs\letzter_start.log`.
 - `xvfb-run godot --path . res://tests/click_test.tscn` → Handkarten per Klick
 - `tests/screenshot.tscn` (Args: transfer, result, boss, opp=<id>, nohud, many, enh, film) und

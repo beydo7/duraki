@@ -34,13 +34,13 @@ func _init() -> void:
 	head.name = "Head"
 	head.position = Vector3(0, 1.33, 0.03)
 	torso.add_child(head)
-	_add(head, "Hood", _sphere(0.17, 0.4), Vector3(0, 0.02, -0.02), cloth, Vector3(1.0, 1.1, 1.05))
+	_add(head, "Hood", _sphere(0.17, 0.4), Vector3(0, 0.02, -0.07), cloth, Vector3(1.0, 1.1, 1.0))
 	_add(head, "HoodTip", _cyl(0.0, 0.1, 0.16), Vector3(0, 0.2, -0.1), cloth, Vector3.ONE, Vector3(-0.5, 0, 0))
-	_add(head, "Void_Face", _sphere(0.115, 0.26), Vector3(0, -0.01, 0.09), cloth_dark, Vector3(1.0, 1.15, 0.6))
+	_add(head, "Void_Face", _sphere(0.115, 0.26), Vector3(0, -0.01, 0.075), cloth_dark, Vector3(1.0, 1.15, 0.6))
 	for side in [-1.0, 1.0]:
 		var eye := Marker3D.new()
 		eye.name = "Eye_L" if side < 0 else "Eye_R"
-		eye.position = Vector3(side * 0.042, 0.0, 0.14)
+		eye.position = Vector3(side * 0.045, 0.005, 0.15)
 		head.add_child(eye)
 	# Hände (halten die Karten) und Ärmel
 	for side in [-1.0, 1.0]:

@@ -78,70 +78,70 @@ bottom_radius = 0.065
 height = 1.0
 radial_segments = 32
 
-[node name="ShadowFigure" type="Node3D" unique_id=311300015]
+[node name="ShadowFigure" type="Node3D" unique_id=1932998060]
 
-[node name="Torso" type="Node3D" parent="." unique_id=1370954742]
+[node name="Torso" type="Node3D" parent="." unique_id=101338613]
 
-[node name="Cloak" type="MeshInstance3D" parent="Torso" unique_id=1071570495]
+[node name="Cloak" type="MeshInstance3D" parent="Torso" unique_id=1689933225]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.72, 0)
 mesh = SubResource("CylinderMesh_fl8bi")
 
-[node name="Shoulders" type="MeshInstance3D" parent="Torso" unique_id=302091315]
+[node name="Shoulders" type="MeshInstance3D" parent="Torso" unique_id=469071523]
 transform = Transform3D(1.25, 0, 0, 0, 0.55, 0, 0, 0, 0.85, 0, 1.06, 0)
 mesh = SubResource("SphereMesh_walg8")
 
-[node name="Clasp" type="MeshInstance3D" parent="Torso" unique_id=366157904]
+[node name="Clasp" type="MeshInstance3D" parent="Torso" unique_id=936423079]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.08, 0.24)
 mesh = SubResource("SphereMesh_uxlcc")
 
-[node name="Shoulder_L" type="Marker3D" parent="Torso" unique_id=1424632524]
+[node name="Shoulder_L" type="Marker3D" parent="Torso" unique_id=1193745786]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.34, 1.04, 0.02)
 
-[node name="Shoulder_R" type="Marker3D" parent="Torso" unique_id=1106723345]
+[node name="Shoulder_R" type="Marker3D" parent="Torso" unique_id=729841746]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.34, 1.04, 0.02)
 
-[node name="Head" type="Node3D" parent="Torso" unique_id=1184293152]
+[node name="Head" type="Node3D" parent="Torso" unique_id=102220732]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.33, 0.03)
 
-[node name="Hood" type="MeshInstance3D" parent="Torso/Head" unique_id=76394401]
-transform = Transform3D(1, 0, 0, 0, 1.1, 0, 0, 0, 1.05, 0, 0.02, -0.02)
+[node name="Hood" type="MeshInstance3D" parent="Torso/Head" unique_id=673512690]
+transform = Transform3D(1, 0, 0, 0, 1.1, 0, 0, 0, 1, 0, 0.02, -0.07)
 mesh = SubResource("SphereMesh_ysgrk")
 
-[node name="HoodTip" type="MeshInstance3D" parent="Torso/Head" unique_id=1023356257]
+[node name="HoodTip" type="MeshInstance3D" parent="Torso/Head" unique_id=266577927]
 transform = Transform3D(1, 0, 0, 0, 0.87758255, 0.47942555, 0, -0.47942555, 0.87758255, 0, 0.2, -0.1)
 mesh = SubResource("CylinderMesh_q3keo")
 
-[node name="Void_Face" type="MeshInstance3D" parent="Torso/Head" unique_id=1707938503]
-transform = Transform3D(1, 0, 0, 0, 1.15, 0, 0, 0, 0.6, 0, -0.01, 0.09)
+[node name="Void_Face" type="MeshInstance3D" parent="Torso/Head" unique_id=1532683846]
+transform = Transform3D(1, 0, 0, 0, 1.15, 0, 0, 0, 0.6, 0, -0.01, 0.075)
 mesh = SubResource("SphereMesh_ivcfq")
 
-[node name="Eye_L" type="Marker3D" parent="Torso/Head" unique_id=1320887542]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.042, 0, 0.14)
+[node name="Eye_L" type="Marker3D" parent="Torso/Head" unique_id=1049784396]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.045, 0.005, 0.15)
 
-[node name="Eye_R" type="Marker3D" parent="Torso/Head" unique_id=1925674890]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.042, 0, 0.14)
+[node name="Eye_R" type="Marker3D" parent="Torso/Head" unique_id=297111511]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.045, 0.005, 0.15)
 
-[node name="Hand_L" type="Node3D" parent="." unique_id=423679391]
+[node name="Hand_L" type="Node3D" parent="." unique_id=2041874410]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.15, 0.86, 0.2)
 
-[node name="Glove" type="MeshInstance3D" parent="Hand_L" unique_id=68473585]
+[node name="Glove" type="MeshInstance3D" parent="Hand_L" unique_id=1854018065]
 transform = Transform3D(1, 0, 0, 0, 0.7, 0, 0, 0, 1.2, 0, 0, 0)
 mesh = SubResource("SphereMesh_8hdqv")
 
-[node name="Thumb" type="MeshInstance3D" parent="Hand_L" unique_id=1157490624]
+[node name="Thumb" type="MeshInstance3D" parent="Hand_L" unique_id=1351295424]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.035, 0.01, 0.02)
 mesh = SubResource("SphereMesh_0pem5")
 
-[node name="Hand_R" type="Node3D" parent="." unique_id=1042216273]
+[node name="Hand_R" type="Node3D" parent="." unique_id=88478481]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.15, 0.86, 0.2)
 
-[node name="Glove" type="MeshInstance3D" parent="Hand_R" unique_id=1810245953]
+[node name="Glove" type="MeshInstance3D" parent="Hand_R" unique_id=1177202112]
 transform = Transform3D(1, 0, 0, 0, 0.7, 0, 0, 0, 1.2, 0, 0, 0)
 mesh = SubResource("SphereMesh_bb52g")
 
-[node name="Thumb" type="MeshInstance3D" parent="Hand_R" unique_id=749084952]
+[node name="Thumb" type="MeshInstance3D" parent="Hand_R" unique_id=1409591178]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.035, 0.01, 0.02)
 mesh = SubResource("SphereMesh_owpb1")
 
-[node name="Sleeve" type="MeshInstance3D" parent="." unique_id=216732842]
+[node name="Sleeve" type="MeshInstance3D" parent="." unique_id=195699516]
 mesh = SubResource("CylinderMesh_n83g7")

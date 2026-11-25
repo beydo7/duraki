@@ -85,7 +85,7 @@ layout_mode = 2
 theme_type_variation = &"TypeLabel"
 theme_override_colors/font_color = Color(0.86, 0.82, 0.74, 1)
 theme_override_font_sizes/font_size = 16
-text = "Nachts im Hinterzimmer. Vier Tische, drei Kerzen.
+text = "Nachts im Hinterzimmer. Drei Akte, zwölf Tische, drei Kerzen.
 Wer zuletzt Karten hält, ist der Durak."
 autowrap_mode = 3
 
