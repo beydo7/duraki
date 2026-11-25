@@ -82,8 +82,9 @@ Ein Run = 3 normale Gegner + Boss, 3 Leben (Kerzen). Wer verliert, ist der Durak
     dann dreht er sie um und sie bleibt klein über ihm sichtbar (`MatchHUD.add_known`), bis er sie spielt
     (platzt dann weg).
   - Feuerzeug gezückt: verbrennbare Gegnerkarten bekommen einen pulsierenden orangen Rahmen.
-- **Entwicklermenü** (F8 im Duell, `ui/dev_menu.gd`): beliebige Karte mit Verbesserung auf die Hand,
-  Items, Relikte, +10 Gold. Der Gegner wartet, solange es offen ist.
+- **Entwicklermenü** (F8, `ui/dev_menu.gd`): beliebige Karte mit Verbesserung auf die Hand,
+  Items, Relikte, +10 Gold. Der Gegner wartet, solange es offen ist. Im Duell öffnet es `match.gd`,
+  überall sonst (Hauptmenü, Weg, Händler) der Autoload `Pause` (Karten gibt es dort nicht).
 - **Abzeichen** (`Profile.badges`): pro Deck drei Plätze Leicht/Normal/Schwer im Deck-Menü; ein Run-Sieg
   mit dem Deck auf der Stufe füllt den Platz.
 - Händler verkauft keine Boni mehr (die bringen die Decks mit), nur Karten, Relikte, Items.
@@ -95,17 +96,32 @@ Ein Run = 3 normale Gegner + Boss, 3 Leben (Kerzen). Wer verliert, ist der Durak
   Sparstrumpf (Zinsen bis 8), Wirbel (erstes Schieben im Duell +3 Mult), Hufeisen (Glücks-Treffer +2 Gold).
   Eigene Icons liegen in `assets/relics/` (`RelicData.icon_image`), sonst Emoji. Wirkt eins, blitzt es auf
   (`ScoreTracker.relic_triggered`).
-- **Items**: Feuerzeug, Spiegel, Magnet (Karte vom Ablagestapel), Runde Schnaps (Gegner bis Rundenende
-  betrunken), Kartentausch (Handkarte ↔ offene Karte unter dem Stapel, Trumpffarbe bleibt), Maske (nächste
-  Punkterunde ×2), Falle (Gegner darf diese Runde nicht schieben), Bestechung (+50 Punkte). Händler legt je
-  Besuch 3 zufällige aus (`Run.SHOP_ITEMS`).
+- **Items**: Feuerzeug, Spiegel, Magnet, Runde Schnaps, Kartentausch, Maske, Falle, Bestechung (+50 Punkte).
+  Händler legt je Besuch 3 zufällige aus (`Run.SHOP_ITEMS`).
+  - Magnet: Karte fliegt sichtbar vom Ablagestapel in die Hand (`TableWorld.take_from_discard` vor der
+    Änderung am Duell aufrufen, Stil „magnet“), Sound `magnet.wav`.
+  - Runde Schnaps: Gegner trinkt ein Schnapsglas (`OpponentFigure.drink_shot`), taumelt danach deutlich
+    (`set_drunk`) bis Rundenende; über ihm steht ein Schnapsglas-Symbol (`MatchHUD.add_status`). Eigenes
+    Icon ohne Eiswürfel (`assets/items/schnaps.png`, `tools/generate_icons.py`).
+  - Kartentausch: Fenster mit allen Handkarten (`MatchHUD.open_card_picker`); die gewählte Karte wird in
+    den Stapel gemischt (`TableWorld.send_to_deck`), die offene Karte unter dem Stapel kommt auf die Hand.
+    Unten liegt danach wieder offen eine Karte der Trumpffarbe (falls noch eine im Stapel ist).
+  - Maske: hinter Chips × Mult steht sofort „×2“ (`MatchHUD.set_factor`).
+  - Falle: Symbol „Schieben verboten“ über dem Gegner bis Rundenende (`assets/items/no_transfer.png`).
 - Entwicklermenü (F8): zusätzlich „ALLES FREISCHALTEN“ (alle Decks, alle Abzeichen), scrollbar.
-- Schärfe: Kartenbilder/Rückseiten/Porträts mit Mipmaps, Standard-Filter für 2D „Linear Mipmap“,
-  Schrift-Hinting „Normal“ – feine Linien und Schrift wirken klarer.
+- Schärfe: Kartenbilder/Rückseiten/Porträts/Icons mit Mipmaps, Standard-Filter für 2D „Linear Mipmap“.
+  Schrift: Hinting „Leicht“ (volles Hinting verschob die Buchstaben bei krummer Skalierung),
+  2D-Transformationen auf ganze Pixel (`snap_2d_transforms_to_pixel`). Texttafeln bleiben gerade
+  (gedrehte Schrift wird unscharf); die schräge Unterzeile im Titelkeil nutzt eine MSDF-Schrift
+  (`UIKit.msdf_body_font`).
+- Relikte stehen höchstens zu fünft in einer Reihe (Duell und Weg). Händler: „Dein Besitz“ klein unten,
+  Relikte/Items nur als Symbol mit Tooltip; Item-Texte brechen fest in ihrer Spalte um.
+- Rot auf den Karten (Herz/Karo) knalliger: `CORAL = (255, 36, 52)` in `tools/generate_cards.py`.
 - **Regel: Auf Karten steht nie ein Schriftzug der Verbesserung** (kein GOLD/GLAS/GLÜCK) – auch nicht bei
   künftigen Kartenarten. Man erkennt sie am Bild.
-- **Look**: Nachschärfen (Aus/Normal/Stark, Standard Normal) als Bildpass über allem
-  (`ui/post_screen.gdshader`, CanvasLayer 120 im Autoload Settings). Kantenglättung Standard 4×
+- **Look**: Nachschärfen (Aus/Normal/Stark, Standard Normal) nur fürs 3D-Bild
+  (`ui/view_sharpen.gdshader` als Material der SubViewportContainer, gesetzt in `UIKit.fit_viewport`) –
+  Texte und HUD werden nicht mitgeschärft (keine Lichthöfe an der Schrift). Kantenglättung Standard 4×
   (`GRAPHICS_VERSION` hebt ältere Einstellungen einmalig an). Ein Retro-Look war kurz drin und ist
   auf Wunsch wieder raus.
 - Während ausgeteilt wird, kann man nicht ausspielen (`TableWorld.busy_until`).
@@ -249,7 +265,8 @@ setzt ältere Einstellungsdateien einmalig darauf).
 - **Zigarettenschachtel** (`scenes/match/cigarette_pack.gd`, eigene Marke „DURAKI“, rot-weiß, kein
   echtes Markenlogo) rechts neben deinem Aschenbecher: 1. Klick Deckel auf, 2. Klick drei Zigaretten
   rutschen halb raus, 3. Klick eine wandert in den Aschenbecher (der startet im Duell leer). Ist sie
-  aufgeraucht, holt der nächste Klick die nächste.
+  aufgeraucht, holt der nächste Klick sofort die nächste – alle drei lassen sich rauchen, die Stummel
+  bleiben in der Mulde liegen (`Ashtray.STUB_SPOTS`).
 - **Aschenbecher** (`scenes/match/ashtray.gd`): hinten links der des Gegners (Filter zeigt zu ihm, Deko),
   im Duell zusätzlich dein eigener vorne links neben den Kerzen. Klick = anzünden, dann 5 Züge
   (Zigarette zum Mund, brennt ab, Rauchwolke), danach qualmt der Stummel in der Kerbe 12 s und geht aus.
@@ -267,8 +284,8 @@ Run: Schwierigkeit, Hinweise, Tutorial im Hauptmenü anzeigen).
 `user://settings.cfg`, Autoload `Settings`. Esc = Pause.
 
 ## 7. Tests
-- `godot --headless --path . -s res://tests/run_tests.gd` → Regeln/KI (49 Checks)
-- `godot --headless --path . res://tests/deck_tests.tscn` → Decks/Seelen/Schwierigkeit (43 Checks)
+- `godot --headless --path . -s res://tests/run_tests.gd` → Regeln/KI (68 Checks)
+- `godot --headless --path . res://tests/deck_tests.tscn` → Decks/Seelen/Schwierigkeit (46 Checks)
 - `godot --headless --path . res://tests/autoplay.tscn` → 5 komplette Runs automatisch
   (`DURAKI_DIFF=0/1/2` wählt die Schwierigkeit, `DURAKI_RUNS=n` die Anzahl)
 - `godot --headless --path . res://tests/tutorial_test.tscn` → Tutorial komplett durchspielen

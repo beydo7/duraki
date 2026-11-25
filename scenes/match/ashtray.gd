@@ -7,7 +7,7 @@ extends Node3D
 ##                    zurück in die Kerbe, Rauchwolke vor der Kamera
 ##   nach PUFFS Zügen → Stummel bleibt in der Kerbe liegen, qualmt noch und geht nach
 ##                    SMOULDER_TIME Sekunden aus
-## Danach passiert nichts mehr (bis zum nächsten Duell).
+## Mit der Schachtel daneben gibt es sofort die nächste; der Stummel wandert dann in die Mulde.
 
 ## Platz des Aschenbechers hinten links (Gegnerseite, nur Deko)
 const BACK_CENTER := Vector3(-0.68, 0.8, -0.42)
@@ -60,11 +60,18 @@ func _ready() -> void:
 
 ## Kann gerade eine neue Zigarette aus der Schachtel abgelegt werden?
 func wants_cigarette() -> bool:
-	return not _busy and state in [State.EMPTY, State.OUT]
+	return not _busy and state in [State.EMPTY, State.OUT, State.BUTT]
 
 
 ## Neue Zigarette fliegt von `from` (global) in die Kerbe; danach kann man sie anzünden.
 func receive_cigarette(from: Transform3D) -> void:
+	# der aufgerauchte Stummel bleibt in der Mulde liegen, die neue kommt in die Kerbe
+	if state in [State.BUTT, State.OUT]:
+		var spot: Array = STUB_SPOTS[_stubs % STUB_SPOTS.size()]
+		_add_stub(spot[0] + Vector3(0, 0.0015 * floorf(_stubs / float(STUB_SPOTS.size())), 0), spot[1])
+		_stubs += 1
+		Sfx.play(&"card_hand_hover", 0.6, -4.0)
+	state = State.EMPTY
 	_busy = true
 	_puffs = 0
 	_set_burn(0.0)
@@ -162,9 +169,14 @@ func _build_tray() -> void:
 		var a := rng.randf() * TAU
 		var r := rng.randf_range(0.0, 0.032)
 		_mesh(s, ash, Vector3(cos(a) * r, 0.0235, sin(a) * r))
+	_add_stub(Vector3(-0.018, 0.027, -0.012), 2.2)
+
+
+## Ausgedrückter Stummel in der Mulde (Filter, zerknicktes Papier, schwarze Spitze).
+func _add_stub(pos: Vector3, yaw: float) -> void:
 	var old := Node3D.new()
-	old.position = Vector3(-0.018, 0.027, -0.012)
-	old.rotation = Vector3(0.0, 2.2, 0.15)
+	old.position = pos
+	old.rotation = Vector3(0.0, yaw, 0.15)
 	add_child(old)
 	_piece(old, 0.014, 0.0, _mat(Color(0.78, 0.5, 0.25), 0.8)) # Filter
 	_piece(old, 0.008, -0.014, _mat(Color(0.62, 0.6, 0.56), 0.9)) # zerknicktes Papier
@@ -174,6 +186,17 @@ func _build_tray() -> void:
 	var tipn := _mesh(tip, _mat(Color(0.15, 0.14, 0.14), 1.0), Vector3(-0.014, 0, 0))
 	remove_child(tipn)
 	old.add_child(tipn)
+
+
+## Plätze für aufgerauchte Stummel (der erste liegt schon von Anfang an da)
+const STUB_SPOTS := [
+	[Vector3(0.016, 0.027, 0.014), 0.6],
+	[Vector3(0.022, 0.027, -0.018), 4.1],
+	[Vector3(-0.006, 0.027, 0.028), 1.5],
+	[Vector3(-0.026, 0.027, 0.012), 3.0],
+	[Vector3(0.002, 0.027, -0.03), 5.2],
+]
+var _stubs := 0
 
 
 func _build_cigarette() -> void:

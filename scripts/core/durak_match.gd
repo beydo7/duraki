@@ -232,25 +232,38 @@ func attack(card: Card, at := -1) -> bool:
 
 ## Kartentausch (Item): Handkarte gegen die offene Karte unter dem Stapel tauschen.
 ## Die Trumpffarbe bleibt, wie sie zu Beginn war.
-func swap_with_bottom(card: Card) -> bool:
+func swap_with_bottom(card: Card, rng: RandomNumberGenerator = null) -> bool:
 	if is_over or deck.is_empty() or not player_hand.has(card):
 		return false
 	var bottom: Card = deck.cards[0]
-	deck.cards[0] = card
+	deck.cards.remove_at(0)
 	player_hand.erase(card)
 	player_hand.append(bottom)
 	DurakRules.sort_hand(player_hand, trump_suit)
-	trump_card = card
-	message.emit("Getauscht: %s unter den Stapel, %s auf die Hand." % [card, bottom])
+	# Handkarte zufällig in den Stapel mischen (nicht einfach unten drunter)
+	if rng == null:
+		rng = RandomNumberGenerator.new()
+		rng.randomize()
+	deck.cards.insert(rng.randi_range(0, deck.cards.size()), card)
+	# unten liegt wieder offen eine Karte der Trumpffarbe, falls noch eine im Stapel ist
+	for i in deck.cards.size():
+		if deck.cards[i].suit == trump_suit:
+			var t: Card = deck.cards[i]
+			deck.cards.remove_at(i)
+			deck.cards.insert(0, t)
+			break
+	trump_card = deck.cards[0]
+	message.emit("Getauscht: %s in den Stapel gemischt, %s auf die Hand." % [card, bottom])
 	changed.emit()
 	return true
 
 
 ## Magnet (Item): zufällige Karte vom Ablagestapel auf die Hand. Gibt sie zurück (oder null).
-func pull_from_discard(rng: RandomNumberGenerator) -> Card:
-	if is_over or discard_pile.is_empty():
+## `pick`: diese Karte nehmen (z. B. vorher ausgewählt, damit die Animation sie kennt).
+func pull_from_discard(rng: RandomNumberGenerator, pick: Card = null) -> Card:
+	if is_over or discard_pile.is_empty() or (pick != null and not discard_pile.has(pick)):
 		return null
-	var c: Card = discard_pile[rng.randi_range(0, discard_pile.size() - 1)]
+	var c: Card = pick if pick != null else discard_pile[rng.randi_range(0, discard_pile.size() - 1)]
 	discard_pile.erase(c)
 	player_hand.append(c)
 	DurakRules.sort_hand(player_hand, trump_suit)

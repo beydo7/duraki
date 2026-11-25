@@ -169,29 +169,19 @@ func apply_all() -> void:
 		root.content_scale_factor = get_value("general/ui_scale")
 
 
-# --- Bild-Nachbearbeitung (Schärfe) über allem ------------------------------------
+# --- Nachschärfen der 3D-Ansichten ---------------------------------------------------
 
-var _post: ColorRect
+## Ein gemeinsames Material für alle 3D-Ansichten (UIKit.fit_viewport hängt es an).
+## Nur das 3D-Bild wird geschärft, Texte und HUD nicht.
+var view_material: ShaderMaterial
 
 
 func _apply_post() -> void:
-	if _post == null:
-		if get_tree() == null:
-			return
-		var layer := CanvasLayer.new()
-		layer.layer = 120 # über Pause (50) und Überblendung (100)
-		_post = ColorRect.new()
-		_post.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-		_post.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		var mat := ShaderMaterial.new()
-		mat.shader = preload("res://ui/post_screen.gdshader")
-		_post.material = mat
-		layer.add_child(_post)
-		add_child.call_deferred(layer)
+	if view_material == null:
+		view_material = ShaderMaterial.new()
+		view_material.shader = preload("res://ui/view_sharpen.gdshader")
 	var sharpen: float = SHARPEN_VALUES[clampi(int(get_value("graphics/sharpen")), 0, 2)]
-	var m := _post.material as ShaderMaterial
-	m.set_shader_parameter("sharpen", sharpen)
-	_post.visible = sharpen > 0.0 # aus = keine Extra-Kosten
+	view_material.set_shader_parameter("sharpen", sharpen)
 
 
 ## Für SubViewports mit 3D-Inhalt (Kantenglättung, Renderauflösung, Schatten).

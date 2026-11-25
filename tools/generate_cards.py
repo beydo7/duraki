@@ -53,7 +53,7 @@ ROBE_DARK = (26, 22, 52)
 SKIN = (58, 52, 96)
 GOLD = (236, 200, 124)
 GOLD_DIM = (168, 136, 82)
-CORAL = (242, 98, 92)
+CORAL = (255, 36, 52)  # knalliges Rot (Herz/Karo)
 STAR = (206, 196, 255)
 
 SUITS = {"h": ("♥", CORAL), "d": ("♦", CORAL), "c": ("♣", GOLD), "s": ("♠", GOLD)}

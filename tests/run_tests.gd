@@ -270,8 +270,9 @@ func test_new_items_and_relics() -> void:
 	var old_trump := duel.trump_suit
 	var mine: Card = duel.player_hand[0]
 	check(duel.swap_with_bottom(mine), "Kartentausch geht")
-	check(duel.deck.cards[0] == mine and duel.player_hand.any(func(c: Card) -> bool: return c.rank == 14),
-		"Handkarte liegt unten, Ass auf der Hand")
+	check(duel.deck.cards.has(mine) and duel.player_hand.any(func(c: Card) -> bool: return c.rank == 14),
+		"Handkarte im Stapel, Ass auf der Hand")
+	check(duel.trump_card == duel.deck.cards[0] and duel.deck.size() == 2, "unten liegt wieder eine offene Karte")
 	check(duel.trump_suit == old_trump, "Trumpffarbe bleibt")
 	duel.discard_pile.append(Card.new(C, 10))
 	var rng := RandomNumberGenerator.new()

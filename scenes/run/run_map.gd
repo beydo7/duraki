@@ -73,10 +73,31 @@ func _render(next: OpponentData) -> void:
 	%RunInfo.add_child(_chip("%d Gold" % Run.gold, UIKit.INK, "Gold"))
 	%RunInfo.add_child(_chip("Hand %d" % Run.player_hand_size(), UIKit.INK, "Deine Handkarten"))
 	%RunInfo.add_child(_chip("Deck: %s" % Run.deck_name(), UIKit.INK, Run.deck_description()))
-	for r in Run.relics:
-		var chip := _chip(r.icon(), UIKit.INK, "%s – %s" % [r.display_name, r.description])
-		(chip.get_child(0) as Label).add_theme_font_override("font", UIKit.emoji_font())
-		%RunInfo.add_child(chip)
+	# Relikte darunter als freie Symbole, höchstens 5 pro Reihe (rechtsbündig)
+	if _relic_grid == null:
+		_relic_grid = VBoxContainer.new()
+		_relic_grid.add_theme_constant_override("separation", 4)
+		_relic_grid.anchor_left = 1.0
+		_relic_grid.anchor_right = 1.0
+		_relic_grid.offset_left = -48.0
+		_relic_grid.offset_right = -48.0
+		_relic_grid.offset_top = 80.0
+		_relic_grid.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+		add_child(_relic_grid)
+	for c in _relic_grid.get_children():
+		c.queue_free()
+	var row: HBoxContainer
+	for i in Run.relics.size():
+		var r: RelicData = Run.relics[i]
+		if i % 5 == 0:
+			row = HBoxContainer.new()
+			row.alignment = BoxContainer.ALIGNMENT_END
+			row.add_theme_constant_override("separation", 8)
+			_relic_grid.add_child(row)
+		var icon := UIKit.relic_icon(r.visual(), 40, 28)
+		icon.tooltip_text = "%s – %s" % [r.display_name, r.description]
+		icon.mouse_filter = Control.MOUSE_FILTER_STOP
+		row.add_child(icon)
 
 
 ## Eine Station auf dem Pfad: Linie, Porträt, Name, Ziel/Status.
@@ -116,13 +137,16 @@ func _stop(i: int) -> Control:
 	return row
 
 
+var _relic_grid: VBoxContainer
+
+
 func _chip(text: String, color: Color, tip: String) -> Control:
 	var p := PanelContainer.new()
-	p.add_theme_stylebox_override("panel", UIKit.paper(Vector4(14, 8, 16, 8)))
+	p.add_theme_stylebox_override("panel", UIKit.paper(Vector4(10, 5, 12, 5)))
 	p.tooltip_text = tip
 	var l := Label.new()
 	l.theme_type_variation = &"InkLabel"
-	l.add_theme_font_size_override("font_size", 16)
+	l.add_theme_font_size_override("font_size", 14)
 	l.add_theme_color_override("font_color", color)
 	l.text = text
 	p.add_child(l)

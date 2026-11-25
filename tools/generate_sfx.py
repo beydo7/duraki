@@ -16,6 +16,7 @@ Ausgabe in assets/sfx/ (16 Bit, mono, 44,1 kHz):
   inhale.wav       Zug an der Zigarette (Knistern + Atem)
   exhale.wav       Rauch auspusten (gespitzte Lippen, weich)
   gulp.wav         Schnaps trinken (Schluck + Glas abstellen)
+  magnet.wav       Magnet: Brummen und Klacken
   candle_flicker.wav  Kerzen flackern (weiches Flattern, feines Knistern)
   candle_loop.wav  dasselbe als nahtlose Schleife (blendet im Spiel beim Verweilen ein)
   clink.wav        Fingernagel ans Schnapsglas
@@ -474,11 +475,28 @@ def mirror():
     save("mirror.wav", reverb(buf, 0.4, 0.15), peak=0.5)
 
 
+def magnet():
+    """Magnet: kurzes, steigendes Brummen (Anziehen) und ein metallisches Klacken am Ende."""
+    dur = 0.85
+    n = int(dur * SR)
+    buf = np.zeros(n)
+    tt = t(0.7)
+    f = np.linspace(110, 330, len(tt))
+    phase = 2 * np.pi * np.cumsum(f) / SR
+    hum = (np.sin(phase) + 0.35 * np.sin(2 * phase) + 0.2 * np.sign(np.sin(3 * phase))) * (0.6 + 0.4 * np.sin(2 * np.pi * 18 * tt))
+    hum *= np.linspace(0.2, 1.0, len(tt)) * env(len(tt), 0.05, 0.6, 0.6)
+    place(buf, lowpass(hum, 2500), 0.0, 0.45)
+    place(buf, whoosh(0.5, 400, 2400), 0.15, 0.35)
+    place(buf, clack(2600, 0.05), 0.68, 0.9)
+    place(buf, chime(1950, 0.25), 0.68, 0.2)
+    save("magnet.wav", reverb(buf, 0.25, 0.12), peak=0.7)
+
+
 def main():
     os.makedirs(OUT, exist_ok=True)
     # Jeder Sound bekommt einen festen eigenen Zufallswert: Änderungen an einem Sound
     # verändern die anderen nicht.
-    for fn in (intro, card_hover, card_select, lighter, inhale, exhale, gulp, candle_flicker, clink, bottle_knock, pour, index_hover, ui_click, candle_loop, card_hand_hover, card_deal, card_play, card_take, cards_discard, coins, win_sting, lose_sting, button, burn, mirror):
+    for fn in (intro, card_hover, card_select, lighter, inhale, exhale, gulp, candle_flicker, clink, bottle_knock, pour, index_hover, ui_click, candle_loop, card_hand_hover, card_deal, card_play, card_take, cards_discard, coins, win_sting, lose_sting, button, burn, mirror, magnet):
         rng.seed(zlib.crc32(fn.__name__.encode()) % (2 ** 31))
         fn()
     print("Sounds erzeugt in", OUT)

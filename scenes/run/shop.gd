@@ -7,7 +7,7 @@ extends Control
 
 const CARD_SIZE := Vector2(108, 151)
 const STALL_GAP := 20
-const RELIC_W := 108.0
+const RELIC_W := 132.0
 const CARD_W := 164.0
 
 const ENH_COLORS := [Color.WHITE, UIKit.P_GOLD, Color(0.55, 0.82, 1.0), Color(0.42, 0.85, 0.5)]
@@ -66,11 +66,11 @@ func _render(deal := false) -> void:
 	var card_row := _stall("KARTEN", "für dein Deck", cards.size() * (CARD_W + 14) + 22, deal, 0)
 	for i in cards.size():
 		card_row.add_child(_card_offer(cards[i], deal, 0.25 + i * 0.07))
-	var relic_row := _stall("RELIKTE", "dauerhafte Vorteile", relics.size() * (RELIC_W + 10) + 26, deal, 1)
+	var relic_row := _stall("RELIKTE", "dauerhafte Vorteile", relics.size() * (RELIC_W + 14) + 26, deal, 1)
 	for i in relics.size():
 		relic_row.add_child(_relic_offer(relics[i], deal, 0.35 + i * 0.06))
 	var item_row := _stall("ITEMS", "einmal im Duell einsetzbar",
-		maxi(items.size(), 1) * (RELIC_W + 10) + 26, deal, 2)
+		maxi(items.size(), 1) * (RELIC_W + 14) + 26, deal, 2)
 	for i in items.size():
 		item_row.add_child(_relic_offer(items[i], deal, 0.45 + i * 0.06))
 	_render_owned()
@@ -101,15 +101,27 @@ func _bought(btn: Button) -> void:
 func _render_owned() -> void:
 	for c in %Owned.get_children():
 		c.queue_free()
-	var cap := UIKit.label("DEIN BESITZ", 12, UIKit.MUTED, &"HeaderLabel")
-	cap.custom_minimum_size = Vector2(0, 30)
+	var cap := UIKit.label("DEIN BESITZ", 10, UIKit.MUTED, &"HeaderLabel")
+	cap.custom_minimum_size = Vector2(0, 26)
 	cap.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	%Owned.add_child(cap)
+	# Relikte und Items nur als kleine Symbole (Name beim Drüberfahren), damit nichts verdeckt wird
+	for r in Run.relics:
+		%Owned.add_child(_mini_icon(r.visual(), "%s – %s" % [r.display_name, r.description]))
+	for id in Run.items:
+		%Owned.add_child(_mini_icon(Run.ITEMS[id].emoji, "%s – %s" % [Run.ITEMS[id].name, Run.ITEMS[id].text]))
 	var owned := _owned_items()
-	if owned.is_empty():
-		%Owned.add_child(UIKit.label("noch nichts", 15, Color(UIKit.MUTED, 0.7), &"TypeLabel"))
+	if owned.is_empty() and Run.relics.is_empty() and Run.items.is_empty():
+		%Owned.add_child(UIKit.label("noch nichts", 12, Color(UIKit.MUTED, 0.7), &"TypeLabel"))
 	for item: Array in owned:
 		%Owned.add_child(_chip(item[0], item[1]))
+
+
+func _mini_icon(icon: Variant, tip: String) -> Control:
+	var c := UIKit.relic_icon(icon, 26, 18)
+	c.tooltip_text = tip
+	c.mouse_filter = Control.MOUSE_FILTER_STOP
+	return c
 
 
 # --- Stände -----------------------------------------------------------------------------
@@ -278,8 +290,11 @@ func _relic_texts(parts: Array, offer: Dictionary, is_relic: bool) -> Control:
 		var kind := _label("BONUS", 10, Color(1, 0.8, 0.76), false)
 		kind.add_theme_font_override("font", UIKit.body_font(700, 3))
 		box.add_child(kind)
-	box.add_child(_label(offer.title, 14, UIKit.P_CREAM, true))
+	var title := _label(offer.title, 14, UIKit.P_CREAM, true)
+	title.custom_minimum_size.x = RELIC_W - 8
+	box.add_child(title)
 	var text := _label(offer.text, 12, Color(UIKit.P_CREAM, 0.72), false)
+	text.custom_minimum_size.x = RELIC_W - 8 # fest umbrechen, nie in den Nachbarn ragen
 	text.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	box.add_child(text)
 	_finish_ware(parts)
@@ -353,10 +368,6 @@ func _price(offer: Dictionary) -> Control:
 
 func _owned_items() -> Array:
 	var items := []
-	for r in Run.relics:
-		items.append(["%s %s" % [r.icon(), r.display_name], r.description])
-	for id in Run.items:
-		items.append(["%s %s" % [Run.ITEMS[id].emoji, Run.ITEMS[id].name], Run.ITEMS[id].text])
 	for key in Run.card_enhancements:
 		var parts: PackedStringArray = key.split(":")
 		var enh: int = Run.card_enhancements[key]
@@ -373,11 +384,11 @@ func _owned_items() -> Array:
 
 func _chip(text: String, tip: String) -> Control:
 	var p := PanelContainer.new()
-	p.add_theme_stylebox_override("panel", UIKit.paper(Vector4(14, 8, 16, 8)))
+	p.add_theme_stylebox_override("panel", UIKit.paper(Vector4(8, 3, 10, 3)))
 	p.tooltip_text = tip
 	var l := Label.new()
 	l.theme_type_variation = &"InkLabel"
-	l.add_theme_font_size_override("font_size", 15)
+	l.add_theme_font_size_override("font_size", 12)
 	l.text = text
 	p.add_child(l)
 	return p

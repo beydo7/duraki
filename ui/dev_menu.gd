@@ -1,6 +1,6 @@
 class_name DevMenu
 extends Control
-## Entwicklermenü (F8 im Duell): beliebige Karte (Farbe, Rang, Verbesserung) auf die Hand
+## Entwicklermenü (F8 im Duell und überall sonst, auch im Hauptmenü): beliebige Karte (Farbe, Rang, Verbesserung) auf die Hand
 ## nehmen, Items und Relikte holen, Gold dazu, alles freischalten. Zum Testen.
 ##     var m := DevMenu.new(); m.match_node = self; add_child(m)
 
@@ -70,7 +70,7 @@ func _ready() -> void:
 	root.add_child(items)
 	for id: StringName in Run.ITEMS:
 		var it: Dictionary = Run.ITEMS[id]
-		items.add_child(_button("%s %s" % [it.emoji, it.name], func() -> void: _give_item(id)))
+		items.add_child(_button(("%s %s" % [it.emoji, it.name]) if it.emoji is String else String(it.name), func() -> void: _give_item(id)))
 	items.add_child(_button("Items leeren", func() -> void:
 		Run.items.clear()
 		_refresh("Items geleert.")))
@@ -117,6 +117,9 @@ func close() -> void:
 
 ## Gewählte Karte auf die Hand: aus Stapel/Ablage/Gegnerhand holen, sonst neu erzeugen.
 func _give_card() -> void:
+	if match_node == null or not ("duel" in match_node):
+		_refresh("Karten gibt es nur im Duell.")
+		return
 	var duel: DurakMatch = match_node.duel
 	if duel == null or duel.is_over:
 		_refresh("Kein laufendes Duell.")

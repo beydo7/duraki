@@ -12,7 +12,19 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 
 
+var _dev: DevMenu
+
+
 func _unhandled_input(event: InputEvent) -> void:
+	# F8: Entwicklermenü überall (Hauptmenü, Weg, Händler). Im Duell öffnet es match.gd selbst.
+	if event is InputEventKey and event.pressed and not event.echo and (event as InputEventKey).keycode == KEY_F8:
+		if _dev == null and not is_open():
+			get_viewport().set_input_as_handled()
+			_dev = DevMenu.new()
+			_dev.match_node = get_tree().current_scene
+			add_child(_dev)
+			_dev.closed.connect(func() -> void: _dev = null)
+		return
 	if not event.is_action_pressed("ui_cancel"):
 		return
 	if _options != null:

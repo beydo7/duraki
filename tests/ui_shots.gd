@@ -21,6 +21,9 @@ func _run() -> void:
 	Run.goto(Run.SCENE_MENU)
 	await get_tree().create_timer(2.5).timeout
 	await _wait_shot("1_menu")
+	if "menu_only" in OS.get_cmdline_user_args():
+		get_tree().quit()
+		return
 	var options := OptionsMenu.new()
 	get_tree().current_scene.add_child(options)
 	await _wait_shot("1b_options_grafik")
@@ -39,7 +42,10 @@ func _run() -> void:
 	Run.start_new_run(4242)
 	await get_tree().create_timer(0.2).timeout
 	Run.floor_index = 1
-	Run.relics.append(load("res://data/relics/lucky_coin.tres"))
+	# Alle Relikte – prüft, dass die Leisten bei vielen Relikten nicht überlappen.
+	for f in DirAccess.get_files_at("res://data/relics"):
+		if f.ends_with(".tres"):
+			Run.relics.append(load("res://data/relics/" + f))
 	Run.goto(Run.SCENE_MAP)
 	await _wait_shot("2_map")
 	Pause.open()

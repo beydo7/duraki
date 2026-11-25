@@ -24,7 +24,7 @@ const GOLD := Color(0.95, 0.74, 0.3)
 const RED := Color(0.96, 0.34, 0.3)
 const CHIPS := Color(0.67, 0.57, 1.0) # Lila wie das Nachtlicht (nicht Balatro-Blau)
 const MULT := Color(0.91, 0.71, 0.27) # Gold (nicht Balatro-Rot)
-const SUIT_COLORS := [Color(1, 0.42, 0.45), Color(1, 0.55, 0.4), Color(0.75, 0.9, 1.0), Color(0.82, 0.78, 1.0)]
+const SUIT_COLORS := [Color(1, 0.24, 0.3), Color(1, 0.3, 0.28), Color(0.75, 0.9, 1.0), Color(0.82, 0.78, 1.0)]
 
 const DISPLAY_FONT := preload("res://assets/fonts/RussoOne-Regular.ttf")
 const BODY_FONT := preload("res://assets/fonts/Oswald-Variable.ttf")
@@ -54,6 +54,25 @@ static var _emoji: Font
 
 
 ## Farbige Emojis aus der Systemschrift (Windows: Segoe UI Emoji), sonst Textschrift.
+## Oswald als MSDF-Schrift (bleibt bei Drehung und Skalierung scharf) – für schräge Texte.
+static func msdf_body_font(weight := 400, spacing := 0) -> FontVariation:
+	var key := "m%d_%d" % [weight, spacing]
+	if _fonts.has(key):
+		return _fonts[key]
+	if not _fonts.has("msdf_base"):
+		var base := BODY_FONT.duplicate() as FontFile
+		base.multichannel_signed_distance_field = true
+		base.msdf_pixel_range = 8
+		base.msdf_size = 64
+		_fonts["msdf_base"] = base
+	var f := FontVariation.new()
+	f.base_font = _fonts["msdf_base"]
+	f.variation_opentype = {TextServerManager.get_primary_interface().name_to_tag("wght"): weight}
+	f.spacing_glyph = spacing
+	_fonts[key] = f
+	return f
+
+
 static func emoji_font() -> Font:
 	if _emoji == null:
 		var f := SystemFont.new()
@@ -230,7 +249,8 @@ static func poster_wedge(owner: Control, size: Vector2, behind: Control, subline
 	owner.add_child(wedge)
 	owner.move_child(wedge, behind.get_index())
 	if subline != "":
-		var ru := poster_label(subline, body_font(600, 4), 12, Color(1, 0.8, 0.76))
+		# schräg liegende Schrift: MSDF-Schrift bleibt auch gedreht scharf
+		var ru := poster_label(subline, msdf_body_font(600, 4), 13, Color(1, 0.8, 0.76))
 		var y0 := size.y * 0.89
 		ru.position = Vector2(64, y0 - 14)
 		ru.rotation = atan2(-(0.14 * size.y), 0.86 * size.x)
@@ -277,7 +297,6 @@ static func show_unlocks(owner: Control) -> void:
 		owner.add_child(note)
 		note.set_anchors_preset(Control.PRESET_TOP_RIGHT)
 		note.position = Vector2(owner.size.x - 400, 140 + i * 120)
-		note.rotation_degrees = -1.5
 		note.modulate.a = 0.0
 		var tw := note.create_tween()
 		tw.tween_interval(0.6 + i * 0.5)
@@ -303,6 +322,12 @@ static func fit_viewport(owner: Control, view: SubViewportContainer, vp: SubView
 	vp.size = px
 	view.size = Vector2(px)
 	view.scale = Vector2.ONE / factor
+	# Nachschärfen nur fürs 3D-Bild; unscharfe Hintergründe (scale < 1) bleiben weich.
+	if scale >= 1.0:
+		Settings._apply_post()
+		view.material = Settings.view_material
+	elif view.material != null:
+		view.material = null
 
 
 # --- Animationen ----------------------------------------------------------------------

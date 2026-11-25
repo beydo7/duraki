@@ -69,6 +69,9 @@ var _base := {} # Card3D -> Transform3D (Ziel ohne Hover)
 var revealed := {}
 ## Neue Karte startet hier statt auf dem Stapel (Card → Transform3D)
 var spawn_from := {}
+## Kartentausch: diese Karten wandern in den Nachziehstapel (statt auf den Ablagestapel)
+var into_deck := {}
+var _animate_trump := false
 ## Tisch beim letzten sync (um eine Karte, die die Runde sofort beendet, noch hinzulegen)
 var _last_attacks: Array[Card] = []
 var _last_defs: Array[Card] = []
@@ -264,16 +267,24 @@ func sync(duel: DurakMatch, playable: Array[Card]) -> void:
 		if node == null:
 			node = Card3D.create(card, card.suit == duel.trump_suit)
 			node.transform = _deck_top_xf()
-			if spawn_from.has(card): # z. B. Magnet: kommt vom Ablagestapel
+			var from_pile := spawn_from.has(card)
+			if from_pile: # z. B. Magnet: kommt vom Ablagestapel
 				node.transform = spawn_from[card]
 				spawn_from.erase(card)
 			add_child(node)
 			node.grabbed.connect(_on_grabbed)
 			node.hover_changed.connect(_on_hover)
 			_cards[card] = node
-			if card != duel.trump_card or duel.deck.is_empty():
+			if from_pile:
+				delay = 0.35 # kurz am Stapel „ziehen“ lassen, dann fliegt sie in die Hand
+				style = "magnet"
+			elif card != duel.trump_card or duel.deck.is_empty():
 				delay = deal_start - now + new_count * DEAL_STAGGER
 				new_count += 1
+				style = "deal"
+			elif _animate_trump: # Kartentausch: neue offene Karte unter dem Stapel
+				_animate_trump = false
+				delay = 0.6
 				style = "deal"
 			else:
 				node.transform = xf # Trumpfkarte liegt von Anfang an
@@ -334,6 +345,13 @@ func sync(duel: DurakMatch, playable: Array[Card]) -> void:
 		_zone.erase(card)
 		node.in_hand = false
 		node.set_state(false)
+		if into_deck.has(card):
+			into_deck.erase(card)
+			# verdeckt in den Stapel stecken und dort verschwinden
+			var dxf := Transform3D(Basis(Vector3.FORWARD, PI) * Basis(Vector3.UP, 0.4), DECK_POS + Vector3(0.0, 0.06, 0.0))
+			var twd := _move(node, dxf, 0.0, 0.6, "take")
+			twd.finished.connect(node.queue_free)
+			continue
 		var wait := DISCARD_DELAY + discard_i * 0.07
 		discard_i += 1
 		# Letzte Verteidigungskarte direkt aus der Hand (Runde endet sofort): erst sichtbar
@@ -350,6 +368,8 @@ func sync(duel: DurakMatch, playable: Array[Card]) -> void:
 					_to_discard(node, DISCARD_DELAY))
 		else:
 			_to_discard(node, wait)
+	into_deck.clear()
+	_animate_trump = false
 
 
 ## Welche Angriffskarte der letzten Runde hat `card` geschlagen? (-1: keine)
@@ -469,6 +489,13 @@ func take_from_discard(card: Card) -> void:
 	_set_pile_height(_discard_pile, DISCARD_POS, _discard_count)
 	_discard_pile.visible = _discard_count > 0
 	spawn_from[card] = Transform3D(Basis(Vector3.FORWARD, PI), DISCARD_POS + Vector3(0, 0.03, 0))
+
+
+## Kartentausch: `card` geht gleich in den Nachziehstapel, unten erscheint eine neue offene Karte.
+## Vor der Änderung am Duell aufrufen.
+func send_to_deck(card: Card) -> void:
+	into_deck[card] = true
+	_animate_trump = true
 
 
 ## Feuerzeug gezückt: diese Gegnerkarten bekommen einen leuchtenden Rahmen (leer = aus).
@@ -735,6 +762,12 @@ func _move(node: Node3D, to: Transform3D, delay: float, time := MOVE_TIME, style
 	var trans := Tween.TRANS_CUBIC
 	var ease_mode := Tween.EASE_OUT
 	match style:
+		"magnet": # vom Ablagestapel angezogen: hebt ab, wird immer schneller
+			time = 0.8
+			lift = 0.22
+			sway = 0.3
+			trans = Tween.TRANS_EXPO
+			ease_mode = Tween.EASE_IN
 		"deal":
 			time = 0.42
 			lift = 0.1

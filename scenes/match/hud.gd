@@ -65,6 +65,8 @@ var _seg: SegBar
 var _chips_plate: Slab
 var _chips_label: Label
 var _mult_label: Label
+var _factor_label: Label
+var _factor := 1
 var _sub_label: Label
 var _toasts: VBoxContainer
 var _opp_bar: Slab
@@ -75,7 +77,8 @@ var _floor_label: Label
 var _opp_cards_draw: Control
 var _opp_count: Label
 var _think_label: Label
-var _relics: HFlowContainer
+var _relics: VBoxContainer
+const RELICS_PER_ROW := 5
 var _speech: Slab
 var _speech_label: Label
 var _lives_label: Label
@@ -286,6 +289,11 @@ func _build_score() -> void:
 	_mult_label = UIKit.poster_label("1", UIKit.display_font(), 30, UIKit.MULT)
 	_mult_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	row.add_child(_mult_label)
+	# Maske: zusätzlicher Faktor „×2“ für die nächste gewertete Runde
+	_factor_label = UIKit.poster_label("", UIKit.display_font(), 30, Color(1, 0.36, 0.32))
+	_factor_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_factor_label.visible = false
+	row.add_child(_factor_label)
 	var gap := Control.new()
 	gap.custom_minimum_size.x = 8
 	row.add_child(gap)
@@ -341,11 +349,9 @@ func _build_opponent() -> void:
 	_opp_count.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_at(_opp_bar, _opp_count, Vector2(250, 49), Vector2(168, 18))
 
-	# Items und Relikte rechts oben; bei vielen Relikten bricht die Reihe um
-	_relics = HFlowContainer.new()
-	_relics.alignment = FlowContainer.ALIGNMENT_END
-	_relics.add_theme_constant_override("h_separation", 8)
-	_relics.add_theme_constant_override("v_separation", 2)
+	# Items und Relikte rechts oben; höchstens 5 Relikte pro Reihe, dann nächste Reihe
+	_relics = VBoxContainer.new()
+	_relics.add_theme_constant_override("separation", 2)
 	_relics.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_anchor(_relics, Vector2(1, 0), Vector2(-420, 102), Vector2(404, 58))
 	add_child(_relics)
@@ -672,7 +678,7 @@ func say(text: String, time := 4.0) -> void:
 	_speech_label.size = Vector2(w, h)
 	var tw := _tween_key(_speech, "say")
 	_speech.modulate.a = 0.0
-	_speech.rotation_degrees = -1.5
+	_speech.rotation_degrees = 0.0 # gerade lassen: gedrehte Schrift wird unscharf
 	_speech.pivot_offset = Vector2(0, _speech.size.y)
 	_speech.scale = Vector2(0.85, 0.85)
 	tw.tween_property(_speech, "modulate:a", 1.0, 0.15)
@@ -728,8 +734,10 @@ var _relic_nodes := {} # id → Control
 ## Maus drüber → Name und Wirkung; wirkt ein Relikt, blitzt es kurz auf (flash_relic).
 func set_relics(relics: Array, items: Array = []) -> void:
 	for c in _relics.get_children():
+		_relics.remove_child(c)
 		c.queue_free()
 	_relic_nodes.clear()
+	var row := _relic_row()
 	for i in Run.ITEM_SLOTS:
 		if i < items.size():
 			var it: Dictionary = Run.ITEMS[items[i]]
@@ -744,7 +752,7 @@ func set_relics(relics: Array, items: Array = []) -> void:
 			item.gui_input.connect(func(e: InputEvent) -> void:
 				if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
 					item_pressed.emit(idx))
-			_relics.add_child(item)
+			row.add_child(item)
 			continue
 		var slot := Control.new()
 		slot.custom_minimum_size = Vector2(ITEM_BOX, RELIC_SIZE)
@@ -754,36 +762,39 @@ func set_relics(relics: Array, items: Array = []) -> void:
 			slot.draw_circle(c, ITEM_R, Color(0, 0, 0, 0.45), true, -1.0, true)
 			slot.draw_arc(c, ITEM_R, 0, TAU, 40, Color(CREAM, 0.3), 1.5, true))
 		_hover_info(slot, "FREIER ITEM-PLATZ", "Items wie Feuerzeug und Spiegel gibt es beim Händler.")
-		_relics.add_child(slot)
+		row.add_child(slot)
 	if not relics.is_empty():
 		var gap := Control.new()
 		gap.custom_minimum_size = Vector2(8, 0)
-		_relics.add_child(gap)
-	for r: RelicData in relics:
+		row.add_child(gap)
+	for i in relics.size():
+		var r: RelicData = relics[i]
+		if i > 0 and i % RELICS_PER_ROW == 0:
+			row = _relic_row()
 		var box := UIKit.relic_icon(r.visual(), RELIC_SIZE, 32)
 		box.mouse_filter = Control.MOUSE_FILTER_STOP
 		_hover_info(box, r.display_name.to_upper(), r.description, true)
-		_relics.add_child(box)
+		row.add_child(box)
 		_relic_nodes[r.id] = box
 	_place_think.call_deferred()
+
+
+func _relic_row() -> HBoxContainer:
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_END
+	row.add_theme_constant_override("separation", 8)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_relics.add_child(row)
+	return row
 
 
 ## „überlegt …“ steht immer unter der (evtl. zweizeiligen) Relikt-Reihe.
 func _place_think() -> void:
 	if _relics == null or _think_label == null:
 		return
-	var rows := 1
-	var x := 0.0
-	for c: Control in _relics.get_children():
-		if c.is_queued_for_deletion():
-			continue
-		var w := c.custom_minimum_size.x
-		if x > 0.0 and x + w > 404.0:
-			rows += 1
-			x = 0.0
-		x += w + 8.0
-	_relics.size.y = rows * 58.0
-	_think_label.position.y = _relics.position.y + rows * 58.0 + 6.0
+	var rows := maxi(_relics.get_child_count(), 1)
+	_relics.size.y = rows * 52.0
+	_think_label.position.y = _relics.position.y + rows * 52.0 + 8.0
 
 
 ## Maus über `c` → Info-Tafel; `grow`: dabei leicht vergrößern.
@@ -807,15 +818,19 @@ var _known: HBoxContainer
 var _known_cards := {} # Card → Control
 
 
+func add_known_container() -> void:
+	_known = HBoxContainer.new()
+	_known.alignment = BoxContainer.ALIGNMENT_CENTER
+	_known.add_theme_constant_override("separation", 8)
+	_known.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_anchor(_known, Vector2(0.5, 0), Vector2(-160, 10), Vector2(320, 56))
+	add_child(_known)
+
+
 ## Kleine Karte über dem Gegner: diese Karte hat er (noch) auf der Hand.
 func add_known(card: Card) -> void:
 	if _known == null:
-		_known = HBoxContainer.new()
-		_known.alignment = BoxContainer.ALIGNMENT_CENTER
-		_known.add_theme_constant_override("separation", 8)
-		_known.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		_anchor(_known, Vector2(0.5, 0), Vector2(-160, 10), Vector2(320, 56))
-		add_child(_known)
+		add_known_container()
 	if _known_cards.has(card):
 		return
 	# kleine Karte im Aussehen der echten Karte (Kartenbild), Größe wie bisher
@@ -841,6 +856,55 @@ func add_known(card: Card) -> void:
 	mini.pivot_offset = Vector2(18, 25)
 	mini.scale = Vector2(0.2, 0.2)
 	mini.create_tween().tween_property(mini, "scale", Vector2.ONE, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+
+
+var _status := {} # Schlüssel → Control
+
+
+## Zustand über dem Gegner (so groß wie die Spiegel-Karte), z. B. betrunken oder Falle.
+## `icon`: Emoji oder Texture2D. Maus drüber → Titel und Text.
+func add_status(key: StringName, icon: Variant, title: String, text: String) -> void:
+	if _status.has(key):
+		return
+	if _known == null:
+		add_known_container()
+	var tile := Panel.new()
+	var box := StyleBoxFlat.new()
+	box.bg_color = Color(0.07, 0.055, 0.055, 0.92)
+	box.border_color = PGOLD
+	box.set_border_width_all(2)
+	box.set_corner_radius_all(4)
+	tile.add_theme_stylebox_override("panel", box)
+	tile.custom_minimum_size = Vector2(36, 50)
+	tile.mouse_filter = Control.MOUSE_FILTER_STOP
+	var ic := UIKit.relic_icon(icon, 32, 22)
+	ic.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ic.position = Vector2(2, 9)
+	tile.add_child(ic)
+	_hover_info(tile, title, text)
+	_known.add_child(tile)
+	_status[key] = tile
+	tile.pivot_offset = Vector2(18, 25)
+	tile.scale = Vector2(0.2, 0.2)
+	var tw := tile.create_tween()
+	tw.tween_property(tile, "scale", Vector2.ONE * 1.3, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_property(tile, "scale", Vector2.ONE, 0.2)
+
+
+func remove_status(key: StringName) -> void:
+	var tile: Control = _status.get(key)
+	if tile == null:
+		return
+	_status.erase(key)
+	tile.pivot_offset = tile.size * 0.5
+	var tw := tile.create_tween().set_parallel()
+	tw.tween_property(tile, "scale", Vector2.ONE * 1.5, 0.3)
+	tw.tween_property(tile, "modulate:a", 0.0, 0.3)
+	tw.chain().tween_callback(tile.queue_free)
+
+
+func has_status(key: StringName) -> bool:
+	return _status.has(key)
 
 
 ## Karte hat er gespielt (oder nicht mehr auf der Hand): wegplatzen lassen.
@@ -899,6 +963,19 @@ func set_score(total: int, target: int, chips: int, mult: int, sub_text: String)
 	_score_label.add_theme_color_override("font_color", Color(1, 0.86, 0.45) if done else CREAM)
 	_seg.fill_color = Color(1, 0.84, 0.4) if done else CREAM
 	_seg.queue_redraw()
+
+
+## Maske aktiv: hinter Chips × Mult steht „×2“ (springt beim Einsetzen sichtbar auf).
+func set_factor(f: int) -> void:
+	if f == _factor:
+		return
+	_factor = f
+	_factor_label.text = "×%d" % f
+	_factor_label.visible = f > 1
+	if f > 1:
+		_factor_label.tooltip_text = "Maske: die nächste Runde mit Punkten zählt ×%d." % f
+		_factor_label.mouse_filter = Control.MOUSE_FILTER_PASS
+		UIKit.pop.call_deferred(_factor_label, 1.8, 0.6)
 
 
 ## Eine Runde wurde gewertet: Punkte fliegen von Chips × Mult zur Punktzahl.
@@ -975,7 +1052,7 @@ func show_banner(text: String, color: Color = Color(1, 0.86, 0.5), sub := "", ho
 	var tw := _tween_key(_banner, "banner")
 	_banner.modulate.a = 0.0
 	_banner.scale = Vector2(0.2, 1.0)
-	_banner.rotation_degrees = -2.5
+	_banner.rotation_degrees = 0.0 # gerade: gedrehte Schrift wird unscharf
 	tw.tween_property(_banner, "modulate:a", 1.0, 0.1)
 	tw.parallel().tween_property(_banner, "scale", Vector2.ONE, 0.32).set_trans(Tween.TRANS_EXPO).set_ease(Tween.EASE_OUT)
 	tw.tween_interval(hold)
@@ -1041,6 +1118,74 @@ func ask_choice(title: String, options: Array[String], callback: Callable) -> vo
 	UIKit.appear(panel, 0.0, Vector2(30, 0), 0.25)
 
 
+var _picker: Control
+
+
+## Auswahl aus Karten (Kartentausch): alle `cards` groß nebeneinander, Klick wählt.
+func open_card_picker(cards: Array, title: String, hint: String, on_pick: Callable, on_cancel: Callable) -> void:
+	close_card_picker()
+	_picker = Control.new()
+	_picker.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_picker.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(_picker)
+	var dim := ColorRect.new()
+	dim.color = Color(0.02, 0.01, 0.04, 0.72)
+	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_picker.add_child(dim)
+	var col := VBoxContainer.new()
+	col.alignment = BoxContainer.ALIGNMENT_CENTER
+	col.add_theme_constant_override("separation", 18)
+	col.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_picker.add_child(col)
+	var head := UIKit.poster_label(title, UIKit.display_font(2), 34, CREAM, 3)
+	head.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	col.add_child(head)
+	var sub := UIKit.poster_label(hint, UIKit.body_font(500), 17, Color(CREAM, 0.8))
+	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	col.add_child(sub)
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 12)
+	col.add_child(row)
+	var w := clampf(1100.0 / maxf(cards.size(), 1.0) - 12.0, 70.0, 110.0)
+	for c: Card in cards:
+		var pic := TextureRect.new()
+		pic.texture = Card3D.face_texture(c)
+		pic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		pic.stretch_mode = TextureRect.STRETCH_SCALE
+		pic.custom_minimum_size = Vector2(w, w * 1.4)
+		pic.mouse_filter = Control.MOUSE_FILTER_STOP
+		pic.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+		pic.tooltip_text = str(c)
+		pic.mouse_entered.connect(func() -> void:
+			Sfx.play(&"card_hand_hover", randf_range(0.95, 1.05))
+			pic.pivot_offset = pic.size * 0.5
+			pic.create_tween().tween_property(pic, "scale", Vector2.ONE * 1.12, 0.1))
+		pic.mouse_exited.connect(func() -> void:
+			pic.create_tween().tween_property(pic, "scale", Vector2.ONE, 0.1))
+		pic.gui_input.connect(func(e: InputEvent) -> void:
+			if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
+				close_card_picker()
+				on_pick.call(c))
+		row.add_child(pic)
+	var cancel := Button.new()
+	cancel.text = "ABBRECHEN"
+	cancel.custom_minimum_size = Vector2(200, 44)
+	cancel.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	cancel.pressed.connect(func() -> void:
+		close_card_picker()
+		on_cancel.call())
+	col.add_child(cancel)
+	_picker.modulate.a = 0.0
+	_picker.create_tween().tween_property(_picker, "modulate:a", 1.0, 0.2)
+
+
+func close_card_picker() -> void:
+	if _picker != null and is_instance_valid(_picker):
+		_picker.queue_free()
+	_picker = null
+
+
 func close_choice() -> void:
 	if _choice != null and is_instance_valid(_choice):
 		_choice.queue_free()
@@ -1072,7 +1217,7 @@ func show_result(won: bool, title: String, text: String, score_text: String) -> 
 	tw.parallel().tween_property(_result_panel, "modulate:a", 1.0, 0.2).set_delay(0.15)
 	tw.tween_callback(func() -> void:
 		_result_panel.pivot_offset = _result_panel.size * 0.5
-		_result_panel.rotation_degrees = -2.0
+		_result_panel.rotation_degrees = 0.0 # gerade: gedrehte Schrift wird unscharf
 		_result_title.pivot_offset = _result_title.size * 0.5
 		_result_title.scale = Vector2(1.7, 1.7)
 		var t2 := _result_title.create_tween()
@@ -1189,7 +1334,7 @@ func _plate_slam() -> void:
 	p.scale = Vector2(1.25, 1.25)
 	p.rotation_degrees = -3.0
 	tw.tween_property(p, "scale", Vector2.ONE, 0.16).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
-	tw.parallel().tween_property(p, "rotation_degrees", -1.0, 0.16)
+	tw.parallel().tween_property(p, "rotation_degrees", 0.0, 0.16) # endet gerade (scharfe Schrift)
 
 
 func _refresh_padding(b: Button) -> void:

@@ -104,9 +104,13 @@ func _ready() -> void:
 	duel.message.connect(_on_message)
 	duel.finished.connect(_on_finished)
 	duel.bout_ended.connect(func(_d: bool) -> void:
+		hud.remove_status(&"trap")
 		if _drunk_saved >= 0.0:
 			ai.mistake_chance = _drunk_saved # wieder nüchtern
-			_drunk_saved = -1.0)
+			_drunk_saved = -1.0
+			hud.remove_status(&"drunk")
+			if world.figure != null:
+				world.figure.set_drunk(false))
 
 	# Reaktionen der Gestalt
 	duel.card_played.connect(func(who: int, _card: Card, attack: bool) -> void:
@@ -248,12 +252,7 @@ func _run_ai_turn() -> void:
 func _on_player_card(card: Card, target := -1, slot := -1) -> void:
 	hud.close_choice()
 	if _swapping >= 0:
-		var si := _swapping
-		_swapping = -1
-		if duel.swap_with_bottom(card):
-			_consume_item(si)
-			Sfx.play(&"card_take")
-		return
+		return # Auswahl läuft im Kartentausch-Fenster
 	if _burning >= 0:
 		if duel.burnable_cards(DurakMatch.PLAYER).has(card):
 			var i := _burning
@@ -426,38 +425,63 @@ func _use_item(i: int) -> void:
 			hud.toast("Feuerzeug: klick eine leuchtende Gegnerkarte an (Rechtsklick/Esc = abbrechen).", MatchHUD.COLOR_GOLD)
 			_render()
 		&"magnet":
-			var got := duel.pull_from_discard(Run.rng)
-			if got == null:
+			if duel.discard_pile.is_empty():
 				hud.toast("Magnet: der Ablagestapel ist noch leer.", MatchHUD.COLOR_GOLD)
 				return
+			# erst der Welt sagen, woher die Karte kommt – sonst fliegt sie vom Nachziehstapel
+			var got: Card = duel.discard_pile[Run.rng.randi_range(0, duel.discard_pile.size() - 1)]
 			world.take_from_discard(got)
+			duel.pull_from_discard(Run.rng, got)
 			_consume_item(i)
-			Sfx.play(&"card_take")
+			Sfx.play(&"magnet")
 			hud.toast("Magnet: %s vom Ablagestapel geholt." % got, MatchHUD.COLOR_GOLD)
 			_render()
 		&"schnaps":
+			if _drunk_saved >= 0.0:
+				hud.toast("Runde Schnaps: %s ist schon betrunken." % opponent.display_name, MatchHUD.COLOR_GOLD)
+				return
 			_consume_item(i)
-			Sfx.play(&"gulp")
 			_drunk_saved = ai.mistake_chance
 			ai.mistake_chance = 1.0
-			world.figure.laugh()
-			hud.toast("Runde Schnaps: %s spielt diese Runde betrunken." % opponent.display_name, MatchHUD.COLOR_GOLD)
+			hud.toast("Runde Schnaps: %s trinkt und spielt diese Runde betrunken." % opponent.display_name, MatchHUD.COLOR_GOLD)
+			hud.add_status(&"drunk", Run.ITEMS[&"schnaps"].emoji, "BETRUNKEN",
+				"%s hat einen Schnaps getrunken und macht bis zum Ende der Runde Fehler." % opponent.display_name)
+			if world.figure != null:
+				world.figure.drink_shot() # trinkt sichtbar und taumelt danach
+			else:
+				Sfx.play(&"gulp")
 		&"swap":
 			if duel.deck.is_empty():
 				hud.toast("Kartentausch: unter dem Stapel liegt keine Karte mehr.", MatchHUD.COLOR_GOLD)
 				return
 			_swapping = i
-			hud.toast("Kartentausch: klick eine Handkarte an (Rechtsklick/Esc = abbrechen).", MatchHUD.COLOR_GOLD)
-			_render()
+			hud.open_card_picker(duel.player_hand, "KARTENTAUSCH",
+				"Wähle eine Karte: Sie wird in den Stapel gemischt, du bekommst %s (offen unter dem Stapel)." % duel.deck.cards[0],
+				func(card: Card) -> void:
+					var si := _swapping
+					_swapping = -1
+					if si < 0 or not duel.player_hand.has(card):
+						return
+					world.send_to_deck(card)
+					if duel.swap_with_bottom(card, Run.rng):
+						_consume_item(si)
+						Sfx.play(&"card_take")
+					else:
+						world.into_deck.clear()
+					_render(),
+				func() -> void: _cancel_burn())
 		&"mask":
 			_consume_item(i)
 			score.next_bout_factor = 2
 			Sfx.play(&"card_select")
+			_render_score()
 			hud.toast("Maske: deine nächste Punkterunde zählt doppelt.", MatchHUD.COLOR_GOLD)
 		&"trap":
 			_consume_item(i)
 			duel.no_transfer_for = DurakMatch.OPPONENT
 			Sfx.play(&"bottle_knock", 0.7)
+			hud.add_status(&"trap", preload("res://assets/items/no_transfer.png"), "FALLE",
+				"%s darf in dieser Runde nicht weiterschieben." % opponent.display_name)
 			hud.toast("Falle: %s darf diese Runde nicht schieben." % opponent.display_name, MatchHUD.COLOR_GOLD)
 			_render()
 		&"bribe":
@@ -486,6 +510,7 @@ func _use_item(i: int) -> void:
 
 
 func _cancel_burn() -> void:
+	hud.close_card_picker()
 	hud.toast("Kartentausch abgebrochen." if _swapping >= 0 else "Feuerzeug weggesteckt.", MatchHUD.COLOR_MUTED)
 	_burning = -1
 	_swapping = -1
@@ -605,6 +630,7 @@ func _render_score() -> void:
 	elif score.reached_target():
 		sub = "Ziel erreicht!"
 	hud.set_score(score.total, score.target, score.chips, score.mult, sub)
+	hud.set_factor(score.next_bout_factor)
 
 
 ## [Modus, Titel, Hinweis] für die Zug-Anzeige oben in der Mitte.

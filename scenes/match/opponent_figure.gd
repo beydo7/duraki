@@ -54,6 +54,13 @@ var _next_twitch := 3.0
 ## (Reaktionen setzen ihre Stärke schlagartig, Denk-Stile wechseln, Zucken …).
 const SMOOTH := 9.0
 var _lean_now := 0.0
+## Runde Schnaps: Trinkfortschritt (-1 = trinkt nicht), Betrunkenheit (geglättet)
+var _drink := -1.0
+var _shot: Node3D
+var _shot_liquid: Node3D
+var _drunk := 0.0
+var _drunk_target := 0.0
+const DRINK_TIME := 2.6
 var _head_now := Vector3.ZERO
 var _hand_now: Array[Vector3] = []
 
@@ -112,12 +119,105 @@ func laugh() -> void:
 	_laugh = 1.0
 
 
+## Runde Schnaps: nimmt ein Schnapsglas, kippt es in einem Zug (Kopf in den Nacken),
+## stellt es weg und taumelt danach, bis set_drunk(false) kommt.
+func drink_shot() -> void:
+	if _hands.size() < 2:
+		set_drunk(true)
+		return
+	if _shot != null:
+		_shot.queue_free()
+	_shot = _make_shot()
+	_hands[1].add_child(_shot)
+	_shot.position = Vector3(0, 0.05, 0.03)
+	_drink = 0.0
+
+
+## Betrunken taumeln (true) oder wieder nüchtern werden (false, weich).
+func set_drunk(on: bool) -> void:
+	_drunk_target = 1.0 if on else 0.0
+
+
+func is_drunk() -> bool:
+	return _drunk_target > 0.0
+
+
+func _make_shot() -> Node3D:
+	var root := Node3D.new()
+	var glass := MeshInstance3D.new()
+	var cyl := CylinderMesh.new()
+	cyl.top_radius = 0.026
+	cyl.bottom_radius = 0.02
+	cyl.height = 0.06
+	cyl.radial_segments = 20
+	glass.mesh = cyl
+	var gm := StandardMaterial3D.new()
+	gm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	gm.albedo_color = Color(0.85, 0.92, 1.0, 0.35)
+	gm.roughness = 0.05
+	gm.metallic_specular = 0.9
+	glass.material_override = gm
+	glass.position.y = 0.03
+	root.add_child(glass)
+	_shot_liquid = Node3D.new()
+	root.add_child(_shot_liquid)
+	var liq := MeshInstance3D.new()
+	var lc := CylinderMesh.new()
+	lc.top_radius = 0.022
+	lc.bottom_radius = 0.018
+	lc.height = 0.04
+	liq.mesh = lc
+	var lm := StandardMaterial3D.new()
+	lm.albedo_color = Color(0.95, 0.6, 0.15)
+	lm.emission_enabled = true
+	lm.emission = Color(0.9, 0.45, 0.1)
+	lm.emission_energy_multiplier = 0.6
+	liq.material_override = lm
+	liq.position.y = 0.022
+	_shot_liquid.add_child(liq)
+	root.scale = Vector3.ONE * size_scale * 1.8
+	return root
+
+
+## Trinkbewegung: 0 – 0,35 Glas zum Mund, 0,35 – 0,65 kippen, 0,65 – 1 absetzen.
+func _drink_amounts() -> Vector2:
+	if _drink < 0.0:
+		return Vector2.ZERO
+	var raise := smoothstep(0.0, 0.35, _drink) * (1.0 - smoothstep(0.7, 1.0, _drink))
+	var tilt := smoothstep(0.3, 0.5, _drink) * (1.0 - smoothstep(0.6, 0.75, _drink))
+	return Vector2(raise, tilt)
+
+
 func _process(delta: float) -> void:
 	_t += delta
 	_gesture = move_toward(_gesture, 0.0, delta * 1.8)
 	_recoil = move_toward(_recoil, 0.0, delta * 1.3)
 	_laugh = move_toward(_laugh, 0.0, delta * 0.35)
 	_think = move_toward(_think, _think_target, delta * 2.0)
+	_drunk = move_toward(_drunk, _drunk_target, delta * (0.8 if _drunk_target > _drunk else 0.5))
+	if _drink >= 0.0:
+		var before := _drink
+		_drink += delta / DRINK_TIME
+		if before < 0.42 and _drink >= 0.42:
+			Sfx.play(&"gulp")
+		if _shot_liquid != null:
+			var left := clampf(1.0 - (_drink - 0.4) / 0.2, 0.05, 1.0)
+			_shot_liquid.scale = Vector3(1, left, 1)
+			_shot_liquid.visible = left > 0.06
+		if _drink >= 1.0:
+			_drink = -1.0
+			if _shot != null:
+				_shot.queue_free()
+				_shot = null
+			Sfx.play(&"clink", 0.8)
+			set_drunk(true)
+			laugh()
+	var drink := _drink_amounts()
+	if _shot != null:
+		_shot.rotation.x = -drink.y * 1.7 # Glas kippt zum Mund
+	# Taumeln: Oberkörper schwankt deutlich nach links und rechts, Kopf hängt nach
+	var dk := smoothstep(0.0, 1.0, _drunk)
+	var reel := sin(_t * 1.5) * 0.16 + sin(_t * 0.62) * 0.07
 	if _slump > 0.0:
 		_slump = minf(_slump + delta, 2.0)
 
@@ -128,7 +228,8 @@ func _process(delta: float) -> void:
 	var breath := sin(_t * 1.6) * 0.012
 	var lean := gest * 0.12 - rec * 0.10 + smoothstep(0.0, 1.0, minf(_slump, 1.0)) * 0.18 + think * _style_lean()
 	_lean_now = lerpf(_lean_now, lean, k)
-	_torso.rotation.x = _lean_now
+	_torso.rotation.x = _lean_now - drink.y * 0.12
+	_torso.rotation.z = reel * dk
 	_torso.scale = Vector3(size_scale, size_scale * (1.0 + breath), size_scale)
 
 	# unheimliches Zucken: ab und zu dreht sich der Kopf kurz zur Seite (weich, kein harter Ruck)
@@ -143,7 +244,8 @@ func _process(delta: float) -> void:
 	var head := Vector3(
 		sin(_t * 0.7) * 0.05 + minf(_slump, 1.0) * 0.35 - rec * 0.2 + think * _head_pitch(),
 		sin(_t * 0.45) * 0.12 * (1.0 - think) + think * _head_yaw(),
-		sin(_t * 0.9) * 0.04 + rec * 0.15 + think * _head_roll()) + _twitch
+		sin(_t * 0.9) * 0.04 + rec * 0.15 + think * _head_roll()) + _twitch \
+		+ Vector3(-0.55 * drink.y + 0.12 * dk, sin(_t * 1.1) * 0.1 * dk, sin(_t * 1.5 + 0.8) * 0.22 * dk)
 	_head_now = _head_now.lerp(head, k)
 	_head.rotation = _head_now + Vector3(0, shake, 0)
 
@@ -162,6 +264,9 @@ func _process(delta: float) -> void:
 			off += Vector3(-0.08, 0.05, 0.18) * gest
 		off += Vector3(side * 0.04, 0.06, -0.08) * rec
 		off += _hand_think_offset(i) * think
+		off += Vector3(reel * 0.25, 0, 0) * dk # Hände schwanken mit
+		if i == 1:
+			off += Vector3(-0.12, 0.46, -0.16) * drink.x # Glas zum Mund
 		if _hand_now.size() <= i:
 			_hand_now.append(off)
 		_hand_now[i] = _hand_now[i].lerp(off, k)
