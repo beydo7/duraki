@@ -23,6 +23,8 @@ signal target_reached
 signal gold_found(amount: int, source: String)
 ## Eine Glückskarte hat getroffen (Zufall): zusätzliches Mult für diese Runde.
 signal lucky_hit(extra_mult: int)
+## Ein Relikt hat gewirkt (für das Aufblitzen im HUD)
+signal relic_triggered(id: StringName)
 
 const CHIP_VALUES := {
 	6: 6, 7: 7, 8: 8, 9: 9, 10: 10,
@@ -48,6 +50,16 @@ var trump_mult_bonus := 0
 ## Zufall für Glückskarten (Tests setzen lucky_chance auf 0 oder 1)
 var rng := RandomNumberGenerator.new()
 var lucky_chance := LUCKY_CHANCE
+## Relikte/Items (setzt match.gd):
+## Wolfszahn – Chips für jede eigene Verteidigung mit Trumpf
+var trump_defense_chips := 0
+## Wirbel – Mult beim ersten eigenen Schieben im Duell
+var first_transfer_mult := 0
+## Hufeisen – Gold bei jedem Glücks-Treffer
+var lucky_gold := 0
+## Maske – Faktor für die nächste gewertete Runde (danach wieder 1)
+var next_bout_factor := 1
+var _transfer_bonus_used := false
 
 var _duel: DurakMatch
 var _me := DurakMatch.PLAYER
@@ -67,7 +79,13 @@ func attach(duel: DurakMatch, me := DurakMatch.PLAYER) -> void:
 	_me = me
 	duel.card_played.connect(_on_card_played)
 	# Nach dem Schieben zählt der Schiebende als Angreifer dieser Runde.
-	duel.transferred.connect(func(who: int, _card: Card) -> void: _bout_attacker = who)
+	duel.transferred.connect(func(who: int, _card: Card) -> void:
+		_bout_attacker = who
+		if who == _me and first_transfer_mult > 0 and not _transfer_bonus_used:
+			_transfer_bonus_used = true
+			mult += first_transfer_mult
+			relic_triggered.emit(&"whirl")
+			changed.emit())
 	duel.bout_ended.connect(_on_bout_ended)
 	duel.finished.connect(_on_finished)
 
@@ -107,6 +125,11 @@ func _on_card_played(who: int, card: Card, as_attack: bool) -> void:
 			if rng.randf() < lucky_chance:
 				mult += LUCKY_MULT
 				lucky_hit.emit(LUCKY_MULT)
+				if lucky_chance > LUCKY_CHANCE:
+					relic_triggered.emit(&"loaded_dice")
+				if lucky_gold > 0:
+					gold_found.emit(lucky_gold, "Hufeisen")
+					relic_triggered.emit(&"horseshoe")
 	if as_attack:
 		if _duel.attack_cards.size() > 1:
 			mult += 1 # Nachlegen
@@ -114,6 +137,9 @@ func _on_card_played(who: int, card: Card, as_attack: bool) -> void:
 		mult += 1 # Verteidigung
 	if card.suit == _duel.trump_suit:
 		mult += 1 + trump_mult_bonus
+		if not as_attack and trump_defense_chips > 0:
+			chips += trump_defense_chips
+			relic_triggered.emit(&"wolf_tooth")
 	changed.emit()
 
 
@@ -130,6 +156,10 @@ func _on_bout_ended(defended: bool) -> void:
 		else:
 			points = chips * mult
 			text = "%d × %d = %d" % [chips, mult, points]
+		if points > 0 and next_bout_factor > 1:
+			points *= next_bout_factor
+			text += "  · Maske ×%d = %d" % [next_bout_factor, points]
+			next_bout_factor = 1
 	_add_points(points, text)
 	chips = 0
 	mult = base_mult
@@ -145,6 +175,12 @@ func _on_finished(loser: int) -> void:
 	if cards_left > 0:
 		var bonus := cards_left * DURAK_BONUS_PER_CARD
 		_add_points(bonus, "Durak-Bonus: %d Karten × %d = %d" % [cards_left, DURAK_BONUS_PER_CARD, bonus])
+	changed.emit()
+
+
+## Punkte direkt gutschreiben (z. B. Item Bestechung).
+func add_bonus(points: int, text: String) -> void:
+	_add_points(points, text)
 	changed.emit()
 
 

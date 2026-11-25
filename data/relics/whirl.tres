@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="RelicData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/relic_data.gd" id="1_rel"]
+
+[resource]
+script = ExtResource("1_rel")
+id = &"whirl"
+display_name = "Wirbel"
+description = "Dein erstes Schieben in jedem Duell gibt +3 Mult."
+emoji = "🌀"
+hand_size_bonus = 0
+bonus_gold_per_win = 0
+extra_lives = 0

@@ -64,26 +64,46 @@ static func emoji_font() -> Font:
 
 
 ## Relikt/Item-Symbol wie in Slay the Spire: Emoji frei stehend mit dunklem Schatten.
-static func relic_icon(emoji: String, box: float, font_size: int) -> Control:
+## `icon`: Emoji-Text oder eigenes Bild (Texture2D, z. B. Med-Kit).
+static func relic_icon(icon: Variant, box: float, font_size: int) -> Control:
 	var c := Control.new()
 	c.custom_minimum_size = Vector2(box, box)
 	c.pivot_offset = Vector2(box, box) * 0.5
-	var shadow := poster_label(emoji, emoji_font(), font_size, P_CREAM)
-	shadow.modulate = Color(0, 0, 0, 0.6) # Emoji als dunkle Silhouette = Schatten
-	var icon := poster_label(emoji, emoji_font(), font_size, P_CREAM)
-	for l: Label in [shadow, icon]:
-		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		l.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		l.size = Vector2(box, box)
-		c.add_child(l)
+	var shadow: Control
+	var front: Control
+	if icon is Texture2D:
+		var parts: Array[Control] = []
+		for i in 2:
+			var t := TextureRect.new()
+			t.texture = icon
+			t.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			t.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			parts.append(t)
+		shadow = parts[0]
+		front = parts[1]
+		# Bild etwas kleiner als der Platz, damit es so groß wirkt wie ein Emoji
+		c.set_meta("inset", maxf(0.08, 1.0 - float(font_size) / box * 1.25))
+	else:
+		shadow = poster_label(icon, emoji_font(), font_size, P_CREAM)
+		front = poster_label(icon, emoji_font(), font_size, P_CREAM)
+		for l: Label in [shadow, front]:
+			l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	shadow.modulate = Color(0, 0, 0, 0.6) # dunkle Silhouette = Schatten
+	for p: Control in [shadow, front]:
+		p.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		p.size = Vector2(box, box)
+		c.add_child(p)
 	# immer mittig im Platz, auch wenn ein Container ihn größer macht
 	var fit := func() -> void:
 		var sz := c.size if c.size.x > 0.0 else Vector2(box, box)
-		icon.position = Vector2.ZERO
-		icon.size = sz
-		shadow.size = sz
-		shadow.position = Vector2(box, box) * 0.05
+		var inset: float = c.get_meta("inset", 0.0)
+		var inner := sz * (1.0 - maxf(inset, 0.0))
+		var off := (sz - inner) * 0.5
+		front.position = off
+		front.size = inner
+		shadow.size = inner
+		shadow.position = off + Vector2(box, box) * 0.05
 		c.pivot_offset = sz * 0.5
 	c.resized.connect(fit)
 	fit.call()

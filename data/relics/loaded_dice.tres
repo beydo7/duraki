@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="RelicData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/relic_data.gd" id="1_rel"]
+
+[resource]
+script = ExtResource("1_rel")
+id = &"loaded_dice"
+display_name = "Gezinkter Würfel"
+description = "Glückskarten treffen 1 zu 2 statt 1 zu 3."
+emoji = "🎲"
+hand_size_bonus = 0
+bonus_gold_per_win = 0
+extra_lives = 0

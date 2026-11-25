@@ -89,6 +89,19 @@ Ein Run = 3 normale Gegner + Boss, 3 Leben (Kerzen). Wer verliert, ist der Durak
 - Händler verkauft keine Boni mehr (die bringen die Decks mit), nur Karten, Relikte, Items.
 - Glaskarten wie bei Balatro: bläulicher, durchscheinender Glasgrund (Alpha ~0,65) mit Lichtbändern,
   dunkle deckende Linien (`glass_version` in `tools/generate_cards.py`, Shader mit ALPHA).
+- **Relikte (25.11.)**: Ass im Ärmel (+1 Handkarte, eigenes Icon), Glücksmünze, Med-Kit (+1 Leben, früher
+  Samowar, eigenes Icon), Wodka, Gezinkter Würfel (Glück 1 zu 2), Böser Blick (Gegner −1 Startkarte),
+  Matrjoschka (nach jedem Tischsieg eine zufällige Karte verbessert), Wolfszahn (+10 Chips je Trumpf-Verteidigung),
+  Sparstrumpf (Zinsen bis 8), Wirbel (erstes Schieben im Duell +3 Mult), Hufeisen (Glücks-Treffer +2 Gold).
+  Eigene Icons liegen in `assets/relics/` (`RelicData.icon_image`), sonst Emoji. Wirkt eins, blitzt es auf
+  (`ScoreTracker.relic_triggered`).
+- **Items**: Feuerzeug, Spiegel, Magnet (Karte vom Ablagestapel), Runde Schnaps (Gegner bis Rundenende
+  betrunken), Kartentausch (Handkarte ↔ offene Karte unter dem Stapel, Trumpffarbe bleibt), Maske (nächste
+  Punkterunde ×2), Falle (Gegner darf diese Runde nicht schieben), Bestechung (+50 Punkte). Händler legt je
+  Besuch 3 zufällige aus (`Run.SHOP_ITEMS`).
+- Entwicklermenü (F8): zusätzlich „ALLES FREISCHALTEN“ (alle Decks, alle Abzeichen), scrollbar.
+- Schärfe: Kartenbilder/Rückseiten/Porträts mit Mipmaps, Standard-Filter für 2D „Linear Mipmap“,
+  Schrift-Hinting „Normal“ – feine Linien und Schrift wirken klarer.
 - **Regel: Auf Karten steht nie ein Schriftzug der Verbesserung** (kein GOLD/GLAS/GLÜCK) – auch nicht bei
   künftigen Kartenarten. Man erkennt sie am Bild.
 - **Look**: Nachschärfen (Aus/Normal/Stark, Standard Normal) als Bildpass über allem

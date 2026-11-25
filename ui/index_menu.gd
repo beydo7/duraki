@@ -206,7 +206,7 @@ func _relics_tab() -> Control:
 	var relics := Run.all_relics()
 	for i in relics.size():
 		var r: RelicData = relics[i]
-		entries.append([r.icon(), colors[i % colors.size()], UIKit.P_GOLD,
+		entries.append([r.visual(), colors[i % colors.size()], UIKit.P_GOLD,
 			r.display_name, r.description, _relic_details(r)])
 	return _medal_grid(entries, "Relikte gibt es beim Händler (7–10 G). Sie wirken den ganzen Run. Neue Relikte: data/relics/")
 
@@ -241,7 +241,7 @@ func _medal_grid(entries: Array, note: String) -> Control:
 		cell.add_theme_constant_override("separation", 12)
 		cell.mouse_filter = Control.MOUSE_FILTER_PASS
 		cell.mouse_entered.connect(func() -> void: Sfx.play(&"index_hover", randf_range(0.9, 1.0)))
-		var is_emoji := String(e[0]).unicode_at(0) >= 0x1F000
+		var is_emoji: bool = e[0] is Texture2D or String(e[0]).unicode_at(0) >= 0x1F000
 		if is_emoji:
 			# Relikte und Items wie im Spiel: freies Emoji mit Schatten
 			var icon := UIKit.relic_icon(e[0], 72, 46)

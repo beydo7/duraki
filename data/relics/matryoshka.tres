@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="RelicData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/relic_data.gd" id="1_rel"]
+
+[resource]
+script = ExtResource("1_rel")
+id = &"matryoshka"
+display_name = "Matrjoschka"
+description = "Nach jedem gewonnenen Tisch bekommt eine zufällige Karte deines Decks eine Verbesserung (Gold, Glas oder Glück)."
+emoji = "🪆"
+hand_size_bonus = 0
+bonus_gold_per_win = 0
+extra_lives = 0

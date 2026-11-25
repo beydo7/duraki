@@ -163,8 +163,14 @@ func defense_targets(card: Card) -> Array[int]:
 
 
 ## Darf der Verteidiger mit `card` weiterschieben?
+## Falle (Item): diese Seite darf bis zum Rundenende nicht schieben (-1 = keine)
+var no_transfer_for := -1
+
+
 func can_transfer_with(card: Card) -> bool:
 	if is_over or taking or attack_cards.is_empty() or not hand(defender()).has(card):
+		return false
+	if defender() == no_transfer_for:
 		return false
 	for d in defense_cards:
 		if d != null:
@@ -222,6 +228,34 @@ func attack(card: Card, at := -1) -> bool:
 		return true
 	changed.emit()
 	return true
+
+
+## Kartentausch (Item): Handkarte gegen die offene Karte unter dem Stapel tauschen.
+## Die Trumpffarbe bleibt, wie sie zu Beginn war.
+func swap_with_bottom(card: Card) -> bool:
+	if is_over or deck.is_empty() or not player_hand.has(card):
+		return false
+	var bottom: Card = deck.cards[0]
+	deck.cards[0] = card
+	player_hand.erase(card)
+	player_hand.append(bottom)
+	DurakRules.sort_hand(player_hand, trump_suit)
+	trump_card = card
+	message.emit("Getauscht: %s unter den Stapel, %s auf die Hand." % [card, bottom])
+	changed.emit()
+	return true
+
+
+## Magnet (Item): zufällige Karte vom Ablagestapel auf die Hand. Gibt sie zurück (oder null).
+func pull_from_discard(rng: RandomNumberGenerator) -> Card:
+	if is_over or discard_pile.is_empty():
+		return null
+	var c: Card = discard_pile[rng.randi_range(0, discard_pile.size() - 1)]
+	discard_pile.erase(c)
+	player_hand.append(c)
+	DurakRules.sort_hand(player_hand, trump_suit)
+	changed.emit()
+	return c
 
 
 ## Karten auf dem Tisch, die `who` mit dem Feuerzeug verbrennen darf: die ungeschlagenen
@@ -361,6 +395,7 @@ func _auto_pass_if_stuck() -> void:
 
 func _end_bout(defended: bool) -> void:
 	taking = false
+	no_transfer_for = -1
 	attack_cards.clear()
 	defense_cards.clear()
 	var old_attacker := attacker

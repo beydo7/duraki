@@ -76,6 +76,15 @@ func _ready() -> void:
 	score = ScoreTracker.new(target, Run.base_mult())
 	score.suit_chip_bonus = Run.suit_chip_bonus
 	score.trump_mult_bonus = Run.trump_mult_bonus
+	if Run.has_relic(&"loaded_dice"):
+		score.lucky_chance = 0.5
+	if Run.has_relic(&"wolf_tooth"):
+		score.trump_defense_chips = 10
+	if Run.has_relic(&"whirl"):
+		score.first_transfer_mult = 3
+	if Run.has_relic(&"horseshoe"):
+		score.lucky_gold = 2
+	score.relic_triggered.connect(func(id: StringName) -> void: hud.flash_relic(id))
 	score.gold_found.connect(func(amount: int, source: String) -> void:
 		Sfx.play(&"coins")
 		Run.add_gold(amount)
@@ -94,6 +103,10 @@ func _ready() -> void:
 	duel.changed.connect(_on_changed)
 	duel.message.connect(_on_message)
 	duel.finished.connect(_on_finished)
+	duel.bout_ended.connect(func(_d: bool) -> void:
+		if _drunk_saved >= 0.0:
+			ai.mistake_chance = _drunk_saved # wieder nüchtern
+			_drunk_saved = -1.0)
 
 	# Reaktionen der Gestalt
 	duel.card_played.connect(func(who: int, _card: Card, attack: bool) -> void:
@@ -156,7 +169,11 @@ func _ready() -> void:
 		coach = TutorialCoach.new()
 		hud.add_child(coach)
 		coach.setup(self)
-	duel.start(Run.rng, Run.player_hand_size(), opponent.hand_size, Run.apply_card_enhancements)
+	# Böser Blick: der Gegner startet mit einer Karte weniger
+	var opp_hand := opponent.hand_size - (1 if Run.has_relic(&"evil_eye") else 0)
+	duel.start(Run.rng, Run.player_hand_size(), maxi(1, opp_hand), Run.apply_card_enhancements)
+	if Run.has_relic(&"evil_eye"):
+		hud.flash_relic(&"evil_eye")
 	_render_score()
 
 
@@ -216,7 +233,7 @@ func _run_ai_turn() -> void:
 		wait = maxf(wait, 1.2) # du hast alles geschlagen: deine Karte erst mal liegen lassen
 	wait = maxf(wait, _hold_until - _now()) # Tisch wird noch abgeräumt
 	await get_tree().create_timer(wait, false).timeout
-	while (coach_hold or _burning >= 0) and is_inside_tree():
+	while (coach_hold or _burning >= 0 or _swapping >= 0) and is_inside_tree():
 		await get_tree().process_frame
 	if _thinking:
 		_thinking = false
@@ -230,6 +247,13 @@ func _run_ai_turn() -> void:
 ## Karte angeklickt (`target` = -1) oder auf eine Angriffskarte gezogen (`target` = deren Index).
 func _on_player_card(card: Card, target := -1, slot := -1) -> void:
 	hud.close_choice()
+	if _swapping >= 0:
+		var si := _swapping
+		_swapping = -1
+		if duel.swap_with_bottom(card):
+			_consume_item(si)
+			Sfx.play(&"card_take")
+		return
 	if _burning >= 0:
 		if duel.burnable_cards(DurakMatch.PLAYER).has(card):
 			var i := _burning
@@ -306,6 +330,11 @@ func _on_finished(_loser: int) -> void:
 	_render()
 	if won:
 		world.figure.slump()
+		if Run.has_relic(&"matryoshka") and not Run.tutorial:
+			var note := Run.enhance_random_card()
+			if note != "":
+				hud.flash_relic(&"matryoshka")
+				hud.toast("Matrjoschka: %s." % note, MatchHUD.COLOR_GOLD)
 	else:
 		world.figure.laugh()
 		world.props.snuff_candle()
@@ -336,8 +365,8 @@ func _process(_delta: float) -> void:
 		return
 	if _deck_hover and not duel.deck.is_empty():
 		var n := duel.deck.size()
-		hud.show_info("NACHZIEHSTAPEL", "Noch %d %s im Stapel (die unterste ist der Trumpf %s)." % [
-			n, "Karte" if n == 1 else "Karten", duel.trump_card])
+		hud.show_info("NACHZIEHSTAPEL", "Noch %d %s im Stapel. Unten liegt offen %s – Trumpf ist %s." % [
+			n, "Karte" if n == 1 else "Karten", duel.trump_card, Card.SUIT_NAMES[duel.trump_suit]])
 	elif _hover_card != null and Input.is_key_pressed(KEY_SHIFT) and _is_visible_card(_hover_card):
 		hud.show_info(_card_title(_hover_card), _card_info(_hover_card))
 	else:
@@ -370,12 +399,21 @@ func _card_info(c: Card) -> String:
 
 ## Item-Platz, dessen Feuerzeug gerade auf ein Ziel wartet (-1: keins)
 var _burning := -1
+## Item-Platz, dessen Kartentausch auf eine Handkarte wartet (-1: keins)
+var _swapping := -1
+## Schnaps: Fehlerquote des Gegners vor dem Trinken (-1: nicht betrunken)
+var _drunk_saved := -1.0
+
+
+func _consume_item(i: int) -> void:
+	Run.use_item(i)
+	hud.set_relics(Run.relics, Run.items)
 
 
 func _use_item(i: int) -> void:
 	if duel.is_over or i >= Run.items.size():
 		return
-	if _burning >= 0:
+	if _burning >= 0 or _swapping >= 0:
 		_cancel_burn()
 		return
 	match Run.items[i]:
@@ -387,6 +425,45 @@ func _use_item(i: int) -> void:
 			Sfx.play(&"lighter")
 			hud.toast("Feuerzeug: klick eine leuchtende Gegnerkarte an (Rechtsklick/Esc = abbrechen).", MatchHUD.COLOR_GOLD)
 			_render()
+		&"magnet":
+			var got := duel.pull_from_discard(Run.rng)
+			if got == null:
+				hud.toast("Magnet: der Ablagestapel ist noch leer.", MatchHUD.COLOR_GOLD)
+				return
+			world.take_from_discard(got)
+			_consume_item(i)
+			Sfx.play(&"card_take")
+			hud.toast("Magnet: %s vom Ablagestapel geholt." % got, MatchHUD.COLOR_GOLD)
+			_render()
+		&"schnaps":
+			_consume_item(i)
+			Sfx.play(&"gulp")
+			_drunk_saved = ai.mistake_chance
+			ai.mistake_chance = 1.0
+			world.figure.laugh()
+			hud.toast("Runde Schnaps: %s spielt diese Runde betrunken." % opponent.display_name, MatchHUD.COLOR_GOLD)
+		&"swap":
+			if duel.deck.is_empty():
+				hud.toast("Kartentausch: unter dem Stapel liegt keine Karte mehr.", MatchHUD.COLOR_GOLD)
+				return
+			_swapping = i
+			hud.toast("Kartentausch: klick eine Handkarte an (Rechtsklick/Esc = abbrechen).", MatchHUD.COLOR_GOLD)
+			_render()
+		&"mask":
+			_consume_item(i)
+			score.next_bout_factor = 2
+			Sfx.play(&"card_select")
+			hud.toast("Maske: deine nächste Punkterunde zählt doppelt.", MatchHUD.COLOR_GOLD)
+		&"trap":
+			_consume_item(i)
+			duel.no_transfer_for = DurakMatch.OPPONENT
+			Sfx.play(&"bottle_knock", 0.7)
+			hud.toast("Falle: %s darf diese Runde nicht schieben." % opponent.display_name, MatchHUD.COLOR_GOLD)
+			_render()
+		&"bribe":
+			_consume_item(i)
+			Sfx.play(&"coins")
+			score.add_bonus(50, "Bestechung: +50 Punkte")
 		&"mirror":
 			var hidden := duel.opponent_hand.filter(func(c: Card) -> bool: return not world.revealed.has(c))
 			if hidden.is_empty():
@@ -409,13 +486,14 @@ func _use_item(i: int) -> void:
 
 
 func _cancel_burn() -> void:
+	hud.toast("Kartentausch abgebrochen." if _swapping >= 0 else "Feuerzeug weggesteckt.", MatchHUD.COLOR_MUTED)
 	_burning = -1
-	hud.toast("Feuerzeug weggesteckt.", MatchHUD.COLOR_MUTED)
+	_swapping = -1
 	_render()
 
 
 func _input(event: InputEvent) -> void:
-	if _burning >= 0 and ((event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT)
+	if (_burning >= 0 or _swapping >= 0) and ((event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT)
 			or event.is_action_pressed("ui_cancel")):
 		get_viewport().set_input_as_handled()
 		_cancel_burn()
@@ -478,6 +556,8 @@ func _render() -> void:
 					playable.append(c)
 	else:
 		playable = duel.legal_attacks() # auch während der Gegner verteidigt
+	if _swapping >= 0:
+		playable = duel.player_hand.duplicate() # Kartentausch: Handkarte wählen
 	if _burning >= 0:
 		playable = duel.burnable_cards(DurakMatch.PLAYER) # Feuerzeug: Ziel wählen
 		if playable.is_empty():

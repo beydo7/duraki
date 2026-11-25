@@ -8,6 +8,8 @@ extends Resource
 @export_multiline var description := ""
 ## Symbol (Emoji) für HUD, Händler, Index und Karte
 @export var emoji := ""
+## Eigenes Bild statt Emoji (z. B. Med-Kit, Ass) – hat Vorrang vor `emoji`
+@export var icon_image: Texture2D
 
 @export_group("Effekte")
 @export var hand_size_bonus := 0
@@ -17,6 +19,11 @@ extends Resource
 @export var bonus_mult := 0
 
 
-## Emoji oder notfalls der Anfangsbuchstabe.
+## Emoji oder notfalls der Anfangsbuchstabe (für Text-Stellen).
 func icon() -> String:
 	return emoji if not emoji.is_empty() else display_name.left(1)
+
+
+## Was als Symbol gezeigt wird: eigenes Bild, sonst das Emoji (für UIKit.relic_icon).
+func visual() -> Variant:
+	return icon_image if icon_image != null else icon()

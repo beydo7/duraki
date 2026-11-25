@@ -40,7 +40,21 @@ const ITEMS := {
 		"text": "Verbrennt eine Gegnerkarte auf dem Tisch: seinen Angriff oder seine Verteidigung. Er muss neu legen."},
 	&"mirror": {"name": "Spiegel", "emoji": "🪞", "price": 4,
 		"text": "Schwebt hinter dem Gegner vorbei und verrät dir eine zufällige Karte seiner Hand."},
+	&"magnet": {"name": "Magnet", "emoji": "🧲", "price": 4,
+		"text": "Holt eine zufällige Karte vom Ablagestapel auf deine Hand."},
+	&"schnaps": {"name": "Runde Schnaps", "emoji": "🥃", "price": 5,
+		"text": "Der Gegner trinkt mit: bis zum Ende der Runde spielt er betrunken und macht Fehler."},
+	&"swap": {"name": "Kartentausch", "emoji": "🔄", "price": 4,
+		"text": "Tausche eine Handkarte gegen die offene Karte unter dem Stapel."},
+	&"mask": {"name": "Maske", "emoji": "🎭", "price": 6,
+		"text": "Die nächste Runde, in der du Punkte machst, zählt doppelt (Mult ×2)."},
+	&"trap": {"name": "Falle", "emoji": "🪤", "price": 4,
+		"text": "Der Gegner darf in dieser Runde nicht weiterschieben."},
+	&"bribe": {"name": "Bestechung", "emoji": "💰", "price": 5,
+		"text": "Sofort +50 Punkte auf dein Konto."},
 }
+## so viele Items liegen pro Händlerbesuch aus (zufällig)
+const SHOP_ITEMS := 3
 
 ## Tutorial: leichter Gegner und kleines Punkteziel
 const TUTORIAL_OPPONENT := "res://data/opponents/jester.tres"
@@ -232,7 +246,8 @@ func on_match_finished(loser: int) -> void:
 			last_gold_reward = opponent.gold_reward
 			for r in relics:
 				last_gold_reward += r.bonus_gold_per_win
-			last_interest = mini(gold / INTEREST_PER, INTEREST_MAX + interest_max_bonus)
+			var interest_cap := INTEREST_MAX + interest_max_bonus + (4 if has_relic(&"sock") else 0)
+			last_interest = mini(gold / INTEREST_PER, interest_cap)
 			gold += last_gold_reward + last_interest
 			floor_index += 1
 			if floor_index >= encounters.size():
@@ -275,12 +290,14 @@ func make_shop_offers() -> Array[Dictionary]:
 	var offers: Array[Dictionary] = []
 	for r in get_reward_choices(2):
 		var o := _offer("RELIKT", r.display_name, r.description, 7 + rng.randi_range(0, 3),
-			r.icon(), Color(0.55, 0.22, 0.42), func() -> void: add_relic(r))
+			r.visual(), Color(0.55, 0.22, 0.42), func() -> void: add_relic(r))
 		o.emoji = true # wie im Duell: freies Emoji statt Medaille
 		offers.append(o)
 	for i in 2:
 		offers.append(_card_offer())
-	for id: StringName in ITEMS:
+	var item_ids: Array = ITEMS.keys()
+	_shuffle(item_ids)
+	for id: StringName in item_ids.slice(0, SHOP_ITEMS):
 		var it: Dictionary = ITEMS[id]
 		var io := _offer("ITEM", it.name, it.text, it.price, it.emoji, Color.BLACK, func() -> void: add_item(id))
 		io.emoji = true
@@ -317,7 +334,7 @@ func apply_card_enhancements(cards: Array[Card]) -> void:
 		c.enhancement = card_enhancements.get(c.key(), Card.Enhancement.NONE)
 
 
-func _offer(kind: String, title: String, text: String, price: int, symbol: String,
+func _offer(kind: String, title: String, text: String, price: int, symbol: Variant,
 		color: Color, apply: Callable) -> Dictionary:
 	return {"kind": kind, "title": title, "text": text, "price": price,
 		"symbol": symbol, "color": color, "sold": false, "apply": apply}
@@ -374,6 +391,28 @@ func _upgrade_pool() -> Array[Dictionary]:
 	pool.append(_offer("VERBESSERUNG", "Sparschwein", "Zinsen bis zu +3 Gold mehr pro Sieg.", 5, "◆",
 		Color(0.78, 0.58, 0.1), func() -> void: interest_max_bonus += 3))
 	return pool
+
+
+func has_relic(id: StringName) -> bool:
+	return relics.any(func(r: RelicData) -> bool: return r.id == id)
+
+
+## Matrjoschka: eine zufällige noch normale Karte des Decks bekommt eine Verbesserung.
+## Gibt den Text zurück („10♥ wird Gold“) oder "" wenn alle schon verbessert sind.
+func enhance_random_card() -> String:
+	var free: Array = []
+	for suit in 4:
+		for rank in range(Card.MIN_RANK, Card.MAX_RANK + 1):
+			var key := "%d:%d" % [suit, rank]
+			if not card_enhancements.has(key):
+				free.append([suit, rank, key])
+	if free.is_empty():
+		return ""
+	var pick: Array = free[rng.randi_range(0, free.size() - 1)]
+	var enh: int = [Card.Enhancement.GOLD, Card.Enhancement.GLASS, Card.Enhancement.LUCKY][rng.randi_range(0, 2)]
+	card_enhancements[pick[2]] = enh
+	changed.emit()
+	return "%s wird %s" % [Card.new(pick[0], pick[1]), Card.ENHANCEMENT_NAMES[enh]]
 
 
 func has_item_slot() -> bool:

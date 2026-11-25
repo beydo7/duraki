@@ -1,7 +1,7 @@
 class_name DevMenu
 extends Control
 ## Entwicklermenü (F8 im Duell): beliebige Karte (Farbe, Rang, Verbesserung) auf die Hand
-## nehmen, Items und Relikte holen, Gold dazu. Zum Testen von Karten und Items.
+## nehmen, Items und Relikte holen, Gold dazu, alles freischalten. Zum Testen.
 ##     var m := DevMenu.new(); m.match_node = self; add_child(m)
 
 signal closed
@@ -32,11 +32,17 @@ func _ready() -> void:
 	box.set_border_width_all(2)
 	box.set_content_margin_all(22)
 	panel.add_theme_stylebox_override("panel", box)
-	panel.custom_minimum_size = Vector2(760, 0)
+	panel.custom_minimum_size = Vector2(900, 0)
 	center.add_child(panel)
+	# bei vielen Relikten/Items wird es hoch: Inhalt scrollbar, Fenster passt immer auf den Bildschirm
+	var scroll := ScrollContainer.new()
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.custom_minimum_size = Vector2(856, minf(620.0, get_viewport_rect().size.y - 90.0))
+	panel.add_child(scroll)
 	var root := VBoxContainer.new()
 	root.add_theme_constant_override("separation", 10)
-	panel.add_child(root)
+	root.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(root)
 
 	var head := HBoxContainer.new()
 	root.add_child(head)
@@ -58,8 +64,9 @@ func _ready() -> void:
 	root.add_child(give)
 
 	root.add_child(_head("ITEMS"))
-	var items := HBoxContainer.new()
-	items.add_theme_constant_override("separation", 8)
+	var items := HFlowContainer.new()
+	items.add_theme_constant_override("h_separation", 8)
+	items.add_theme_constant_override("v_separation", 8)
 	root.add_child(items)
 	for id: StringName in Run.ITEMS:
 		var it: Dictionary = Run.ITEMS[id]
@@ -84,9 +91,16 @@ func _ready() -> void:
 		Run.add_gold(10)
 		_refresh("+10 Gold.")))
 
+	root.add_child(_head("PROFIL"))
+	root.add_child(_button("ALLES FREISCHALTEN – alle Decks und alle Abzeichen", func() -> void:
+		Profile.unlock_all()
+		_refresh("Alle Decks freigeschaltet, alle Abzeichen vergeben.")))
+
 	_status = UIKit.poster_label("", UIKit.body_font(500), 15, UIKit.P_CREAM)
 	root.add_child(_status)
 	root.add_child(_button("SCHLIESSEN", close))
+	# Profil-Knopf und Rückmeldung nach oben holen, damit man sie ohne Scrollen sieht
+	root.move_child(_status, 1)
 	UIKit.appear(panel, 0.0, Vector2(0, 20), 0.25)
 
 

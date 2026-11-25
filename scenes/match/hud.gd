@@ -75,7 +75,7 @@ var _floor_label: Label
 var _opp_cards_draw: Control
 var _opp_count: Label
 var _think_label: Label
-var _relics: HBoxContainer
+var _relics: HFlowContainer
 var _speech: Slab
 var _speech_label: Label
 var _lives_label: Label
@@ -341,9 +341,11 @@ func _build_opponent() -> void:
 	_opp_count.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_at(_opp_bar, _opp_count, Vector2(250, 49), Vector2(168, 18))
 
-	_relics = HBoxContainer.new()
-	_relics.alignment = BoxContainer.ALIGNMENT_END
-	_relics.add_theme_constant_override("separation", 10)
+	# Items und Relikte rechts oben; bei vielen Relikten bricht die Reihe um
+	_relics = HFlowContainer.new()
+	_relics.alignment = FlowContainer.ALIGNMENT_END
+	_relics.add_theme_constant_override("h_separation", 8)
+	_relics.add_theme_constant_override("v_separation", 2)
 	_relics.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_anchor(_relics, Vector2(1, 0), Vector2(-420, 102), Vector2(404, 58))
 	add_child(_relics)
@@ -758,11 +760,30 @@ func set_relics(relics: Array, items: Array = []) -> void:
 		gap.custom_minimum_size = Vector2(8, 0)
 		_relics.add_child(gap)
 	for r: RelicData in relics:
-		var box := UIKit.relic_icon(r.icon(), RELIC_SIZE, 32)
+		var box := UIKit.relic_icon(r.visual(), RELIC_SIZE, 32)
 		box.mouse_filter = Control.MOUSE_FILTER_STOP
 		_hover_info(box, r.display_name.to_upper(), r.description, true)
 		_relics.add_child(box)
 		_relic_nodes[r.id] = box
+	_place_think.call_deferred()
+
+
+## „überlegt …“ steht immer unter der (evtl. zweizeiligen) Relikt-Reihe.
+func _place_think() -> void:
+	if _relics == null or _think_label == null:
+		return
+	var rows := 1
+	var x := 0.0
+	for c: Control in _relics.get_children():
+		if c.is_queued_for_deletion():
+			continue
+		var w := c.custom_minimum_size.x
+		if x > 0.0 and x + w > 404.0:
+			rows += 1
+			x = 0.0
+		x += w + 8.0
+	_relics.size.y = rows * 58.0
+	_think_label.position.y = _relics.position.y + rows * 58.0 + 6.0
 
 
 ## Maus über `c` → Info-Tafel; `grow`: dabei leicht vergrößern.

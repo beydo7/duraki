@@ -125,6 +125,15 @@ func on_run_finished(won: bool, tables_won: int, factor := 1.0, deck_id: StringN
 	return gained
 
 
+## Entwicklermenü: alle Decks freischalten und alle Abzeichen vergeben.
+func unlock_all() -> void:
+	for d in decks():
+		if not unlocked.has(d.id):
+			unlocked.append(d.id)
+		badges[String(d.id)] = [0, 1, 2]
+	save_profile()
+
+
 func take_pending_unlocks() -> Array[DeckData]:
 	var out := pending_unlocks.duplicate()
 	pending_unlocks.clear()

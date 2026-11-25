@@ -1,13 +1,15 @@
-[gd_resource type="Resource" script_class="RelicData" format=3]
+[gd_resource type="Resource" script_class="RelicData" load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scripts/data/relic_data.gd" id="1_rel"]
+[ext_resource type="Texture2D" path="res://assets/relics/medkit.png" id="2_ic"]
 
 [resource]
 script = ExtResource("1_rel")
-id = &"samovar"
-display_name = "Samowar"
+id = &"medkit"
+display_name = "Med-Kit"
 description = "+1 Leben."
-emoji = "🫖"
+emoji = "⛑"
+icon_image = ExtResource("2_ic")
 hand_size_bonus = 0
 bonus_gold_per_win = 0
 extra_lives = 1

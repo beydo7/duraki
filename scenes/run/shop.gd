@@ -232,18 +232,7 @@ func _card_offer(offer: Dictionary, deal: bool, delay: float) -> Control:
 		shown.enhancement = enh
 		pic.texture = Card3D.face_texture(shown)
 	pic_holder.add_child(pic)
-	# Etikett der Verbesserung schräg über der Karte
-	var tag := Slab.new()
-	tag.color = ENH_COLORS[enh]
-	tag.skew = 0.08
-	tag.shadow_offset = Vector2(3, 3)
-	tag.margins = Vector4(12, 2, 12, 3)
-	tag.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	tag.rotation_degrees = -8.0
-	tag.position = Vector2(CARD_W * 0.5 + 6, CARD_SIZE.y - 30)
-	var tag_l := UIKit.poster_label(Card.ENHANCEMENT_TAGS[enh], UIKit.display_font(2), 15, UIKit.P_BLACK)
-	tag.add_child(tag_l)
-	pic_holder.add_child(tag)
+	# kein Schriftzug auf der Karte (Regel: die Verbesserung erkennt man am Bild)
 
 	box.add_child(_spacer(4))
 	var title := _label(offer.title, 17, UIKit.P_CREAM, true)

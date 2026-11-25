@@ -18,6 +18,7 @@ func _init() -> void:
 	test_multi_attack()
 	test_transfer()
 	test_burn_and_insert()
+	test_new_items_and_relics()
 	test_transfer_needs_cards()
 	test_throw_in_on_take()
 	print("\n%d Checks, %d Fehler" % [_checks, _failures])
@@ -257,6 +258,42 @@ func test_transfer() -> void:
 	duel2.attack(duel2.player_hand[0])
 	duel2.defend(duel2.opponent_hand[1]) # 8♥ schlägt 7♥
 	check(not duel2.can_transfer_with(duel2.opponent_hand[0]), "nach einem Schlag kein Schieben mehr")
+
+
+## Kartentausch, Magnet, Falle und die Wertungs-Relikte (Wolfszahn, Wirbel, Maske).
+func test_new_items_and_relics() -> void:
+	var H := Card.Suit.HEARTS
+	var C := Card.Suit.CLUBS
+	var duel := _fixed_duel([[H, 7], [H, 9]], [[H, 8], [C, 12]])
+	duel.deck.cards = [Card.new(Card.Suit.SPADES, 14), Card.new(C, 6)] as Array[Card]
+	duel.trump_card = duel.deck.cards[0]
+	var old_trump := duel.trump_suit
+	var mine: Card = duel.player_hand[0]
+	check(duel.swap_with_bottom(mine), "Kartentausch geht")
+	check(duel.deck.cards[0] == mine and duel.player_hand.any(func(c: Card) -> bool: return c.rank == 14),
+		"Handkarte liegt unten, Ass auf der Hand")
+	check(duel.trump_suit == old_trump, "Trumpffarbe bleibt")
+	duel.discard_pile.append(Card.new(C, 10))
+	var rng := RandomNumberGenerator.new()
+	var got := duel.pull_from_discard(rng)
+	check(got != null and duel.player_hand.has(got) and duel.discard_pile.is_empty(), "Magnet holt vom Ablagestapel")
+	# Falle: Gegner darf nicht schieben
+	var d2 := _fixed_duel([[H, 7], [H, 9], [H, 10], [H, 11]], [[C, 7], [C, 12]])
+	d2.attack(d2.player_hand[0])
+	check(d2.can_transfer_with(d2.opponent_hand[0]), "ohne Falle könnte er schieben")
+	d2.no_transfer_for = DurakMatch.OPPONENT
+	check(not d2.can_transfer_with(d2.opponent_hand[0]), "Falle: kein Schieben")
+	# Wertung: Wolfszahn (+10 Chips bei Trumpf-Verteidigung) und Maske (×2)
+	var d3 := _fixed_duel([[H, 7], [C, 9]], [[H, 8], [C, 12]], C)
+	var st := ScoreTracker.new(10000)
+	st.trump_defense_chips = 10
+	st.next_bout_factor = 2
+	st.attach(d3)
+	d3.attacker = DurakMatch.OPPONENT
+	check(d3.attack(d3.opponent_hand[0]), "Gegner greift mit 8♥ an")
+	check(d3.defend(d3.player_hand[1]), "9♣ (Trumpf) schlägt")
+	d3.pass_bout() # (endet meist schon von selbst – nichts mehr nachzulegen)
+	check(st.total == 19 * 3 * 2, "Wolfszahn +10 Chips und Maske ×2: 19 × 3 × 2 (ist %d)" % st.total)
 
 
 ## Feuerzeug (verbrennen) und Angriff an beliebiger Stelle einreihen.

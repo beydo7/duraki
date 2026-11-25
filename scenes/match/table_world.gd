@@ -67,6 +67,8 @@ var _cards := {} # Card -> Card3D
 var _base := {} # Card3D -> Transform3D (Ziel ohne Hover)
 ## Gegnerkarten, die der Spiegel verraten hat (liegen offen in seiner Hand)
 var revealed := {}
+## Neue Karte startet hier statt auf dem Stapel (Card → Transform3D)
+var spawn_from := {}
 ## Tisch beim letzten sync (um eine Karte, die die Runde sofort beendet, noch hinzulegen)
 var _last_attacks: Array[Card] = []
 var _last_defs: Array[Card] = []
@@ -262,6 +264,9 @@ func sync(duel: DurakMatch, playable: Array[Card]) -> void:
 		if node == null:
 			node = Card3D.create(card, card.suit == duel.trump_suit)
 			node.transform = _deck_top_xf()
+			if spawn_from.has(card): # z. B. Magnet: kommt vom Ablagestapel
+				node.transform = spawn_from[card]
+				spawn_from.erase(card)
 			add_child(node)
 			node.grabbed.connect(_on_grabbed)
 			node.hover_changed.connect(_on_hover)
@@ -457,6 +462,14 @@ func _impact(pos: Vector3, strong: bool) -> void:
 
 
 # --- Items ------------------------------------------------------------------------------
+
+## Magnet: eine Karte vom Ablagestapel holen – Stapel wird niedriger, Karte fliegt von dort.
+func take_from_discard(card: Card) -> void:
+	_discard_count = maxi(0, _discard_count - 1)
+	_set_pile_height(_discard_pile, DISCARD_POS, _discard_count)
+	_discard_pile.visible = _discard_count > 0
+	spawn_from[card] = Transform3D(Basis(Vector3.FORWARD, PI), DISCARD_POS + Vector3(0, 0.03, 0))
+
 
 ## Feuerzeug gezückt: diese Gegnerkarten bekommen einen leuchtenden Rahmen (leer = aus).
 func set_burn_targets(cards: Array) -> void:
