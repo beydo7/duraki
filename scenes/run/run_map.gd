@@ -85,8 +85,8 @@ func _render(next: OpponentData) -> void:
 	%RunInfo.add_child(_chip("Hand %d" % Run.player_hand_size(), UIKit.INK, "Deine Handkarten"))
 	%RunInfo.add_child(_chip("Deck: %s" % Run.deck_name(), UIKit.INK, Run.deck_description()))
 	if Run.daily:
-		%RunInfo.add_child(_chip("Täglich" if Run.daily_counts else "Täglich · Übung", UIKit.INK_RED,
-			"Tägliche Herausforderung – %s" % ("dieser Versuch zählt" if Run.daily_counts else "nur Übung, zählt nicht")))
+		%RunInfo.add_child(_chip("Täglich · Versuch %d/%d" % [Run.daily_attempt, Profile.DAILY_TRIES] if Run.daily_counts else "Täglich · Übung",
+			UIKit.INK_RED, "Tägliche Herausforderung – %s" % ("der beste deiner 3 Versuche zählt" if Run.daily_counts else "alle Versuche verbraucht, nur Übung")))
 	# Relikte darunter als freie Symbole, höchstens 5 pro Reihe (rechtsbündig)
 	if _relic_grid == null:
 		_relic_grid = VBoxContainer.new()

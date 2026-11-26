@@ -452,7 +452,9 @@ func _stats_tab() -> Control:
 	right.add_child(_line("Serie", "%d in Folge" % Profile.daily_streak()))
 	right.add_child(_line("Bester Tag", "%s Punkte" % _num(Profile.daily_best())))
 	var today := Profile.daily_entry()
-	right.add_child(_line("Heute", ("%s Punkte" % _num(int(today.points))) if bool(today.get("done", false)) else "noch offen"))
+	var used := (today.get("tries", []) as Array).size()
+	right.add_child(_line("Heute", ("%s Punkte · %d/%d Versuche" % [_num(int(today.get("points", 0))), used, Profile.DAILY_TRIES])
+		if used > 0 else "noch offen · %d Versuche" % Profile.DAILY_TRIES))
 	return scroll
 
 

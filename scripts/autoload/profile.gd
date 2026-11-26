@@ -65,8 +65,10 @@ var stats := {
 var wins_vs := {}
 var losses_vs := {}
 
-## Tägliche Herausforderung: Datum (JJJJ-MM-TT) → {points, tables, endless, done}.
-## Nur der erste Versuch eines Tages zählt (`done` = fertig gespielt).
+## Tägliche Herausforderung: Datum (JJJJ-MM-TT) → {tries: [Punkte je Versuch], points (bester),
+## tables, endless (vom besten Versuch), done}. Pro Tag DAILY_TRIES Versuche; der beste zählt.
+## Ein angefangener, nicht beendeter Versuch ist verbraucht (zählt mit 0 Punkten).
+const DAILY_TRIES := 3
 var daily_results := {}
 ## Frisch freigeschaltete Decks, die noch nicht angezeigt wurden.
 var pending_unlocks: Array[DeckData] = []
@@ -238,26 +240,41 @@ func daily_entry(date := "") -> Dictionary:
 	return daily_results.get(date if date != "" else today(), {})
 
 
-## Versuch beginnt: gibt true zurück, wenn er zählt (der erste des Tages).
-func daily_begin(date: String) -> bool:
-	if daily_results.has(date):
-		return false
-	daily_results[date] = {"points": 0, "tables": 0, "endless": 0, "done": false}
+## Versuch beginnt: gibt die Nummer des Versuchs zurück (1–3) oder 0, wenn alle verbraucht
+## sind (dann ist es nur Übung).
+func daily_begin(date: String) -> int:
+	var e: Dictionary = daily_results.get(date, {"tries": [], "points": 0, "tables": 0, "endless": 0, "done": false})
+	var tries: Array = e.get("tries", [])
+	if tries.size() >= DAILY_TRIES:
+		return 0
+	tries.append(0)
+	e.tries = tries
+	daily_results[date] = e
 	save_profile()
-	return true
+	return tries.size()
 
 
-func daily_finish(date: String, points: int, tables: int, endless: int) -> void:
+## Ergebnis eines Versuchs eintragen; der beste Versuch des Tages zählt.
+func daily_finish(date: String, attempt: int, points: int, tables: int, endless: int) -> void:
 	var e: Dictionary = daily_results.get(date, {})
-	if e.is_empty() or bool(e.get("done", false)):
+	var tries: Array = e.get("tries", [])
+	if attempt < 1 or attempt > tries.size():
 		return
-	e.points = points
-	e.tables = tables
-	e.endless = endless
+	tries[attempt - 1] = points
+	e.tries = tries
 	e.done = true
+	if points >= int(e.get("points", 0)):
+		e.points = points
+		e.tables = tables
+		e.endless = endless
 	daily_results[date] = e
 	save_profile()
 	changed.emit()
+
+
+## Wie viele Versuche heute (bzw. an `date`) schon verbraucht sind.
+func daily_tries_used(date := "") -> int:
+	return (daily_entry(date).get("tries", []) as Array).size()
 
 
 ## Tage in Folge (bis heute bzw. gestern) mit gespielter Herausforderung.

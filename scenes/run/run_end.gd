@@ -45,7 +45,11 @@ func _ready() -> void:
 	else:
 		_stat("Akt", "%d / %d" % [mini(Run.act_of() + 1, Run.ACTS), Run.ACTS])
 	if Run.daily:
-		_stat("Tägliche Herausforderung", ("%d Punkte" % Run.run_points) + ("" if Run.daily_counts else "  (Übung, zählt nicht)"))
+		if Run.daily_counts:
+			_stat("Täglich · Versuch %d/%d" % [Run.daily_attempt, Profile.DAILY_TRIES],
+				"%d Punkte  (Bestwert heute %d)" % [Run.run_points, int(Profile.daily_entry(Run.daily_date).get("points", 0))])
+		else:
+			_stat("Tägliche Herausforderung", "%d Punkte  (Übung, zählt nicht)" % Run.run_points)
 	_stat("Gegner besiegt", "%d / %d" % [mini(Run.floor_index, Run.encounters.size()), Run.encounters.size()])
 	_stat("Gold", "%d" % Run.gold)
 	_stat("Relikte", "%d" % Run.relics.size() if Run.relics.size() > 0 else "keine")

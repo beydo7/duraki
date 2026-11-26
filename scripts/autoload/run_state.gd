@@ -128,10 +128,11 @@ var last_endless_place := 0
 var run_points := 0
 
 ## Tägliche Herausforderung: alle spielen am selben Tag denselben Run (gleicher Seed, Deck des Tages,
-## Schwierigkeit Normal). Nur der erste Versuch des Tages zählt (`daily_counts`).
+## Schwierigkeit Normal). Pro Tag 3 Versuche (`daily_attempt` 1–3), der beste zählt; danach Übung.
 var daily := false
 var daily_date := ""
 var daily_counts := false
+var daily_attempt := 0
 
 ## Aktuelle Shop-Auslage (siehe make_shop_offers) und Preis fürs Neu-Mischen.
 var shop_offers: Array[Dictionary] = []
@@ -141,11 +142,12 @@ var reroll_price := REROLL_BASE_PRICE
 ## Tägliche Herausforderung starten (Seed aus dem Datum).
 func start_daily() -> void:
 	var date := Profile.today()
-	var counts := Profile.daily_begin(date)
+	var attempt := Profile.daily_begin(date)
 	_reset(daily_seed(date))
 	daily = true
 	daily_date = date
-	daily_counts = counts
+	daily_attempt = attempt
+	daily_counts = attempt > 0
 	difficulty = DAILY_DIFFICULTY
 	hints = bool(Settings.get_value("general/hints"))
 	lives = maxi(1, START_LIVES + DIFF_LIVES[difficulty])
@@ -236,6 +238,7 @@ func _reset(p_seed: int) -> void:
 	daily = false
 	daily_date = ""
 	daily_counts = false
+	daily_attempt = 0
 
 
 ## Effekte des gewählten Decks auf den neuen Run anwenden.
@@ -720,7 +723,7 @@ func _end_run(won: bool) -> void:
 	won_run = won
 	Profile.max_stat("best_run_points", run_points)
 	if daily and daily_counts:
-		Profile.daily_finish(daily_date, run_points, mini(floor_index, encounters.size()), endless_score)
+		Profile.daily_finish(daily_date, daily_attempt, run_points, mini(floor_index, encounters.size()), endless_score)
 	if endless:
 		last_endless_place = Profile.record_endless(endless_score, endless_decks, deck_name())
 	last_souls = Profile.on_run_finished(won, mini(floor_index, encounters.size()), souls_factor(),

@@ -2,7 +2,7 @@ class_name DailyMenu
 extends Control
 ## Tägliche Herausforderung: Erklärung, heutiges Ergebnis und Start.
 ## Alle spielen am selben Tag denselben Run (gleiche Gegner, Räume, Händler-Angebote),
-## mit dem Standard-Deck auf Normal. Nur der erste Versuch des Tages zählt.
+## mit dem Deck des Tages auf Normal. 3 Versuche pro Tag, der beste zählt.
 ##     var m := DailyMenu.new(); add_child(m); m.started.connect(...); m.closed.connect(...)
 
 signal started
@@ -35,7 +35,7 @@ func _ready() -> void:
 	root.add_child(_l("Jeden Tag ein neuer Run – und heute spielen ihn alle gleich: dieselben Gegner, Räume, "
 		+ "Waren beim Händler und dasselbe Deck (auch eins, das du noch nicht freigeschaltet hast). "
 		+ "Schwierigkeit Normal. Gewertet werden alle Punkte des Runs – auch im Endlos-Modus. "
-		+ "Nur dein erster Versuch des Tages zählt.", &"InkType", 16, true))
+		+ "Du hast 3 Versuche am Tag, dein bester zählt. Ein abgebrochener Versuch ist verbraucht.", &"InkType", 16, true))
 	var d := Run.daily_deck(date)
 	if d != null:
 		var deck_row := HBoxContainer.new()
@@ -56,17 +56,25 @@ func _ready() -> void:
 		dcol.add_child(_l(d.effect_text if d.effect_text != "" else "Keine Besonderheiten.", &"InkType", 15))
 
 	var entry := Profile.daily_entry(date)
-	var status := ""
-	if entry.is_empty():
-		status = "Heute noch nicht gespielt."
-	elif bool(entry.get("done", false)):
-		status = "Dein Ergebnis heute: %d Punkte · %d von %d Tischen%s" % [int(entry.points), int(entry.tables),
-			Run.ACTS * Run.FIGHTS_PER_ACT, (" · Endlos %d" % int(entry.endless)) if int(entry.endless) > 0 else ""]
+	var tries: Array = entry.get("tries", [])
+	var left := Profile.DAILY_TRIES - tries.size()
+	# Versuche als Punkte: ● verbraucht, ○ frei – darunter die Ergebnisse
+	var dots := ""
+	for i in Profile.DAILY_TRIES:
+		dots += ("●" if i < tries.size() else "○") + " "
+	var tr := _l("Versuche: %s  %s" % [dots.strip_edges(),
+		("noch %d übrig" % left) if left > 0 else "alle verbraucht"], &"InkLabel", 20)
+	tr.add_theme_color_override("font_color", UIKit.INK_RED if left == 0 else UIKit.INK)
+	root.add_child(tr)
+	if not tries.is_empty():
+		var parts := PackedStringArray()
+		for i in tries.size():
+			parts.append("%d. Versuch: %d" % [i + 1, int(tries[i])])
+		root.add_child(_l("   ·   ".join(parts) + "      →  Bestwert heute: %d Punkte" % int(entry.get("points", 0)),
+			&"InkType", 16, true))
 	else:
-		status = "Dein Versuch heute wurde nicht beendet – er zählt mit 0 Punkten."
-	var st := _l(status, &"InkLabel", 18, true)
-	st.add_theme_color_override("font_color", UIKit.INK_RED if not entry.is_empty() else UIKit.INK)
-	root.add_child(st)
+		root.add_child(_l("Heute noch nicht gespielt. Du hast %d Versuche – der beste zählt." % Profile.DAILY_TRIES,
+			&"InkType", 16, true))
 	var streak := Profile.daily_streak()
 	root.add_child(_l("Serie: %d %s in Folge   ·   Bester Tag: %d Punkte" % [streak, "Tag" if streak == 1 else "Tage",
 		Profile.daily_best()], &"InkType", 15))
@@ -82,7 +90,7 @@ func _ready() -> void:
 	UIKit.hover(back, 1.04)
 	buttons.add_child(back)
 	var go := Button.new()
-	go.text = "LOS GEHT'S" if entry.is_empty() else "ÜBEN (ZÄHLT NICHT)"
+	go.text = ("VERSUCH %d VON %d" % [tries.size() + 1, Profile.DAILY_TRIES]) if left > 0 else "ÜBEN (ZÄHLT NICHT)"
 	go.theme_type_variation = &"PrimaryButton"
 	go.custom_minimum_size = Vector2(300, 54)
 	go.pressed.connect(_start)
