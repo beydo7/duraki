@@ -73,7 +73,12 @@ const TUTORIAL_TARGET := 150
 
 var rng := RandomNumberGenerator.new()
 var seed_value := 0
-var lives := 0
+var lives := 0:
+	set(v):
+		lives = v
+		max_lives = maxi(max_lives, v)
+## Höchste Zahl an Leben in diesem Run (Lebensanzeigen, die verlorene Leben weiter zeigen)
+var max_lives := 0
 var gold := 0
 var floor_index := 0
 var encounters: Array[OpponentData] = []
@@ -150,6 +155,7 @@ func start_daily() -> void:
 	daily_counts = attempt > 0
 	difficulty = DAILY_DIFFICULTY
 	hints = bool(Settings.get_value("general/hints"))
+	max_lives = 0
 	lives = maxi(1, START_LIVES + DIFF_LIVES[difficulty])
 	encounters = _build_encounters()
 	_apply_deck(daily_deck(date))
@@ -177,6 +183,7 @@ func start_new_run(p_seed := 0) -> void:
 	_reset(p_seed)
 	difficulty = clampi(int(Settings.get_value("general/difficulty")), 0, 2)
 	hints = bool(Settings.get_value("general/hints"))
+	max_lives = 0
 	lives = maxi(1, START_LIVES + DIFF_LIVES[difficulty])
 	encounters = _build_encounters()
 	_apply_deck(Profile.selected_deck())
@@ -192,6 +199,7 @@ func start_tutorial() -> void:
 	tutorial_shop = false
 	difficulty = 0
 	hints = true
+	max_lives = 0
 	lives = 1
 	# zum Zeigen: ein Relikt und ein Item (oben rechts im Duell, wird im Tutorial erklärt)
 	var coin := load("res://data/relics/lucky_coin.tres") as RelicData
