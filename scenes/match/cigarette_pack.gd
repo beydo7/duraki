@@ -23,6 +23,7 @@ var left: int:
 	get: return maxi(Profile.PACK_SIZE - Run.cigarettes_taken, 0)
 var _busy := false
 var _lid: Node3D
+var _brand: Label3D
 var _cigs: Array[Node3D] = []
 
 
@@ -32,8 +33,7 @@ func _ready() -> void:
 
 func _build() -> void:
 	var white := _mat(Color(0.95, 0.94, 0.9), 0.55)
-	var cs := Cosmetics.cig_style() # Deck-Belohnung: andere Farbe der Schachtel
-	var red := _mat(cs.get("pack", Color(0.74, 0.08, 0.1)), 0.45, 0.7 if cs.get("metal", false) else 0.0)
+	var red := Cosmetics.cig_mat(&"pack") # Deck-Belohnung: andere Farbe der Schachtel
 	var inner := _mat(Color(0.82, 0.78, 0.68), 0.8) # Silberpapier/Karton innen
 	var foil := _mat(Color(0.75, 0.74, 0.7), 0.3, 0.8)
 	var body_h := H - LID_H
@@ -61,7 +61,8 @@ func _build() -> void:
 		tri.rotation.z = PI # Spitze nach unten
 		add_child(tri)
 	_label("★", 22, Color(0.98, 0.9, 0.7), Vector3(0, body_h * 0.86, D * 0.5 + 0.0008), self)
-	_label("DURAKI", 28, cs.get("pack", Color(0.74, 0.08, 0.1)), Vector3(0, body_h * 0.43, D * 0.5 + 0.0008), self)
+	_brand = _label("DURAKI", 28, red.albedo_color, Vector3(0, body_h * 0.43, D * 0.5 + 0.0008), self)
+	Profile.changed.connect(func() -> void: _brand.modulate = Cosmetics.cig_mat(&"pack").albedo_color)
 	_label("FEINE TABAKE", 11, Color(0.35, 0.3, 0.28), Vector3(0, body_h * 0.28, D * 0.5 + 0.0008), self)
 	_label("DURAKI", 22, Color(0.98, 0.95, 0.9), Vector3(0, LID_H * 0.5, D + 0.0009), _lid)
 	# drei Zigaretten im Inneren (Filter oben), zunächst versteckt in der Schachtel
@@ -161,8 +162,7 @@ func _take() -> void:
 # --- Bausteine ------------------------------------------------------------------------
 
 func _stick(parent: Node3D) -> void:
-	var cs := Cosmetics.cig_style()
-	var paper := _mat(cs.get("paper", Color(0.93, 0.91, 0.86)), 0.75, 0.6 if cs.get("metal", false) else 0.0)
+	var paper := Cosmetics.cig_mat(&"paper")
 	var filter := _mat(Color(0.82, 0.55, 0.28), 0.7)
 	var p := CylinderMesh.new()
 	p.top_radius = CIG_R
@@ -197,7 +197,7 @@ func _box(size: Vector3, mat: Material, pos: Vector3, parent: Node3D) -> MeshIns
 	return m
 
 
-func _label(text: String, size: int, color: Color, pos: Vector3, parent: Node3D) -> void:
+func _label(text: String, size: int, color: Color, pos: Vector3, parent: Node3D) -> Label3D:
 	var l := Label3D.new()
 	l.text = text
 	l.font = UIKit.DISPLAY_FONT if text != "★" else UIKit.SYMBOL_FONT
@@ -209,6 +209,7 @@ func _label(text: String, size: int, color: Color, pos: Vector3, parent: Node3D)
 	l.double_sided = false
 	l.position = pos
 	parent.add_child(l)
+	return l
 
 
 func _mat(color: Color, rough: float, metal := 0.0) -> StandardMaterial3D:

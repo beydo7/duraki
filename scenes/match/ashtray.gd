@@ -179,7 +179,7 @@ func _add_stub(pos: Vector3, yaw: float) -> void:
 	old.rotation = Vector3(0.0, yaw, 0.15)
 	add_child(old)
 	_piece(old, 0.014, 0.0, _mat(Color(0.78, 0.5, 0.25), 0.8)) # Filter
-	_piece(old, 0.008, -0.014, _mat((Cosmetics.cig_style().get("paper", Color(0.93, 0.91, 0.86)) as Color) * 0.68, 0.9)) # zerknicktes Papier
+	_piece(old, 0.008, -0.014, Cosmetics.cig_mat(&"stub")) # zerknicktes Papier
 	var tip := SphereMesh.new()
 	tip.radius = R
 	tip.height = R * 1.4
@@ -209,12 +209,11 @@ func _build_cigarette() -> void:
 	_cig_rest = Transform3D(_axis_basis(dir + Vector3(0, 0.12, 0), Vector3.UP), tip_pos)
 	_cig.transform = _cig_rest
 
-	var cs := Cosmetics.cig_style() # Deck-Belohnung: farbiges Papier
-	var paper_mat := _mat(cs.get("paper", Color(0.93, 0.91, 0.86)), 0.75, 0.6 if cs.get("metal", false) else 0.0)
+	var paper_mat := Cosmetics.cig_mat(&"paper") # Deck-Belohnung: farbiges Papier
 	var filter_mat := _mat(Color(0.82, 0.55, 0.28), 0.7)
 	_paper = _piece(_cig, PAPER_LEN, PAPER_LEN * 0.5, paper_mat)
 	_piece(_cig, FILTER_LEN, PAPER_LEN + FILTER_LEN * 0.5, filter_mat)
-	var band := _piece(_cig, 0.002, PAPER_LEN + 0.001, _mat(cs.get("band", Color(0.85, 0.7, 0.3)), 0.4, 0.6))
+	var band := _piece(_cig, 0.002, PAPER_LEN + 0.001, Cosmetics.cig_mat(&"band"))
 	band.scale = Vector3(1.04, 1, 1.04)
 	_ash = _piece(_cig, 0.006, 0.0, _mat(Color(0.5, 0.49, 0.47), 1.0))
 	_ash.visible = false

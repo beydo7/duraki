@@ -374,7 +374,8 @@ func _looks_tab() -> Control:
 	scroll.add_child(list)
 	for slot: StringName in Cosmetics.SLOTS:
 		list.add_child(_stat_head(String(Cosmetics.SLOTS[slot][0])))
-		var flow := HFlowContainer.new()
+		var flow := GridContainer.new() # feste Spalten: alle Kacheln gleich breit und bündig
+		flow.columns = 4
 		flow.add_theme_constant_override("h_separation", 12)
 		flow.add_theme_constant_override("v_separation", 12)
 		list.add_child(flow)
@@ -396,7 +397,8 @@ func _look_tile(slot: StringName, id: StringName) -> Control:
 	st.border_width_left = 6
 	st.set_content_margin_all(10)
 	cell.add_theme_stylebox_override("panel", st)
-	cell.custom_minimum_size = Vector2(268, 84)
+	cell.custom_minimum_size = Vector2(250, 84)
+	cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	cell.mouse_filter = Control.MOUSE_FILTER_STOP
 	cell.tooltip_text = "Standard des Raums" if id == &"" else Cosmetics.how_to(id)
 	cell.mouse_entered.connect(func() -> void: Sfx.play(&"index_hover", randf_range(0.9, 1.0)))
@@ -420,7 +422,10 @@ func _look_tile(slot: StringName, id: StringName) -> Control:
 	col.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(col)
 	var name := "Standard" if id == &"" else String(it.name)
-	col.add_child(UIKit.poster_label(name, UIKit.display_font(), 17, UIKit.P_CREAM if open else Color(UIKit.P_CREAM, 0.5)))
+	var title := UIKit.poster_label(name, UIKit.display_font(), 17, UIKit.P_CREAM if open else Color(UIKit.P_CREAM, 0.5))
+	title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS # lange Namen sprengen die Kachel nicht
+	title.custom_minimum_size.x = 10
+	col.add_child(title)
 	var sub := ""
 	if id == &"":
 		sub = "wie der Raum es vorsieht"

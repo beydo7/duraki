@@ -1063,7 +1063,11 @@ func _build_models() -> void:
 
 
 ## Deck-Belohnungen anwenden: der Raum sagt, was Filz und Rand sind (Hinterzimmer: Teile aus table.glb).
+## Bei geänderter Auswahl (Index, Entwicklermenü) wird sofort neu angewendet.
 func _build_skin() -> void:
+	if not Profile.changed.is_connected(_on_profile_changed):
+		Profile.changed.connect(_on_profile_changed)
+	_skin_key = str(Profile.cosmetics) + str(Cosmetics.dev_free)
 	skin = TableSkin.new()
 	add_child(skin)
 	var room: Node = casino if casino != null else (station if station != null else special_room)
@@ -1083,6 +1087,19 @@ func _build_skin() -> void:
 	info["rim_nodes"] = rim
 	info["felt_nodes"] = info.felt_nodes.filter(func(n: Node) -> bool: return n != null)
 	skin.apply(self, info)
+
+
+var _skin_key := ""
+
+
+func _on_profile_changed() -> void:
+	if str(Profile.cosmetics) + str(Cosmetics.dev_free) == _skin_key or skin == null:
+		return
+	skin.remove()
+	_build_skin()
+	if props != null:
+		props.chip_style = room_id == Rooms.CASINO and Cosmetics.selected(&"coins") == &""
+		props.refresh_coins()
 
 
 ## Aufgemalte Spielfelder auf dem Filz (hängen an den Konstanten oben,

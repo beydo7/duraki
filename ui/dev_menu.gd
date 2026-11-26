@@ -115,6 +115,31 @@ func _ready() -> void:
 	for id: StringName in Rooms.NAMES:
 		rooms.add_child(_button(String(Rooms.NAMES[id]).to_upper(), func() -> void: _set_room(id)))
 
+	var looks_head := _head("AUSSEHEN (Deck-Belohnungen, auch gesperrte – wird sofort übernommen)")
+	root.add_child(looks_head)
+	var looks := GridContainer.new()
+	looks.columns = 4
+	looks.add_theme_constant_override("h_separation", 10)
+	looks.add_theme_constant_override("v_separation", 6)
+	root.add_child(looks)
+	for slot: StringName in Cosmetics.SLOTS:
+		looks.add_child(UIKit.poster_label(String(Cosmetics.SLOTS[slot][0]), UIKit.body_font(600, 1), 14, UIKit.P_CREAM))
+		var opt := OptionButton.new()
+		opt.custom_minimum_size = Vector2(250, 38)
+		opt.focus_mode = Control.FOCUS_NONE
+		opt.add_item("Standard")
+		var ids: Array[StringName] = [&""]
+		for id in Cosmetics.items_for(slot):
+			var it: Dictionary = Cosmetics.ITEMS[id]
+			opt.add_item("%s (%s)" % [it.name, Settings.DIFFICULTY_NAMES[it.level]])
+			ids.append(id)
+		opt.selected = maxi(0, ids.find(Cosmetics.selected(slot)))
+		opt.item_selected.connect(func(i: int) -> void:
+			Cosmetics.dev_free = true
+			Profile.select_cosmetic(slot, ids[i])
+			_refresh("%s: %s" % [String(Cosmetics.SLOTS[slot][0]).capitalize(), opt.get_item_text(i)]))
+		looks.add_child(opt)
+
 	root.add_child(_head("PROFIL"))
 	root.add_child(_button("ALLES FREISCHALTEN – alle Decks, Abzeichen und Belohnungen", func() -> void:
 		Profile.unlock_all()
@@ -125,6 +150,9 @@ func _ready() -> void:
 	root.add_child(_button("SCHLIESSEN", close))
 	# Profil-Knopf und Rückmeldung nach oben holen, damit man sie ohne Scrollen sieht
 	root.move_child(_status, 1)
+	# Aussehen gleich darunter, damit man es ohne Scrollen umschalten kann
+	root.move_child(looks_head, 2)
+	root.move_child(looks, 3)
 	UIKit.appear(panel, 0.0, Vector2(0, 20), 0.25)
 
 

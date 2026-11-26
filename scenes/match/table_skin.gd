@@ -17,6 +17,7 @@ var _next_caw := 14.0
 var _bells: Array[Node3D] = []
 var _flames: Array[Dictionary] = []
 var _howl := false
+var _restore: Array = [] # [Mesh, altes Material] – zum Zurücksetzen beim Umschalten
 
 
 ## Tisch-Infos für einen rechteckigen Tisch. `half` = halbe Größe der Platte,
@@ -40,14 +41,14 @@ func apply(root: Node, info: Dictionary) -> void:
 		var m := Cosmetics.felt_material(felt_id)
 		_swap(root, felt_mats, m)
 		for n: MeshInstance3D in info.get("felt_nodes", []):
-			n.material_override = m
+			_set_mat(n, m)
 		_howl = Cosmetics.ITEMS[felt_id].get("howl", false)
 	if rim_id != &"":
 		var it: Dictionary = Cosmetics.ITEMS[rim_id]
 		var m := Cosmetics.rim_material(rim_id)
 		_swap(root, rim_mats, m)
 		for n: MeshInstance3D in info.get("rim_nodes", []):
-			n.material_override = m
+			_set_mat(n, m)
 		var frame: Vector2 = info.get("frame", Vector2.ZERO)
 		if frame != Vector2.ZERO:
 			_build_frame(frame, m)
@@ -76,6 +77,20 @@ func apply(root: Node, info: Dictionary) -> void:
 		&"extra_faberge":
 			for i in 2:
 				_faberge(_extra_pos(info, i))
+
+
+## Alles wieder wie vorher (Materialien zurück) und den Knoten entfernen.
+func remove() -> void:
+	for p in _restore:
+		if is_instance_valid(p[0]):
+			(p[0] as MeshInstance3D).material_override = p[1]
+	_restore.clear()
+	queue_free()
+
+
+func _set_mat(mi: MeshInstance3D, m: Material) -> void:
+	_restore.append([mi, mi.material_override])
+	mi.material_override = m
 
 
 ## Eine Karte wurde ausgespielt (Glöckchen klingeln).
@@ -131,7 +146,7 @@ func _swap(root: Node, mats: Array, m: Material) -> void:
 	for n in root.find_children("*", "MeshInstance3D", true, false):
 		var mi := n as MeshInstance3D
 		if mi.material_override != null and mats.has(mi.material_override):
-			mi.material_override = m
+			_set_mat(mi, m)
 
 
 ## Position auf dem Rand an einer Ecke, `inset` m Richtung Tischmitte.

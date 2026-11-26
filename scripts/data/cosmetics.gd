@@ -71,12 +71,16 @@ const ITEMS := {
 	# Wolf
 	&"rim_fur": {"slot": &"rim", "deck": &"wolf", "level": 0, "name": "Grauer Fellrand", "tex": "rim_fur.png", "color": Color("78766f"), "rough": 1.0},
 	&"felt_claws": {"slot": &"felt", "deck": &"wolf", "level": 1, "name": "Krallenspuren", "tex": "felt_claws.png", "color": Color("36423a")},
-	&"felt_moon": {"slot": &"felt", "deck": &"wolf", "level": 2, "name": "Vollmond mit Wolfsgeheul", "tex": "felt_moon.png", "color": Color("161e36"), "scale": 0.0, "howl": true},
+	&"felt_moon": {"slot": &"felt", "deck": &"wolf", "level": 2, "name": "Vollmond (Wolf heult)", "tex": "felt_moon.png", "color": Color("161e36"), "scale": 0.0, "howl": true},
 	# Zar
 	&"felt_velvet": {"slot": &"felt", "deck": &"zar", "level": 0, "name": "Roter Samt", "tex": "felt_velvet.png", "color": Color("96101a")},
 	&"corner_eagles": {"slot": &"corners", "deck": &"zar", "level": 1, "name": "Goldene Doppeladler", "emoji": "🦅"},
 	&"extra_faberge": {"slot": &"extra", "deck": &"zar", "level": 2, "name": "Fabergé-Leuchter", "emoji": "🥚"},
 }
+
+
+## Entwicklermenü: alles anlegbar, auch Gesperrtes (bis zum Neustart).
+static var dev_free := false
 
 
 static func is_unlocked(id: StringName) -> bool:
@@ -87,7 +91,7 @@ static func is_unlocked(id: StringName) -> bool:
 ## Ausgewähltes Item für einen Platz (&"" = Standard des Raums).
 static func selected(slot: StringName) -> StringName:
 	var id := StringName(Profile.cosmetics.get(String(slot), ""))
-	return id if ITEMS.has(id) and is_unlocked(id) else &""
+	return id if ITEMS.has(id) and (dev_free or is_unlocked(id)) else &""
 
 
 ## Daten des ausgewählten Items (leer = Standard).
@@ -192,3 +196,42 @@ static func coin_material(id: StringName) -> StandardMaterial3D:
 ## Farben der Zigaretten (leer = normal weiß/rot).
 static func cig_style() -> Dictionary:
 	return pick(&"cigs")
+
+
+## Gemeinsame Materialien für alle Zigaretten (Papier, Ring am Filter, Stummel, Schachtel).
+## Werden beim Umschalten direkt umgefärbt, so ändert sich alles sofort.
+static func cig_mat(part: StringName) -> StandardMaterial3D:
+	var key := "cig_%s" % part
+	if not _cache.has(key):
+		var m := StandardMaterial3D.new()
+		_cache[key] = m
+		_color_cig(part, m)
+	return _cache[key]
+
+
+static func refresh_cigs() -> void:
+	for part: StringName in [&"paper", &"band", &"stub", &"pack"]:
+		if _cache.has("cig_%s" % part):
+			_color_cig(part, _cache["cig_%s" % part])
+
+
+static func _color_cig(part: StringName, m: StandardMaterial3D) -> void:
+	var cs := cig_style()
+	var metal: bool = cs.get("metal", false)
+	match part:
+		&"paper":
+			m.albedo_color = cs.get("paper", Color(0.93, 0.91, 0.86))
+			m.roughness = 0.75
+			m.metallic = 0.6 if metal else 0.0
+		&"band":
+			m.albedo_color = cs.get("band", Color(0.85, 0.7, 0.3))
+			m.roughness = 0.4
+			m.metallic = 0.6
+		&"stub":
+			m.albedo_color = (cs.get("paper", Color(0.93, 0.91, 0.86)) as Color) * 0.68
+			m.roughness = 0.9
+			m.metallic = 0.0
+		&"pack":
+			m.albedo_color = cs.get("pack", Color(0.74, 0.08, 0.1))
+			m.roughness = 0.45
+			m.metallic = 0.7 if metal else 0.0

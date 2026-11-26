@@ -167,6 +167,7 @@ func _give_badge(deck_id: StringName, level: int) -> void:
 	var reward := Cosmetics.reward_of(deck_id, level)
 	if reward != &"":
 		cosmetics[String(Cosmetics.ITEMS[reward].slot)] = String(reward)
+		Cosmetics.refresh_cigs()
 		reward_unlocked.emit(reward)
 
 
@@ -174,8 +175,9 @@ func _give_badge(deck_id: StringName, level: int) -> void:
 func select_cosmetic(slot: StringName, id: StringName) -> void:
 	if id == &"":
 		cosmetics.erase(String(slot))
-	elif Cosmetics.is_unlocked(id):
+	elif Cosmetics.is_unlocked(id) or Cosmetics.dev_free:
 		cosmetics[String(slot)] = String(id)
+	Cosmetics.refresh_cigs()
 	save_profile()
 	changed.emit()
 

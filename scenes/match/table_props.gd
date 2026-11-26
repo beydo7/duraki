@@ -192,6 +192,17 @@ func snuff_candle() -> void:
 			return
 
 
+## Münz-Aussehen neu (Deck-Belohnung umgeschaltet): Stapel mit neuem Material neu legen.
+func refresh_coins() -> void:
+	_gold = _mat(Color(0.95, 0.72, 0.28), 0.32)
+	_gold.metallic = 1.0
+	if Cosmetics.selected(&"coins") != &"":
+		_gold = Cosmetics.coin_material(Cosmetics.selected(&"coins"))
+	var n := _coins.size()
+	set_gold(0, false)
+	set_gold(n, false)
+
+
 ## Münzstapel auf die Goldmenge bringen (neue Münzen fallen herunter).
 func set_gold(amount: int, animate := true) -> void:
 	var target := mini(amount, MAX_COINS)
