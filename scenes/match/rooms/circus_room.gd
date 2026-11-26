@@ -55,6 +55,10 @@ var _last_wind := -10.0
 var _jack_out := false
 
 
+var _skin_felt: Array[Material] = []
+var _skin_rim: Array[Material] = []
+
+
 func _ready() -> void:
 	_build_shell()
 	_build_back()
@@ -286,6 +290,8 @@ func _build_table() -> void:
 	var y := TableWorld.TABLE_Y
 	var wood := RoomKit.mat(Color(0.36, 0.2, 0.12), 0.6)
 	var cloth := RoomKit.mat(Color(0.07, 0.17, 0.12), 0.95) # grünes Tuch, wie ein Spieltisch
+	_skin_felt = [cloth]
+	_skin_rim = [wood]
 	RoomKit.box(self, Vector3(TOP.x, 0.04, TOP.y), Vector3(0, y - 0.02, 0), wood)
 	RoomKit.box(self, Vector3(TOP.x - 0.12, 0.003, TOP.y - 0.12), Vector3(0, y - 0.001, 0), cloth)
 	var stripe := RoomKit.mat(Color(0.85, 0.65, 0.2), 0.4, 0.7)
@@ -370,3 +376,8 @@ func _build_string_lights() -> void:
 				var p1 := Vector3(x, y, z)
 				var w := RoomKit.box(self, Vector3(p1.distance_to(p2), 0.004, 0.004), (p1 + p2) * 0.5 + Vector3(0, 0.025, 0), wire)
 				w.rotation.z = atan2(p2.y - p1.y, p2.x - p1.x)
+
+
+## Für die Deck-Belohnungen (TableSkin): welche Materialien Filz und Rand sind, Umriss des Rands.
+func table_info() -> Dictionary:
+	return TableSkin.rect_info(_skin_felt, _skin_rim, Vector2(TOP.x * 0.5 - 0.03, TOP.y * 0.5 - 0.03), false, 0)

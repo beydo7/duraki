@@ -116,7 +116,7 @@ func _ready() -> void:
 		rooms.add_child(_button(String(Rooms.NAMES[id]).to_upper(), func() -> void: _set_room(id)))
 
 	root.add_child(_head("PROFIL"))
-	root.add_child(_button("ALLES FREISCHALTEN – alle Decks und alle Abzeichen", func() -> void:
+	root.add_child(_button("ALLES FREISCHALTEN – alle Decks, Abzeichen und Belohnungen", func() -> void:
 		Profile.unlock_all()
 		_refresh("Alle Decks freigeschaltet, alle Abzeichen vergeben.")))
 

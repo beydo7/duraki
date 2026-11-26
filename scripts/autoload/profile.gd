@@ -8,6 +8,8 @@ signal changed
 signal deck_unlocked(deck: DeckData)
 ## Ein Erfolg wurde gerade erreicht (Meldung zeigt der Autoload Pause).
 signal achievement_unlocked(id: StringName)
+## Eine Deck-Belohnung (Cosmetics) wurde gerade freigeschaltet.
+signal reward_unlocked(id: StringName)
 
 ## Erfolge: id → [Symbol, Name, Aufgabe, geheim?]. Geheime zeigen ihre Aufgabe erst, wenn erreicht.
 ## Belohnungen sind noch offen (Leon überlegt sich die noch).
@@ -43,6 +45,8 @@ var souls := 0
 var unlocked: Array[StringName] = []
 ## Abzeichen: Deck-id → gewonnene Schwierigkeiten (0 Leicht, 1 Normal, 2 Schwer)
 var badges := {}
+## Gewähltes Aussehen: Platz (felt, rim, …) → Cosmetics-id; fehlt = Standard
+var cosmetics := {}
 var selected: StringName = DEFAULT_DECK
 var runs_played := 0
 var runs_won := 0
@@ -159,6 +163,21 @@ func _give_badge(deck_id: StringName, level: int) -> void:
 	var list: Array = badges.get(String(deck_id), [])
 	list.append(level)
 	badges[String(deck_id)] = list
+	# Belohnung dieser Stufe: freischalten, gleich anlegen und melden
+	var reward := Cosmetics.reward_of(deck_id, level)
+	if reward != &"":
+		cosmetics[String(Cosmetics.ITEMS[reward].slot)] = String(reward)
+		reward_unlocked.emit(reward)
+
+
+## Aussehen für einen Platz wählen (&"" = Standard).
+func select_cosmetic(slot: StringName, id: StringName) -> void:
+	if id == &"":
+		cosmetics.erase(String(slot))
+	elif Cosmetics.is_unlocked(id):
+		cosmetics[String(slot)] = String(id)
+	save_profile()
+	changed.emit()
 
 
 func on_run_finished(won: bool, tables_won: int, factor := 1.0, deck_id: StringName = &"", level := -1) -> int:
@@ -395,6 +414,7 @@ func load_profile() -> void:
 	for id in cfg.get_value("profile", "unlocked", PackedStringArray()):
 		unlocked.append(StringName(id))
 	badges = cfg.get_value("profile", "badges", {})
+	cosmetics = cfg.get_value("profile", "cosmetics", {})
 	achievements.clear()
 	for id in cfg.get_value("achievements", "done", PackedStringArray()):
 		achievements.append(StringName(id))
@@ -420,6 +440,7 @@ func save_profile() -> void:
 		ids.append(String(id))
 	cfg.set_value("profile", "unlocked", ids)
 	cfg.set_value("profile", "badges", badges)
+	cfg.set_value("profile", "cosmetics", cosmetics)
 	cfg.set_value("stats", "runs_played", runs_played)
 	cfg.set_value("stats", "runs_won", runs_won)
 	cfg.set_value("stats", "best_floor", best_floor)
@@ -443,6 +464,7 @@ func reset_for_tests() -> void:
 	souls = 0
 	unlocked.clear()
 	badges.clear()
+	cosmetics.clear()
 	achievements.clear()
 	cigarettes_smoked = 0
 	selected = DEFAULT_DECK

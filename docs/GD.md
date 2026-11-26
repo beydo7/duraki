@@ -168,6 +168,21 @@ Ein Run = 3 Akte mit je 3 normalen Gegnern + Boss (12 Tische), 3 Leben (Kerzen).
   überall sonst (Hauptmenü, Weg, Händler) der Autoload `Pause` (Karten gibt es dort nicht).
 - **Abzeichen** (`Profile.badges`): pro Deck drei Plätze Leicht/Normal/Schwer im Deck-Menü; ein Run-Sieg
   mit dem Deck auf der Stufe füllt den Platz.
+- **Deck-Belohnungen** (`Cosmetics`, `scenes/match/table_skin.gd`): jedes Abzeichen schaltet eine
+  Aussehen-Belohnung frei, jede Stufe einzeln (Sieg auf Schwer schaltet Leicht/Normal nicht mit frei).
+  Frisch freigeschaltet → sofort angelegt, Meldung „BELOHNUNG · …“ oben; wählen im Index-Reiter
+  **AUSSEHEN** (je Platz eine: Tischfilz, Tischrand, Tischecken, Extras, Zigaretten, Münzen; „Standard“ =
+  wie der Raum). Filz/Rand/Ecken/Extras gelten in allen Räumen: jeder Raum meldet über `table_info()`
+  seine Filz- und Randmaterialien und den Umriss des Rands (`TableSkin.rect_info`; Casino: Stadion).
+  Andere Münzen ersetzen im Casino auch die Pokerchips. Liste (Leicht / Normal / Schwer):
+  Hinterzimmer Zigaretten blau/schwarz/gold · Banditen Filz grau/gelb/blau · Knochen Filz knochenweiß /
+  Knochenrand / Totenköpfe an den Ecken · Krähe Federfilz / Ebenholzrand / Krähe auf dem Tisch (krächzt) ·
+  Riese grobe Eiche / Steinplatte / Felsrand mit Moos · Goldrand Goldkante / weinrot mit Gold / ganzer
+  Goldrand · Gaukler rot-gelb gestreift / Harlekin-Rauten / Glöckchen am Rand (klingeln beim Ausspielen) ·
+  Kaufmann Silber-/Kupfer-/Edelstein-Münzen · Sumpf moosgrün / Moos und Seerosen / Glühwürmchen · Hexe
+  violett / Sterne und Monde / grüne Hexenkerzen · Wolf Fellrand / Krallenspuren / Vollmond (Wolf heult
+  beim Duellsieg) · Zar roter Samt / goldene Doppeladler / Fabergé-Leuchter.
+  Texturen und Geräusche: `tools/generate_cosmetics.py` → `assets/cosmetics/`.
 - Händler verkauft keine Boni mehr (die bringen die Decks mit), nur Karten, Relikte, Items.
 - Glaskarten wie bei Balatro: bläulicher, durchscheinender Glasgrund (Alpha ~0,65) mit Lichtbändern,
   dunkle deckende Linien (`glass_version` in `tools/generate_cards.py`, Shader mit ALPHA).
@@ -388,6 +403,8 @@ Run: Schwierigkeit, Hinweise, Tutorial im Hauptmenü anzeigen).
   (`DURAKI_DIFF=0/1/2` wählt die Schwierigkeit, `DURAKI_RUNS=n` die Anzahl)
 - `godot --headless --path . res://tests/tutorial_test.tscn` → Tutorial komplett durchspielen
 - `godot --headless --path . res://tests/daily_tests.tscn` → Tägliche Herausforderung und Statistik (16 Checks)
+- `godot --headless --path . res://tests/cosmetics_tests.tscn` → Deck-Belohnungen: je Deck drei, Freischalten je Stufe,
+  alle Räume mit allen Belohnungen bauen (107 Checks)
 - `godot --headless --path . res://tests/relic_tests.tscn` → jedes Relikt im echten Ablauf (28 Checks),
   auch Relikte, die mitten im Duell dazukommen (wirken sofort, `match.gd` `_apply_relics`)
 - Absturz-Suche unter Windows: `Spiel_starten.bat` schreibt das Log nach `logs\letzter_start.log`.

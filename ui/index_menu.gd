@@ -11,7 +11,7 @@ extends Control
 
 signal closed
 
-const TABS := ["KARTEN", "RELIKTE", "ITEMS", "ERFOLGE", "STATISTIK"] # Boni stehen bei den Decks
+const TABS := ["KARTEN", "RELIKTE", "ITEMS", "ERFOLGE", "AUSSEHEN", "STATISTIK"] # Boni stehen bei den Decks
 const CARD_SIZE := Vector2(80, 112)
 const ENH_COLORS := [UIKit.P_CREAM, UIKit.P_GOLD, Color(0.55, 0.82, 1.0), Color(0.42, 0.85, 0.5)]
 const ENH_LABELS := ["NORMAL", "GOLD", "GLAS", "GLÜCK"]
@@ -66,12 +66,14 @@ func _ready() -> void:
 	sub.size_flags_vertical = Control.SIZE_SHRINK_END
 	sub.custom_minimum_size.y = 30
 	sub.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	sub.clip_text = true # bei vielen Reitern lieber abschneiden als überlaufen
+	sub.custom_minimum_size.x = 20
 	row.add_child(sub)
 	for i in TABS.size():
 		var b := Button.new()
 		b.text = TABS[i]
 		b.toggle_mode = true
-		b.custom_minimum_size = Vector2(128, 44)
+		b.custom_minimum_size = Vector2(104, 44)
 		var index := i
 		b.pressed.connect(func() -> void: _show_tab(index)) # Klickton kommt von UIKit.hover
 		UIKit.hover(b, 1.04)
@@ -118,7 +120,8 @@ func _show_tab(index: int) -> void:
 		1: _content.add_child(_relics_tab())
 		2: _content.add_child(_items_tab())
 		3: _content.add_child(_achievements_tab())
-		4: _content.add_child(_stats_tab())
+		4: _content.add_child(_looks_tab())
+		5: _content.add_child(_stats_tab())
 	_tab_buttons[index].grab_focus()
 
 
@@ -348,6 +351,139 @@ func _achievements_tab() -> Control:
 			UIKit.body_font(600, 1), 13, UIKit.P_GOLD if got else Color(UIKit.P_CREAM, 0.45)))
 		grid.add_child(cell)
 	return box
+
+
+# --- AUSSEHEN (Deck-Belohnungen) ---------------------------------------------------------
+
+func _looks_tab() -> Control:
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 10)
+	var got := 0
+	for id: StringName in Cosmetics.ITEMS:
+		if Cosmetics.is_unlocked(id):
+			got += 1
+	box.add_child(UIKit.poster_label("%d von %d freigeschaltet. Jedes Deck hat drei Belohnungen: gewinne einen Run auf Leicht, Normal und Schwer. Anklicken = anlegen." % [got, Cosmetics.ITEMS.size()],
+		UIKit.body_font(500), 15, Color(UIKit.P_CREAM, 0.7)))
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	box.add_child(scroll)
+	var list := VBoxContainer.new()
+	list.add_theme_constant_override("separation", 8)
+	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(list)
+	for slot: StringName in Cosmetics.SLOTS:
+		list.add_child(_stat_head(String(Cosmetics.SLOTS[slot][0])))
+		var flow := HFlowContainer.new()
+		flow.add_theme_constant_override("h_separation", 12)
+		flow.add_theme_constant_override("v_separation", 12)
+		list.add_child(flow)
+		flow.add_child(_look_tile(slot, &""))
+		for id in Cosmetics.items_for(slot):
+			flow.add_child(_look_tile(slot, id))
+	return box
+
+
+func _look_tile(slot: StringName, id: StringName) -> Control:
+	var it: Dictionary = {} if id == &"" else Cosmetics.ITEMS[id]
+	var open := id == &"" or Cosmetics.is_unlocked(id)
+	var on := Cosmetics.selected(slot) == id
+	var cell := PanelContainer.new()
+	var st := StyleBoxFlat.new()
+	st.bg_color = Color(1, 1, 1, 0.07) if on else (Color(1, 1, 1, 0.03) if open else Color(0, 0, 0, 0.3))
+	st.border_color = UIKit.P_GOLD if on else Color(UIKit.P_CREAM, 0.15 if open else 0.07)
+	st.set_border_width_all(2)
+	st.border_width_left = 6
+	st.set_content_margin_all(10)
+	cell.add_theme_stylebox_override("panel", st)
+	cell.custom_minimum_size = Vector2(268, 84)
+	cell.mouse_filter = Control.MOUSE_FILTER_STOP
+	cell.tooltip_text = "Standard des Raums" if id == &"" else Cosmetics.how_to(id)
+	cell.mouse_entered.connect(func() -> void: Sfx.play(&"index_hover", randf_range(0.9, 1.0)))
+	if open:
+		cell.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+		cell.gui_input.connect(func(e: InputEvent) -> void:
+			if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
+				Sfx.play(&"card_select")
+				Profile.select_cosmetic(slot, id)
+				_show_tab(TABS.find("AUSSEHEN")))
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 12)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	cell.add_child(row)
+	var pic := _look_swatch(it)
+	pic.modulate = Color.WHITE if open else Color(0.35, 0.33, 0.33)
+	row.add_child(pic)
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 1)
+	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	col.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(col)
+	var name := "Standard" if id == &"" else String(it.name)
+	col.add_child(UIKit.poster_label(name, UIKit.display_font(), 17, UIKit.P_CREAM if open else Color(UIKit.P_CREAM, 0.5)))
+	var sub := ""
+	if id == &"":
+		sub = "wie der Raum es vorsieht"
+	else:
+		var d := Profile.deck(it.deck)
+		sub = "%s · %s" % [d.display_name if d != null else String(it.deck), Settings.DIFFICULTY_NAMES[it.level]]
+	var subl := UIKit.poster_label(sub, UIKit.body_font(500), 13, Color(UIKit.P_CREAM, 0.6))
+	col.add_child(subl)
+	var state := "✓ ANGELEGT" if on else ("" if open else "🔒 Run auf %s gewinnen" % Settings.DIFFICULTY_NAMES[it.level])
+	if state != "":
+		col.add_child(UIKit.poster_label(state, UIKit.body_font(600, 1), 12, UIKit.P_GOLD if on else Color(UIKit.P_CREAM, 0.45)))
+	return cell
+
+
+## Vorschau: Textur (Filz, Rand), Farbe (Zigaretten, Münzen) oder Symbol (Ecken, Extras).
+func _look_swatch(it: Dictionary) -> Control:
+	var size := Vector2(58, 58)
+	if it.is_empty():
+		var r := UIKit.relic_icon("➖", 58, 30)
+		r.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		return r
+	if it.has("emoji"):
+		var r := UIKit.relic_icon(it.emoji, 58, 36)
+		r.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		return r
+	var frame := Panel.new()
+	frame.custom_minimum_size = size
+	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = it.get("color", it.get("pack", Color.GRAY))
+	sb.border_color = Color(0, 0, 0, 0.6)
+	sb.set_border_width_all(2)
+	if it.slot == &"coins":
+		sb.set_corner_radius_all(29)
+		sb.border_color = (it.color as Color).darkened(0.4)
+		sb.set_border_width_all(5)
+	frame.add_theme_stylebox_override("panel", sb)
+	if it.has("tex"):
+		var tr := TextureRect.new()
+		tr.texture = load(Cosmetics.DIR + it.tex)
+		tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+		tr.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		tr.offset_left = 2
+		tr.offset_top = 2
+		tr.offset_right = -2
+		tr.offset_bottom = -2
+		tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		frame.add_child(tr)
+	if it.slot == &"cigs": # kleine Zigarette quer über der Packungsfarbe
+		var stick := ColorRect.new()
+		stick.color = it.paper
+		stick.position = Vector2(8, 25)
+		stick.size = Vector2(32, 8)
+		stick.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		frame.add_child(stick)
+		var filt := ColorRect.new()
+		filt.color = Color(0.82, 0.55, 0.28)
+		filt.position = Vector2(40, 25)
+		filt.size = Vector2(11, 8)
+		filt.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		frame.add_child(filt)
+	return frame
 
 
 # --- STATISTIK ----------------------------------------------------------------------------

@@ -204,6 +204,9 @@ func _show_badges(d: DeckData) -> void:
 		slot.custom_minimum_size = Vector2(58, 72)
 		slot.mouse_filter = Control.MOUSE_FILTER_STOP
 		slot.tooltip_text = ("%s gewonnen!" if got else "Gewinne einen Run auf %s mit diesem Deck.") % name
+		var reward := Cosmetics.reward_of(d.id, level)
+		if reward != &"":
+			slot.tooltip_text += "\nBelohnung: %s%s" % [Cosmetics.ITEMS[reward].name, " (Index → AUSSEHEN)" if got else ""]
 		var col: Color = BADGE_COLORS[level]
 		slot.draw.connect(func() -> void:
 			var c := Vector2(29, 26)

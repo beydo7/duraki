@@ -30,6 +30,10 @@ var _t := 0.0
 var _flicker := 1.0
 
 
+var _skin_felt: Array[Material] = []
+var _skin_rim: Array[Material] = []
+
+
 func _ready() -> void:
 	_build_shell()
 	_build_curtains()
@@ -195,6 +199,8 @@ func _build_table() -> void:
 	leather.cull_mode = BaseMaterial3D.CULL_DISABLED # Röhre aus SurfaceTool: beide Seiten zeichnen
 	var wood := _wood()
 	# Filz: abgerundetes Rechteck (Stadion), Oberkante knapp unter TABLE_Y
+	_skin_felt = [felt]
+	_skin_rim = [leather, wood]
 	_stadium(FELT, 0.04, y - 0.0006, felt)
 	# Holzzarge unter dem Rand
 	_stadium(FELT + Vector2(RAIL, RAIL) * 2.0 + Vector2(0.02, 0.02), 0.1, y - 0.035, wood)
@@ -558,3 +564,15 @@ func _mat(c: Color, rough: float) -> StandardMaterial3D:
 	m.albedo_color = c
 	m.roughness = rough
 	return m
+
+
+## Für die Deck-Belohnungen (TableSkin): Filz, Rand und Umriss des Lederrands (Stadion).
+func table_info() -> Dictionary:
+	var r := FELT.y * 0.5 + RAIL * 0.5
+	var path := PackedVector2Array()
+	for p in _stadium_path(FELT.x - FELT.y, r, 20):
+		path.append(Vector2(p.x, p.z))
+	var cx := (FELT.x - FELT.y) * 0.5 + r * 0.7071
+	var cz := r * 0.7071
+	return {"felt": _skin_felt, "rim": _skin_rim, "outline": path, "rim_y": TableWorld.TABLE_Y + 0.012 + RAIL * 0.5,
+		"corners": [Vector2(-cx, -cz), Vector2(cx, -cz), Vector2(-cx, cz), Vector2(cx, cz)], "frame": Vector2.ZERO}

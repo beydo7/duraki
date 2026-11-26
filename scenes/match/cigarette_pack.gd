@@ -32,7 +32,8 @@ func _ready() -> void:
 
 func _build() -> void:
 	var white := _mat(Color(0.95, 0.94, 0.9), 0.55)
-	var red := _mat(Color(0.74, 0.08, 0.1), 0.45)
+	var cs := Cosmetics.cig_style() # Deck-Belohnung: andere Farbe der Schachtel
+	var red := _mat(cs.get("pack", Color(0.74, 0.08, 0.1)), 0.45, 0.7 if cs.get("metal", false) else 0.0)
 	var inner := _mat(Color(0.82, 0.78, 0.68), 0.8) # Silberpapier/Karton innen
 	var foil := _mat(Color(0.75, 0.74, 0.7), 0.3, 0.8)
 	var body_h := H - LID_H
@@ -60,7 +61,7 @@ func _build() -> void:
 		tri.rotation.z = PI # Spitze nach unten
 		add_child(tri)
 	_label("★", 22, Color(0.98, 0.9, 0.7), Vector3(0, body_h * 0.86, D * 0.5 + 0.0008), self)
-	_label("DURAKI", 28, Color(0.74, 0.08, 0.1), Vector3(0, body_h * 0.43, D * 0.5 + 0.0008), self)
+	_label("DURAKI", 28, cs.get("pack", Color(0.74, 0.08, 0.1)), Vector3(0, body_h * 0.43, D * 0.5 + 0.0008), self)
 	_label("FEINE TABAKE", 11, Color(0.35, 0.3, 0.28), Vector3(0, body_h * 0.28, D * 0.5 + 0.0008), self)
 	_label("DURAKI", 22, Color(0.98, 0.95, 0.9), Vector3(0, LID_H * 0.5, D + 0.0009), _lid)
 	# drei Zigaretten im Inneren (Filter oben), zunächst versteckt in der Schachtel
@@ -160,7 +161,8 @@ func _take() -> void:
 # --- Bausteine ------------------------------------------------------------------------
 
 func _stick(parent: Node3D) -> void:
-	var paper := _mat(Color(0.93, 0.91, 0.86), 0.75)
+	var cs := Cosmetics.cig_style()
+	var paper := _mat(cs.get("paper", Color(0.93, 0.91, 0.86)), 0.75, 0.6 if cs.get("metal", false) else 0.0)
 	var filter := _mat(Color(0.82, 0.55, 0.28), 0.7)
 	var p := CylinderMesh.new()
 	p.top_radius = CIG_R

@@ -11,11 +11,26 @@ func _ready() -> void:
 	layer = 50
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	Profile.achievement_unlocked.connect(_show_achievement)
+	Profile.reward_unlocked.connect(_show_reward)
 
 
 ## Meldung oben in der Mitte: Erfolg erreicht (überall, auch im Hauptmenü).
 func _show_achievement(id: StringName) -> void:
 	var a: Array = Profile.ACHIEVEMENTS[id]
+	_show_note(a[0], "ERFOLG FREIGESCHALTET", String(a[1]))
+
+
+## Meldung: Deck-Belohnung freigeschaltet (ist gleich angelegt, änderbar im Index → AUSSEHEN).
+func _show_reward(id: StringName) -> void:
+	var it: Dictionary = Cosmetics.ITEMS[id]
+	var icon: String = it.get("emoji", Cosmetics.SLOTS[it.slot][1])
+	_show_note(icon, "BELOHNUNG · %s" % Cosmetics.SLOTS[it.slot][0], String(it.name))
+
+
+var _notes := 0 # gerade sichtbare Meldungen (stapeln sich untereinander)
+
+
+func _show_note(emoji: String, head: String, title: String) -> void:
 	var note := PanelContainer.new()
 	var box := StyleBoxFlat.new()
 	box.bg_color = Color(UIKit.P_BLACK, 0.96)
@@ -29,23 +44,27 @@ func _show_achievement(id: StringName) -> void:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 12)
 	note.add_child(row)
-	var icon := UIKit.relic_icon(a[0], 44, 30)
+	var icon := UIKit.relic_icon(emoji, 44, 30)
 	row.add_child(icon)
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override("separation", 0)
 	row.add_child(col)
-	col.add_child(UIKit.poster_label("ERFOLG FREIGESCHALTET", UIKit.body_font(700, 3), 12, UIKit.P_GOLD))
-	col.add_child(UIKit.poster_label(String(a[1]).to_upper(), UIKit.display_font(1), 24, UIKit.P_CREAM))
+	col.add_child(UIKit.poster_label(head, UIKit.body_font(700, 3), 12, UIKit.P_GOLD))
+	col.add_child(UIKit.poster_label(title.to_upper(), UIKit.display_font(1), 24, UIKit.P_CREAM))
 	add_child(note)
 	note.reset_size()
 	var vw := get_viewport().get_visible_rect().size.x
 	note.position = Vector2(roundf(vw * 0.5 - note.size.x * 0.5), -90)
 	Sfx.play(&"coins", 1.2)
 	var tw := note.create_tween()
-	tw.tween_property(note, "position:y", 18.0, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	var slot := _notes
+	_notes += 1
+	tw.tween_property(note, "position:y", 18.0 + slot * 86.0, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	tw.tween_interval(3.2)
 	tw.tween_property(note, "modulate:a", 0.0, 0.5)
-	tw.tween_callback(note.queue_free)
+	tw.tween_callback(func() -> void:
+		_notes = maxi(0, _notes - 1)
+		note.queue_free())
 
 
 var _dev: DevMenu

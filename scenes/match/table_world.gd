@@ -70,6 +70,8 @@ var casino: CasinoRoom
 var station: StationRoom
 ## U-Boot oder Zirkuswagen (beide haben lives_panel, interactive, add_lights, apply_environment)
 var special_room: Node3D
+## Deck-Belohnungen am Tisch (Filz, Rand, Ecken, Extras)
+var skin: TableSkin
 ## Kamera schwenkt leicht mit der Maus (aus im Menü-Hintergrund möglich).
 var sway_strength := 1.0
 
@@ -114,6 +116,7 @@ func _ready() -> void:
 func build_room(opponent: OpponentData, markings := true) -> void:
 	_build_environment()
 	_build_models()
+	_build_skin()
 	if room_id == Rooms.HINTERZIMMER: # Aschenbecher und Whiskey gehören zum Hinterzimmer
 		ashtray = Ashtray.new()
 		# Zigarette des Gegners: Filter zeigt zu ihm (Platz gegenüber)
@@ -170,7 +173,8 @@ func build(opponent: OpponentData) -> void:
 		for s in casino.slots:
 			s.interactive = true
 	props = TableProps.new()
-	props.chip_style = room_id == Rooms.CASINO # Pokerchips statt Goldmünzen
+	# Pokerchips statt Goldmünzen (außer man hat sich andere Münzen als Belohnung gewählt)
+	props.chip_style = room_id == Rooms.CASINO and Cosmetics.selected(&"coins") == &""
 	props.lamp_style = room_id == Rooms.CASINO # grüne Bankerlampe statt Kerzen
 	if station != null:
 		props.external_lives = station.lives_panel # LED-Anzeige an der Wand statt Kerzen
@@ -508,6 +512,8 @@ func _on_landed(node: Card3D, style: String, strong: bool, under: Card) -> void:
 			node.land(0.35)
 		"play", "whirl":
 			_sfx(&"card_play", randf_range(0.92, 1.05) * (0.9 if strong else 1.0), 2.0 if strong else 0.0)
+			if skin != null:
+				skin.on_card_played()
 			node.land(1.0)
 			_impact(node.global_position, strong)
 			shake(0.9 if strong else 0.45)
@@ -1054,6 +1060,29 @@ func _build_models() -> void:
 		var node := find_child(part, true, false) as GeometryInstance3D
 		if node != null:
 			node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+
+
+## Deck-Belohnungen anwenden: der Raum sagt, was Filz und Rand sind (Hinterzimmer: Teile aus table.glb).
+func _build_skin() -> void:
+	skin = TableSkin.new()
+	add_child(skin)
+	var room: Node = casino if casino != null else (station if station != null else special_room)
+	if room != null:
+		if room.is_node_ready():
+			skin.apply(room, room.call(&"table_info"))
+		else: # Raum baut sich erst, wenn er im Baum ist
+			room.ready.connect(func() -> void: skin.apply(room, room.call(&"table_info")), CONNECT_ONE_SHOT)
+		return
+	var info := TableSkin.rect_info([], [], Vector2(0.837, 0.637), false, 0.026)
+	info["felt_nodes"] = [find_child("Filz", true, false)]
+	var rim: Array = []
+	for n in ["Tischrand", "Tischbein_0", "Tischbein_1", "Tischbein_2", "Tischbein_3"]:
+		var node := find_child(n, true, false)
+		if node != null:
+			rim.append(node)
+	info["rim_nodes"] = rim
+	info["felt_nodes"] = info.felt_nodes.filter(func(n: Node) -> bool: return n != null)
+	skin.apply(self, info)
 
 
 ## Aufgemalte Spielfelder auf dem Filz (hängen an den Konstanten oben,

@@ -61,6 +61,10 @@ var _next_creak := 12.0
 var _hum: AudioStreamPlayer
 
 
+var _skin_felt: Array[Material] = []
+var _skin_rim: Array[Material] = []
+
+
 func _ready() -> void:
 	_build_shell()
 	_build_pipes()
@@ -393,6 +397,8 @@ func _build_table() -> void:
 	var y := TableWorld.TABLE_Y
 	var top := RoomKit.mat(Color(0.18, 0.22, 0.2), 0.75) # Linoleum
 	var steel := RoomKit.mat(Color(0.45, 0.48, 0.47), 0.35, 0.8)
+	_skin_felt = [top]
+	_skin_rim = [steel]
 	RoomKit.box(self, Vector3(TOP.x, 0.035, TOP.y), Vector3(0, y - 0.0175, 0), top)
 	for s: float in [-1.0, 1.0]: # Stahlkante
 		RoomKit.box(self, Vector3(TOP.x + 0.03, 0.05, 0.025), Vector3(0, y - 0.025, s * (TOP.y * 0.5 + 0.0125)), steel)
@@ -455,3 +461,8 @@ func _build_lamps() -> void:
 		for k in 3:
 			RoomKit.torus(self, 0.08, 0.005, p + Vector3(0, -0.04 + k * 0.04, 0), cage)
 		RoomKit.cyl(self, 0.05, 0.05, 0.06, p + Vector3(0, 0.1, 0), cage)
+
+
+## Für die Deck-Belohnungen (TableSkin): welche Materialien Filz und Rand sind, Umriss des Rands.
+func table_info() -> Dictionary:
+	return TableSkin.rect_info(_skin_felt, _skin_rim, Vector2(TOP.x * 0.5 + 0.0125, TOP.y * 0.5 + 0.0125), false, 0)

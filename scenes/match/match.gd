@@ -404,6 +404,8 @@ func _on_finished(_loser: int) -> void:
 	_render()
 	if won:
 		world.figure.slump()
+		if world.skin != null:
+			world.skin.on_duel_won() # Vollmond-Filz: Wolf heult
 		if Run.has_relic(&"matryoshka") and not Run.tutorial:
 			var note := Run.enhance_random_card()
 			if note != "":

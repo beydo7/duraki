@@ -70,6 +70,10 @@ var _board_rows: Array[Array] = [] # pro Zeile die Label3D (Nr, Ziel, Zeit, Glei
 var _first_departure := 0
 
 
+var _skin_felt: Array[Material] = []
+var _skin_rim: Array[Material] = []
+
+
 func _ready() -> void:
 	_next_train = randf_range(FIRST_TRAIN.x, FIRST_TRAIN.y)
 	_build_shell()
@@ -496,6 +500,8 @@ func _build_table() -> void:
 	top.uv1_scale = Vector3(0.9, 0.9, 0.9)
 	var wood := top.duplicate() as StandardMaterial3D
 	wood.albedo_color = Color(0.3, 0.18, 0.1)
+	_skin_felt = [top]
+	_skin_rim = [wood]
 	_box_in(self, Vector3(TOP.x, 0.045, TOP.y), Vector3(0, y - 0.0225, 0), top)
 	_box_in(self, Vector3(TOP.x - 0.1, 0.09, TOP.y - 0.1), Vector3(0, y - 0.09, 0), wood) # Zarge
 	for sx in [-1.0, 1.0]:
@@ -680,3 +686,8 @@ func _mat(c: Color, rough: float) -> StandardMaterial3D:
 	m.albedo_color = c
 	m.roughness = rough
 	return m
+
+
+## Für die Deck-Belohnungen (TableSkin): welche Materialien Filz und Rand sind, Umriss des Rands.
+func table_info() -> Dictionary:
+	return TableSkin.rect_info(_skin_felt, _skin_rim, Vector2(TOP.x * 0.5, TOP.y * 0.5), true, 0)

@@ -62,6 +62,8 @@ func _init() -> void:
 	_brass.metallic = 0.7
 	_gold = _mat(Color(0.95, 0.72, 0.28), 0.32)
 	_gold.metallic = 1.0
+	if Cosmetics.selected(&"coins") != &"": # Deck-Belohnung: andere Münzen
+		_gold = Cosmetics.coin_material(Cosmetics.selected(&"coins"))
 	_coin_mesh = CylinderMesh.new()
 	_coin_mesh.top_radius = 0.016
 	_coin_mesh.bottom_radius = 0.016
