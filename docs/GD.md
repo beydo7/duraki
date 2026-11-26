@@ -110,11 +110,11 @@ Ein Run = 3 Akte mit je 3 normalen Gegnern + Boss (12 Tische), 3 Leben (Kerzen).
 - **Erfolge** (`Profile.ACHIEVEMENTS`, gespeichert in profile.cfg, Index-Reiter ERFOLGE): Lehrling,
   Erster Sieg, Weitergeschoben, Brandstifter, Volltreffer (100+ Punkte in einer Runde), Sammler
   (5 Relikte), Riesentöter (Boss), Durchgezogen (Run gewonnen), Eiskalt (Run auf Schwer) und die
-  geheimen Raucher (eine Zigarette zu Ende), Kettenraucher (6 Zigaretten in einem Run = die ganze Schachtel) und Alkoholiker (Whiskeyflasche im Hauptmenü leer getrunken), Alles auf Grün (Casino-Roulette landet auf der 0), Jackpot (drei Siebenen am Casino-Automaten, ca. 1 %). Geheime zeigen ein „?“ und
+  geheimen Raucher (eine Zigarette zu Ende), Kettenraucher (6 Zigaretten in einem Run = die ganze Schachtel) und Alkoholiker (Whiskeyflasche im Hauptmenü leer getrunken), Alles auf Grün (Casino-Roulette landet auf der 0), Jackpot (drei Siebenen am Casino-Automaten, ca. 1 %), Moby Durak (Periskop in der U-Boot-Messe dreimal schnell drehen), Überraschung! (Spieluhr im Zirkuswagen fünfmal aufziehen). Geheime zeigen ein „?“ und
   eine zensierte Aufgabe, bis sie erreicht sind. Meldung oben in der Mitte (Autoload `Pause`).
   Belohnungen: noch offen (Leon entscheidet).
 - **Räume** (`scenes/match/rooms/`, `Rooms.for_floor`): Jeder Tisch spielt in einem zufälligen Raum
-  (Hinterzimmer, **Altes Casino** oder **Bahnhofswartesaal**), fest pro Run-Seed und Tisch, damit Weg und Duell denselben Raum
+  (Hinterzimmer, **Altes Casino**, **Bahnhofswartesaal**, **U-Boot-Messe** oder **Zirkuswagen**), fest pro Run-Seed und Tisch, damit Weg und Duell denselben Raum
   zeigen; eigener Zufallsgenerator, `Run.rng` bleibt unberührt. Das Tutorial spielt immer im Hinterzimmer.
   Das Casino ist ganz in Code gebaut (kein Blender): Damast-Tapete, Teppich, Vorhänge, Kronleuchter,
   Neonschild „CASINO“, zwei alte Spielautomaten mit „DURAKI“-Schild und großem Hebel (anklickbar: Walzen
@@ -139,6 +139,25 @@ Ein Run = 3 Akte mit je 3 normalen Gegnern + Boss (12 Tische), 3 Leben (Kerzen).
   `TableProps.external_lives`): eine rote LED pro Leben, Leben weg → LED blinkt und geht aus.
   Aufgeschlagene Zeitung „Bahnhofs-Anzeiger“ auf der hinteren linken Bank; auf dem Holztisch Fahrkarte
   und Zucker. Texturen und Geräusche: `tools/generate_station.py` → `assets/rooms/station/`.
+  **U-Boot-Messe** (`SubmarineRoom`, in Code, Bausteine aus `RoomKit`): grüne Stahlwände mit Nieten und
+  Spanten, bunte Rohre mit Ventilrädern, Gitterlampen, pulsierendes rotes Notlicht, Metalltisch mit
+  Linoleum, Blechbecher und Seekarte. Hinten links ein **Bullauge** (Platte mit rundem Loch, Messingring):
+  draußen ziehen Fische und Luftblasen vorbei. Links eine **Sonar-Konsole**: der Strahl kreist, bei jeder
+  Umdrehung „Ping“ und ein Echo-Punkt. Leben = **Druckanzeigen** an der Rückwand rechts (`GaugeLives`):
+  Zeiger zittert im Grünen, Leben weg → Zeiger schnellt ins Rote, Ventil zischt Dampf. Im Hintergrund
+  Maschinenbrummen, ab und zu Tropfen und Metallknarzen. Easter Egg: **Periskop** rechts anklicken = eine
+  Umdrehung; dreimal innerhalb von je 6 s → ein Wal schwimmt am Bullauge vorbei (Walgesang), geheimer
+  Erfolg „Moby Durak“. Texturen und Geräusche: `tools/generate_submarine.py` → `assets/rooms/submarine/`.
+  **Zirkuswagen** (`CircusRoom`): bunt gestrichene Bretter, gewölbte Bretterdecke mit blinkender
+  Lichterkette, Kostüme an Haken, Clownshut und Zylinder, Plakat „ZIRKUS DURAKI“, rechts Schminkspiegel mit
+  Glühbirnenrahmen. Hinten links ein Vorhangspalt zum rot-weißen Zelt mit wandernden Scheinwerfern;
+  gedämpfte Zirkusmusik, ab und zu Applaus und Lachen. Spieltisch auf einer roten Zirkustrommel.
+  Leben = **Luftballons** hinten links an der Tischkante (`BalloonLives`): Leben weg → Ballon zittert und
+  platzt mit Konfetti. Easter Egg: **Spieluhr** rechts auf dem Tisch anklicken = aufziehen, die Tänzerin
+  dreht sich zur Melodie; fünfmal (je innerhalb von 8 s) → Springteufel schnellt heraus, geheimer Erfolg
+  „Überraschung!“. Texturen und Geräusche: `tools/generate_circus.py` → `assets/rooms/circus/`.
+  Beide Räume hängen über `TableWorld.special_room` am Tisch (`lives_panel`, `interactive`,
+  `apply_environment`, `add_lights`).
   F8-Menü: Raum für alle Tische erzwingen (`Rooms.forced`, „ZUFÄLLIG“ = normal).
 - **Der Weg** zeigt den Raum scharf wie im Duell (`RoomBackdrop.blur = 0`, MSAA 4×).
 - **Tutorial**: zeigt zum Start eine Glücksmünze und einen Spiegel und erklärt Relikte und Item-Plätze

@@ -68,6 +68,8 @@ var room_id: StringName = Rooms.HINTERZIMMER
 var casino: CasinoRoom
 ## nur im Bahnhofswartesaal gesetzt
 var station: StationRoom
+## U-Boot-Messe oder Zirkuswagen (beide haben lives_panel, interactive, add_lights, apply_environment)
+var special_room: Node3D
 ## Kamera schwenkt leicht mit der Maus (aus im Menü-Hintergrund möglich).
 var sway_strength := 1.0
 
@@ -174,6 +176,9 @@ func build(opponent: OpponentData) -> void:
 		props.external_lives = station.lives_panel # LED-Anzeige an der Wand statt Kerzen
 		# vorbeifahrender Zug: Bild zittert leicht
 		station.train_passing.connect(func(strength: float) -> void: shake(0.35 * strength))
+	if special_room != null:
+		props.external_lives = special_room.get(&"lives_panel") # Druckanzeigen / Luftballons
+		special_room.set(&"interactive", true) # Periskop bzw. Spieluhr anklickbar
 	add_child(props)
 	_deck_pile = _pile_mesh()
 	_deck_pile.position = DECK_POS
@@ -1033,6 +1038,11 @@ func _build_models() -> void:
 		add_child(casino)
 		casino.apply_environment(_env)
 		return
+	if room_id == Rooms.SUBMARINE or room_id == Rooms.CIRCUS:
+		special_room = SubmarineRoom.new() if room_id == Rooms.SUBMARINE else CircusRoom.new()
+		add_child(special_room)
+		special_room.call(&"apply_environment", _env)
+		return
 	if room_id == Rooms.STATION:
 		station = StationRoom.new()
 		add_child(station)
@@ -1079,6 +1089,10 @@ func _build_lights() -> void:
 		return
 	if station != null:
 		station.add_lights(self) # Neonröhren, Fenster, Gegenlicht
+		_build_lights_common()
+		return
+	if special_room != null:
+		special_room.call(&"add_lights", self)
 		_build_lights_common()
 		return
 	for side in [-1, 1]:
