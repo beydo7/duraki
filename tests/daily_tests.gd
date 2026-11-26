@@ -30,14 +30,28 @@ func _run() -> void:
 	var rooms1 := range(12).map(func(i: int) -> StringName: return Rooms.for_floor(i))
 	check(Run.daily and Run.daily_counts, "erster Versuch zählt")
 	check(Run.difficulty == Run.DAILY_DIFFICULTY, "Tägliche immer auf Normal")
-	check(Run.deck != null and Run.deck.id == Profile.DEFAULT_DECK, "Tägliche mit Standard-Deck")
+	check(Run.deck != null and Run.deck == Run.daily_deck(Profile.today()), "Tägliche mit Deck des Tages")
+	var seen := {}
+	for day in range(1, 29):
+		var dd := Run.daily_deck("2026-12-%02d" % day)
+		if dd != null:
+			seen[dd.id] = true
+	check(seen.size() >= 5, "über einen Monat kommen verschiedene Decks dran (%d)" % seen.size())
+	var rooms_seen := {}
+	for day in range(1, 8):
+		Run.seed_value = Run.daily_seed("2026-12-%02d" % day)
+		for i in 12:
+			rooms_seen[Rooms.for_floor(i)] = true
+	check(rooms_seen.size() == Rooms.ALL.size(), "alle Räume kommen vor")
 	check(Run.encounters.size() == 12, "12 Tische")
+	var deck1 := Run.deck
 	Run.start_daily()
 	await get_tree().process_frame
 	check(Run.seed_value == seed1, "gleicher Tag → gleicher Seed")
 	check(Run.encounters.map(func(o: OpponentData) -> String: return o.resource_path) == opps1, "gleiche Gegner")
 	check(range(12).map(func(i: int) -> StringName: return Rooms.for_floor(i)) == rooms1, "gleiche Räume")
 	check(not Run.daily_counts, "zweiter Versuch zählt nicht")
+	check(Run.deck == deck1, "gleiches Deck beim zweiten Versuch")
 	check(Run.daily_seed("2026-11-26") != Run.daily_seed("2026-11-27"), "anderer Tag → anderer Seed")
 	# Ergebnis eintragen (nur der erste Versuch)
 	Profile.daily_finish(Profile.today(), 4321, 7, 0)

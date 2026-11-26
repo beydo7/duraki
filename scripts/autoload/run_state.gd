@@ -127,7 +127,7 @@ var last_endless_place := 0
 ## Punkte aller Duelle dieses Runs (für Statistik und Tägliche Herausforderung)
 var run_points := 0
 
-## Tägliche Herausforderung: alle spielen am selben Tag denselben Run (gleicher Seed, Standard-Deck,
+## Tägliche Herausforderung: alle spielen am selben Tag denselben Run (gleicher Seed, Deck des Tages,
 ## Schwierigkeit Normal). Nur der erste Versuch des Tages zählt (`daily_counts`).
 var daily := false
 var daily_date := ""
@@ -150,9 +150,20 @@ func start_daily() -> void:
 	hints = bool(Settings.get_value("general/hints"))
 	lives = maxi(1, START_LIVES + DIFF_LIVES[difficulty])
 	encounters = _build_encounters()
-	_apply_deck(Profile.deck(Profile.DEFAULT_DECK))
+	_apply_deck(daily_deck(date))
 	changed.emit()
 	goto(SCENE_MAP)
+
+
+## Deck des Tages: jeden Tag ein anderes, für alle gleich – auch noch nicht freigeschaltete.
+static func daily_deck(date: String) -> DeckData:
+	var list: Array[DeckData] = Profile.decks().duplicate()
+	if list.is_empty():
+		return null
+	list.sort_custom(func(a: DeckData, b: DeckData) -> bool: return String(a.id) < String(b.id))
+	var r := RandomNumberGenerator.new()
+	r.seed = hash("duraki-deck-" + date)
+	return list[r.randi_range(0, list.size() - 1)]
 
 
 ## Seed für einen Tag – für alle Spieler gleich.

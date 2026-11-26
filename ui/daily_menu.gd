@@ -32,9 +32,28 @@ func _ready() -> void:
 	var date := Profile.today()
 	root.add_child(_l("TÄGLICHE HERAUSFORDERUNG", &"InkTitle", 36))
 	root.add_child(_l(_pretty(date), &"InkLabel", 20))
-	root.add_child(_l("Heute spielen alle denselben Run: gleiche Gegner, gleiche Räume, gleiche Waren beim Händler. "
-		+ "Standard-Deck, Schwierigkeit Normal. Gewertet werden alle Punkte des Runs – auch im Endlos-Modus. "
+	root.add_child(_l("Jeden Tag ein neuer Run – und heute spielen ihn alle gleich: dieselben Gegner, Räume, "
+		+ "Waren beim Händler und dasselbe Deck (auch eins, das du noch nicht freigeschaltet hast). "
+		+ "Schwierigkeit Normal. Gewertet werden alle Punkte des Runs – auch im Endlos-Modus. "
 		+ "Nur dein erster Versuch des Tages zählt.", &"InkType", 16, true))
+	var d := Run.daily_deck(date)
+	if d != null:
+		var deck_row := HBoxContainer.new()
+		deck_row.add_theme_constant_override("separation", 14)
+		root.add_child(deck_row)
+		if d.back != null:
+			var back_pic := TextureRect.new()
+			back_pic.texture = d.back
+			back_pic.custom_minimum_size = Vector2(46, 64)
+			back_pic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			back_pic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			deck_row.add_child(back_pic)
+		var dcol := VBoxContainer.new()
+		dcol.add_theme_constant_override("separation", 0)
+		dcol.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		deck_row.add_child(dcol)
+		dcol.add_child(_l("Deck des Tages: %s" % d.display_name, &"InkLabel", 18))
+		dcol.add_child(_l(d.effect_text if d.effect_text != "" else "Keine Besonderheiten.", &"InkType", 15))
 
 	var entry := Profile.daily_entry(date)
 	var status := ""
@@ -70,7 +89,10 @@ func _ready() -> void:
 	UIKit.hover(go, 1.04)
 	buttons.add_child(go)
 	go.grab_focus.call_deferred()
-	UIKit.appear(panel, 0.0, Vector2(0, 30), 0.35)
+	# nur einblenden (Position macht der CenterContainer – kein Verschieben, sonst landet die
+	# Tafel oben links, wenn das Layout noch nicht steht)
+	panel.modulate.a = 0.0
+	panel.create_tween().tween_property(panel, "modulate:a", 1.0, 0.3)
 
 
 ## „2026-11-26“ → „Donnerstag, 26.11.2026“

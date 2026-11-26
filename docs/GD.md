@@ -61,8 +61,8 @@ Ein Run = 3 Akte mit je 3 normalen Gegnern + Boss (12 Tische), 3 Leben (Kerzen).
   Durch echte Gegner ersetzen: einfach die `placeholder_*.tres` löschen, sobald 9 normale + 3 Bosse da sind.
 - **F8**: Gegner überspringen, zum Boss des Akts, Boss-Händler, Endlos-Modus starten.
 - **Tägliche Herausforderung** (Menükarte TÄGLICH, `ui/daily_menu.gd`, `Run.start_daily`): Seed aus dem
-  Datum (`Run.daily_seed`), Standard-Deck, Schwierigkeit Normal → alle spielen denselben Run (Gegner,
-  Räume, Händler). Gewertet: alle Punkte des Runs (`Run.run_points`, auch Endlos). Nur der erste Versuch
+  Datum (`Run.daily_seed`), Deck des Tages (`Run.daily_deck`, jeden Tag ein anderes, auch nicht
+  freigeschaltete), Schwierigkeit Normal → alle spielen denselben Run (Gegner, Räume, Händler, Deck). Gewertet: alle Punkte des Runs (`Run.run_points`, auch Endlos). Nur der erste Versuch
   des Tages zählt (`Profile.daily_results`, danach „Üben“). Serie und bester Tag in der Statistik.
 - **Statistik** (Index → STATISTIK, `Profile.stats`, `wins_vs`, `losses_vs`): Runs, Siegquote, bester
   Akt, Duelle, Bosse, Punkte, beste Runde, bester Run, Endlos-Rekord, Schieben, Items, Gold, Zigaretten,
