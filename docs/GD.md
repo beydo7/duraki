@@ -110,11 +110,11 @@ Ein Run = 3 Akte mit je 3 normalen Gegnern + Boss (12 Tische), 3 Leben (Kerzen).
 - **Erfolge** (`Profile.ACHIEVEMENTS`, gespeichert in profile.cfg, Index-Reiter ERFOLGE): Lehrling,
   Erster Sieg, Weitergeschoben, Brandstifter, Volltreffer (100+ Punkte in einer Runde), Sammler
   (5 Relikte), Riesentöter (Boss), Durchgezogen (Run gewonnen), Eiskalt (Run auf Schwer) und die
-  geheimen Raucher (eine Zigarette zu Ende), Kettenraucher (6 Zigaretten in einem Run = die ganze Schachtel) und Alkoholiker (Whiskeyflasche im Hauptmenü leer getrunken), Alles auf Grün (Casino-Roulette landet auf der 0), Jackpot (drei Siebenen am Casino-Automaten, ca. 1 %), Moby Durak (Periskop in der U-Boot-Messe dreimal schnell drehen), Überraschung! (Spieluhr im Zirkuswagen fünfmal aufziehen). Geheime zeigen ein „?“ und
+  geheimen Raucher (eine Zigarette zu Ende), Kettenraucher (6 Zigaretten in einem Run = die ganze Schachtel) und Alkoholiker (Whiskeyflasche im Hauptmenü leer getrunken), Alles auf Grün (Casino-Roulette landet auf der 0), Jackpot (drei Siebenen am Casino-Automaten, ca. 1 %), Moby Durak (Periskop im U-Boot dreimal schnell drehen), Überraschung! (Spieluhr im Zirkuswagen fünfmal aufziehen). Geheime zeigen ein „?“ und
   eine zensierte Aufgabe, bis sie erreicht sind. Meldung oben in der Mitte (Autoload `Pause`).
   Belohnungen: noch offen (Leon entscheidet).
 - **Räume** (`scenes/match/rooms/`, `Rooms.for_floor`): Jeder Tisch spielt in einem zufälligen Raum
-  (Hinterzimmer, **Altes Casino**, **Bahnhofswartesaal**, **U-Boot-Messe** oder **Zirkuswagen**), fest pro Run-Seed und Tisch, damit Weg und Duell denselben Raum
+  (Hinterzimmer, **Altes Casino**, **Bahnhofswartesaal**, **U-Boot** oder **Zirkuswagen**), fest pro Run-Seed und Tisch, damit Weg und Duell denselben Raum
   zeigen; eigener Zufallsgenerator, `Run.rng` bleibt unberührt. Das Tutorial spielt immer im Hinterzimmer.
   Das Casino ist ganz in Code gebaut (kein Blender): Damast-Tapete, Teppich, Vorhänge, Kronleuchter,
   Neonschild „CASINO“, zwei alte Spielautomaten mit „DURAKI“-Schild und großem Hebel (anklickbar: Walzen
@@ -139,7 +139,7 @@ Ein Run = 3 Akte mit je 3 normalen Gegnern + Boss (12 Tische), 3 Leben (Kerzen).
   `TableProps.external_lives`): eine rote LED pro Leben, Leben weg → LED blinkt und geht aus.
   Aufgeschlagene Zeitung „Bahnhofs-Anzeiger“ auf der hinteren linken Bank; auf dem Holztisch Fahrkarte
   und Zucker. Texturen und Geräusche: `tools/generate_station.py` → `assets/rooms/station/`.
-  **U-Boot-Messe** (`SubmarineRoom`, in Code, Bausteine aus `RoomKit`): grüne Stahlwände mit Nieten und
+  **U-Boot** (`SubmarineRoom`, in Code, Bausteine aus `RoomKit`): grüne Stahlwände mit Nieten und
   Spanten, bunte Rohre mit Ventilrädern, Gitterlampen, pulsierendes rotes Notlicht, Metalltisch mit
   Linoleum, Blechbecher und Seekarte. Hinten links ein **Bullauge** (Platte mit rundem Loch, Messingring):
   draußen ziehen Fische und Luftblasen vorbei. Links eine **Sonar-Konsole**: der Strahl kreist, bei jeder

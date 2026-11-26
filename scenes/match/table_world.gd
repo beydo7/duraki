@@ -68,7 +68,7 @@ var room_id: StringName = Rooms.HINTERZIMMER
 var casino: CasinoRoom
 ## nur im Bahnhofswartesaal gesetzt
 var station: StationRoom
-## U-Boot-Messe oder Zirkuswagen (beide haben lives_panel, interactive, add_lights, apply_environment)
+## U-Boot oder Zirkuswagen (beide haben lives_panel, interactive, add_lights, apply_environment)
 var special_room: Node3D
 ## Kamera schwenkt leicht mit der Maus (aus im Menü-Hintergrund möglich).
 var sway_strength := 1.0

@@ -1,6 +1,6 @@
 class_name GaugeLives
 extends Node3D
-## Druckanzeigen an der Wand der U-Boot-Messe – zeigen die Leben.
+## Druckanzeigen an der Wand der U-Boot – zeigen die Leben.
 ## Pro Leben eine runde Anzeige; der Zeiger zittert im grünen Bereich. Verlierst du ein Leben,
 ## schnellt ein Zeiger in den roten Bereich, das Ventil darunter zischt Dampf.
 
@@ -8,6 +8,12 @@ const SND_HISS := preload("res://assets/rooms/submarine/hiss.wav")
 const GAUGE := preload("res://assets/rooms/submarine/gauge.png")
 const STEP := 0.25
 const R := 0.095
+
+## Wie weit die Rohre unter den Anzeigen nach unten gehen (bis zum Boden = Höhe der Anzeigen).
+var floor_drop := 0.35:
+	set(v):
+		floor_drop = v
+		set_lives(maxi(_gauges.size(), 1))
 
 var _gauges: Array[Dictionary] = []
 var _t := 0.0
@@ -61,7 +67,9 @@ func set_lives(count: int) -> void:
 		RoomKit.box(needle, Vector3(R * 0.85, 0.006, 0.003), Vector3(R * 0.32, 0, 0), RoomKit.mat(Color(0.75, 0.1, 0.08), 0.4))
 		RoomKit.cyl(needle, 0.011, 0.011, 0.006, Vector3.ZERO, _brass).rotation.x = PI * 0.5
 		# Rohr mit Ventil unter der Anzeige
-		RoomKit.cyl(root, 0.018, 0.018, 0.22, Vector3(0, -R - 0.12, 0.03), _pipe)
+		var top := -R + 0.01
+		RoomKit.cyl(root, 0.018, 0.018, floor_drop + top, Vector3(0, (top - floor_drop) * 0.5, 0.03), _pipe)
+		RoomKit.cyl(root, 0.035, 0.035, 0.02, Vector3(0, -floor_drop + 0.01, 0.03), _brass) # Flansch am Boden
 		var wheel := RoomKit.torus(root, 0.035, 0.006, Vector3(0, -R - 0.12, 0.065), RoomKit.mat(Color(0.7, 0.12, 0.1), 0.5))
 		wheel.rotation.x = PI * 0.5
 		var steam := _steam()

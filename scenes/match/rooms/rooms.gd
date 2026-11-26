@@ -4,7 +4,7 @@ extends RefCounted
 ##
 ## Jeder Raum hat eigene Details (das Hinterzimmer: Aschenbecher, Zigaretten, Whiskey;
 ## das Casino: Roulette, Spielautomaten, Pokerchips; der Bahnhofswartesaal: Teegläser,
-## Fahrplantafel, vorbeifahrende Züge; die U-Boot-Messe: Bullauge, Sonar,
+## Fahrplantafel, vorbeifahrende Züge; das U-Boot: Bullauge, Sonar,
 ## Periskop; der Zirkuswagen: Spiegel, Luftballons, Spieluhr). TableWorld fragt hier nach und
 ## baut den passenden Raum (`TableWorld.room_id`).
 
@@ -19,7 +19,7 @@ const NAMES := {
 	HINTERZIMMER: "Hinterzimmer",
 	CASINO: "Altes Casino",
 	STATION: "Bahnhofswartesaal",
-	SUBMARINE: "U-Boot-Messe",
+	SUBMARINE: "U-Boot",
 	CIRCUS: "Zirkuswagen",
 }
 

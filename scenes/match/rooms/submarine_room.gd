@@ -1,6 +1,6 @@
 class_name SubmarineRoom
 extends Node3D
-## Raum „U-Boot-Messe“ – ganz in Code gebaut (kein Blender-Modell).
+## Raum „U-Boot“ – ganz in Code gebaut (kein Blender-Modell).
 ##
 ## Enge Messe eines alten U-Boots: grüne Stahlwände mit Nieten und Spanten, Rohre und
 ## Ventilräder an der Decke, Gitterlampen, ein rotes Notlicht. Hinten links ein rundes Bullauge,
@@ -71,6 +71,7 @@ func _ready() -> void:
 	_build_lamps()
 	lives_panel = GaugeLives.new()
 	lives_panel.position = Vector3(1.55, 1.0, BACK_Z)
+	lives_panel.floor_drop = lives_panel.position.y # Rohre bis zum Boden
 	add_child(lives_panel)
 	_hum = RoomKit.loop(self, SND_HUM, -24.0)
 
@@ -100,7 +101,7 @@ func _process(delta: float) -> void:
 	_sonar_angle = fmod(_sonar_angle + delta * TAU / SONAR_TIME, TAU)
 	_sweep.rotation.z = -_sonar_angle
 	if _sonar_angle < prev:
-		RoomKit.play(self, SND_SONAR, -21.0)
+		RoomKit.play(self, SND_SONAR, -31.0)
 		_blip()
 	for b in _blips:
 		var m := b.material_override as StandardMaterial3D
@@ -332,10 +333,22 @@ func _build_porthole() -> void:
 	RoomKit.sphere(_whale, 0.5, Vector3.ZERO, skin, Vector3(3.2, 1.0, 1.0))
 	RoomKit.sphere(_whale, 0.42, Vector3(0.2, -0.2, 0.15), belly, Vector3(3.0, 0.6, 0.8))
 	RoomKit.sphere(_whale, 0.04, Vector3(1.15, 0.12, 0.42), RoomKit.mat(Color(0.02, 0.02, 0.02), 0.2))
-	var fluke := RoomKit.box(_whale, Vector3(0.25, 0.9, 0.06), Vector3(-1.75, 0.1, 0), skin)
-	fluke.rotation.z = 0.2
-	var fin := RoomKit.box(_whale, Vector3(0.5, 0.12, 0.05), Vector3(0.4, -0.45, 0.35), skin)
-	fin.rotation.z = -0.5
+	# Schwanzstiel und Schwanzflosse (zwei Flunken, schräg nach oben und unten)
+	RoomKit.sphere(_whale, 0.3, Vector3(-1.45, 0.06, 0), skin, Vector3(2.0, 0.75, 0.75))
+	for s: float in [-1.0, 1.0]:
+		var lobe := RoomKit.sphere(_whale, 0.3, Vector3(-2.05, 0.06 + s * 0.22, 0), skin, Vector3(0.55, 1.4, 0.18))
+		lobe.rotation.z = -s * 0.55
+	# Brustflossen auf beiden Seiten, nach hinten unten gerichtet
+	for side: float in [-1.0, 1.0]:
+		var fin := RoomKit.sphere(_whale, 0.3, Vector3(0.45, -0.32, side * 0.4), skin, Vector3(1.6, 0.35, 0.12))
+		fin.rotation.z = 0.55
+		fin.rotation.y = side * 0.35
+	# kleine Rückenflosse
+	var dorsal := RoomKit.sphere(_whale, 0.16, Vector3(-0.75, 0.42, 0), skin, Vector3(1.4, 1.0, 0.25))
+	dorsal.rotation.z = 0.5
+	# Maul-Linie
+	var mouth := RoomKit.box(_whale, Vector3(0.7, 0.012, 0.02), Vector3(1.15, -0.12, 0.38), RoomKit.mat(Color(0.05, 0.06, 0.08), 0.6))
+	mouth.rotation.z = -0.12
 
 
 func _build_sonar() -> void:
@@ -366,7 +379,6 @@ func _build_sonar() -> void:
 	for k in 4:
 		RoomKit.cyl(self, 0.018, 0.018, 0.02, pos + Vector3(-0.15 + k * 0.1, -0.12, 0.21),
 			RoomKit.glow([Color(1, 0.2, 0.1), Color(1, 0.8, 0.2), Color(0.3, 1, 0.4), Color(0.3, 1, 0.4)][k], 1.5)).rotation.x = PI * 0.5
-	RoomKit.label(self, "SONAR", 30, Color(0.85, 0.85, 0.75), pos + Vector3(0, 0.48, 0.205), 0.001)
 
 
 func _blip() -> void:
@@ -408,14 +420,24 @@ func _build_periscope() -> void:
 	_periscope = Node3D.new()
 	_periscope.position = PERISCOPE_POS
 	add_child(_periscope)
-	var steel := RoomKit.mat(Color(0.55, 0.6, 0.58), 0.3, 0.8)
+	# alles in derselben Farbe wie das Rohr; das Rohr dreht sich mit (Nietenreihe und Ringe zeigen es)
+	var paint := RoomKit.mat(Color(0.36, 0.42, 0.38), 0.45, 0.35)
+	var dark := RoomKit.mat(Color(0.22, 0.26, 0.23), 0.5, 0.35)
 	var low := 1.25
-	RoomKit.cyl(_periscope, 0.06, 0.06, CEIL - low, Vector3(0, (CEIL + low) * 0.5, 0), steel)
-	RoomKit.box(_periscope, Vector3(0.16, 0.16, 0.2), Vector3(0, low, 0.04), steel) # Okular-Kasten
+	RoomKit.cyl(_periscope, 0.06, 0.06, CEIL - low, Vector3(0, (CEIL + low) * 0.5, 0), paint)
+	for k in 4: # Ringe ums Rohr
+		RoomKit.cyl(_periscope, 0.066, 0.066, 0.025, Vector3(0, low + 0.25 + k * 0.32, 0), dark)
+	for k in 9: # Nietenreihe vorne
+		RoomKit.sphere(_periscope, 0.009, Vector3(0, low + 0.15 + k * 0.13, 0.06), dark)
+	RoomKit.box(_periscope, Vector3(0.16, 0.16, 0.2), Vector3(0, low, 0.04), paint) # Okular-Kasten
 	RoomKit.box(_periscope, Vector3(0.12, 0.06, 0.04), Vector3(0, low + 0.01, 0.15), RoomKit.mat(Color(0.05, 0.05, 0.05), 0.4))
 	for s: float in [-1.0, 1.0]: # Griffe
-		var h := RoomKit.cyl(_periscope, 0.02, 0.02, 0.18, Vector3(s * 0.17, low - 0.02, 0.04), RoomKit.mat(Color(0.15, 0.12, 0.1), 0.6))
+		var h := RoomKit.cyl(_periscope, 0.02, 0.02, 0.18, Vector3(s * 0.17, low - 0.02, 0.04), paint)
 		h.rotation.z = PI * 0.5
+		var grip := RoomKit.cyl(_periscope, 0.024, 0.024, 0.07, Vector3(s * 0.23, low - 0.02, 0.04), dark)
+		grip.rotation.z = PI * 0.5
+	# feste Manschette an der Decke (dreht sich nicht)
+	RoomKit.cyl(self, 0.1, 0.1, 0.08, PERISCOPE_POS + Vector3(0, CEIL - 0.04, 0), dark)
 	_periscope_area = RoomKit.click_area(_periscope, Vector3(0.5, 0.5, 0.4), Vector3(0, low, 0.04), turn_periscope)
 	_periscope_area.input_ray_pickable = interactive
 

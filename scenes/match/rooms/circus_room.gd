@@ -26,7 +26,7 @@ const VAULT := 0.55 # Höhe der Wölbung
 const TOP := Vector2(1.84, 1.3)
 const GAP_X := -1.2 # Vorhangspalt (Mitte)
 const GAP_W := 0.7
-const BOX_POS := Vector3(0.95, 0.0, -0.42) # Spieluhr auf dem Tisch (y kommt dazu)
+const BOX_POS := Vector3(0.74, 0.0, -0.5) # hinten rechts in der Tischecke # Spieluhr auf dem Tisch (y kommt dazu)
 const WINDS_FOR_JACK := 5
 const WIND_WINDOW := 8.0
 
@@ -134,7 +134,7 @@ func wind_music_box() -> void:
 		tw.tween_callback(pop_jack)
 		return
 	if _spin <= 0.0:
-		RoomKit.play(self, SND_BOX, -16.0)
+		RoomKit.play(self, SND_BOX, -27.0)
 	_spin = 4.6
 
 
