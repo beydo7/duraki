@@ -7,6 +7,7 @@ extends Node3D
 
 const SND_HISS := preload("res://assets/rooms/submarine/hiss.wav")
 const GAUGE := preload("res://assets/rooms/submarine/gauge.png")
+const MODEL := preload("res://assets/rooms/submarine/gauge.glb") # gebaut mit art/blender/submarine.py
 const STEP := 0.25
 const R := 0.095
 const GREEN := Color(0.2, 1.0, 0.35)
@@ -80,24 +81,18 @@ func _build(n: int) -> void:
 		var root := Node3D.new()
 		root.position = Vector3((i - (n - 1) * 0.5) * step, 0, 0)
 		add_child(root)
-		RoomKit.cyl(root, R + 0.018, R + 0.018, 0.04, Vector3(0, 0, 0.02), _brass).rotation.x = PI * 0.5
-		RoomKit.quad(root, Vector2(R * 2.0, R * 2.0), Vector3(0, 0, 0.041), _face)
-		RoomKit.torus(root, R + 0.012, 0.008, Vector3(0, 0, 0.042), _brass).rotation.x = PI * 0.5
-		var needle := Node3D.new()
-		needle.position.z = 0.046
-		root.add_child(needle)
-		RoomKit.box(needle, Vector3(R * 0.85, 0.006, 0.003), Vector3(R * 0.32, 0, 0), RoomKit.mat(Color(0.75, 0.1, 0.08), 0.4))
-		RoomKit.cyl(needle, 0.011, 0.011, 0.006, Vector3.ZERO, _brass).rotation.x = PI * 0.5
+		# Gehäuse, Zifferblatt, Zeiger und Kontrollleuchte aus Blender
+		var lamp_mat := RoomKit.glow(GREEN, 2.5)
+		var model := RoomKit.model(root, MODEL, {
+			"Anzeige_Messing": _brass, "Zifferblatt": _face, "Zeiger": RoomKit.mat(Color(0.75, 0.1, 0.08), 0.4), "Leuchte": lamp_mat,
+		})
+		var needle := model.find_child("Zeiger", true, false) as Node3D
 		# Rohr unter der Anzeige bis zum Boden
 		var top := -R + 0.01
 		RoomKit.cyl(root, 0.018, 0.018, floor_drop + top, Vector3(0, (top - floor_drop) * 0.5, 0.03), _pipe)
 		RoomKit.cyl(root, 0.035, 0.035, 0.02, Vector3(0, -floor_drop + 0.01, 0.03), _brass) # Flansch am Boden
 		# Kontrollleuchte am Rohr: grün = Leben da, rot = Leben weg
 		var lamp_pos := Vector3(0, -R - 0.12, 0.05)
-		var bezel := RoomKit.cyl(root, 0.03, 0.03, 0.02, lamp_pos, _brass, 20)
-		bezel.rotation.x = PI * 0.5
-		var lamp_mat := RoomKit.glow(GREEN, 2.5)
-		RoomKit.sphere(root, 0.022, lamp_pos + Vector3(0, 0, 0.012), lamp_mat, Vector3(1.0, 1.0, 0.6))
 		var light := OmniLight3D.new()
 		light.position = lamp_pos + Vector3(0, 0, 0.06)
 		light.light_color = GREEN

@@ -1,6 +1,8 @@
 class_name CircusRoom
 extends Node3D
-## Raum „Zirkuswagen“ – ganz in Code gebaut (kein Blender-Modell).
+## Raum „Zirkuswagen“. Formen aus Blender (assets/rooms/circus/circus.glb und music_box.glb, gebaut
+## mit art/blender/circus.py), Materialien, Lichter und alles Bewegliche hier im Code.
+## Boden, Bretterwände, Rückwand, Zelt und Manege draußen und das Plakat bleiben Code.
 ##
 ## Enger Wohnwagen eines Wanderzirkus: bunt gestrichene Bretter, gewölbte Decke mit
 ## Lichterkette, links Kostüme an Haken und ein Zirkusplakat, rechts ein Schminkspiegel mit
@@ -13,6 +15,8 @@ extends Node3D
 ## heraus und es gibt den geheimen Erfolg „Überraschung!“.
 
 const DIR := "res://assets/rooms/circus/"
+const MODEL := preload("res://assets/rooms/circus/circus.glb")
+const BOX_MODEL := preload("res://assets/rooms/circus/music_box.glb")
 const SND_MUSIC := preload("res://assets/rooms/circus/music.wav")
 const SND_APPLAUSE := preload("res://assets/rooms/circus/applause.wav")
 const SND_BOX := preload("res://assets/rooms/circus/musicbox.wav")
@@ -62,11 +66,8 @@ var _skin_rim: Array[Material] = []
 func _ready() -> void:
 	_build_shell()
 	_build_back()
-	_build_costumes()
-	_build_mirror()
-	_build_table()
+	_build_model()
 	_build_music_box()
-	_build_string_lights()
 	lives_panel = BalloonLives.new()
 	lives_panel.position = Vector3(-0.66, TableWorld.TABLE_Y, -0.58) # hinten links an der Tischkante
 	add_child(lives_panel)
@@ -173,22 +174,7 @@ func _build_shell() -> void:
 	RoomKit.plane(self, Vector2(ROOM_W, 6.0), Vector3(0, 0, 0.6), floor_mat)
 	for s: float in [-1.0, 1.0]:
 		RoomKit.box(self, Vector3(0.1, WALL_H, 6.0), Vector3(s * (ROOM_W * 0.5 + 0.05), WALL_H * 0.5, 0.6), boards)
-	# gewölbte Decke aus schmalen Brettern (Tonnengewölbe)
-	var ceil := RoomKit.mat(Color(0.42, 0.26, 0.16), 0.8)
-	var ceil2 := RoomKit.mat(Color(0.75, 0.66, 0.5), 0.8)
-	var n := 14
-	for i in n:
-		var a0 := PI * i / n
-		var a1 := PI * (i + 1) / n
-		var p0 := Vector2(-cos(a0) * ROOM_W * 0.5, WALL_H + sin(a0) * VAULT)
-		var p1 := Vector2(-cos(a1) * ROOM_W * 0.5, WALL_H + sin(a1) * VAULT)
-		var mid := (p0 + p1) * 0.5
-		var b := RoomKit.box(self, Vector3(p0.distance_to(p1) + 0.01, 0.04, 6.0), Vector3(mid.x, mid.y, 0.6), ceil if i % 2 else ceil2)
-		b.rotation.z = (p1 - p0).angle()
-	# Leisten oben an den Wänden
-	var trim := RoomKit.mat(Color(0.75, 0.55, 0.15), 0.45, 0.6)
-	for s: float in [-1.0, 1.0]:
-		RoomKit.box(self, Vector3(0.06, 0.06, 6.0), Vector3(s * (ROOM_W * 0.5 - 0.02), WALL_H - 0.03, 0.6), trim)
+	# Deckenbretter und Leisten kommen aus Blender
 
 
 func _build_back() -> void:
@@ -201,16 +187,7 @@ func _build_back() -> void:
 	RoomKit.box(self, Vector3(g0 + ROOM_W * 0.5, h, 0.08), Vector3((g0 - ROOM_W * 0.5) * 0.5, h * 0.5, BACK_Z - 0.04), boards)
 	RoomKit.box(self, Vector3(ROOM_W * 0.5 - g1, h, 0.08), Vector3((g1 + ROOM_W * 0.5) * 0.5, h * 0.5, BACK_Z - 0.04), boards)
 	RoomKit.box(self, Vector3(GAP_W, h - 1.95, 0.08), Vector3(GAP_X, (h + 1.95) * 0.5, BACK_Z - 0.04), boards)
-	# Vorhang: zwei rote Samtbahnen aus Falten, in der Mitte offen
-	var velvet := RoomKit.mat(Color(0.55, 0.05, 0.08), 0.85)
-	var velvet2 := RoomKit.mat(Color(0.42, 0.03, 0.06), 0.85)
-	for s: float in [-1.0, 1.0]:
-		for k in 5:
-			var x := GAP_X + s * (0.14 + k * 0.065) # zur Seite gerafft, Mitte offen
-			var f := RoomKit.cyl(self, 0.035, 0.045, 1.95, Vector3(x, 0.975, BACK_Z + 0.06 + (k % 2) * 0.02), velvet if k % 2 else velvet2, 10)
-	var gold := RoomKit.mat(Color(0.85, 0.65, 0.2), 0.35, 0.9)
-	var rod := RoomKit.cyl(self, 0.015, 0.015, GAP_W + 0.3, Vector3(GAP_X, 1.97, BACK_Z + 0.08), gold)
-	rod.rotation.z = PI * 0.5
+	# Vorhang und Stange am Spalt sind im Modell
 	# Draußen: Zeltwand, Manege-Rand, Scheinwerferkegel
 	var tent := RoomKit.tex(DIR + "tent.png", 0.9)
 	tent.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
@@ -232,150 +209,72 @@ func _build_back() -> void:
 		_spots.append(spot)
 
 
-func _build_costumes() -> void:
-	var x := -ROOM_W * 0.5 + 0.12
-	var hook := RoomKit.mat(Color(0.6, 0.5, 0.3), 0.4, 0.8)
-	RoomKit.box(self, Vector3(0.04, 0.06, 1.6), Vector3(x - 0.04, 1.75, -0.9), RoomKit.mat(Color(0.35, 0.22, 0.12), 0.7))
-	var cols := [Color(0.9, 0.75, 0.2), Color(0.2, 0.55, 0.45), Color(0.85, 0.3, 0.55), Color(0.9, 0.9, 0.85)]
+## Holz mit Maserung als Relief (Farbe wie bisher einfarbig).
+static func _wood(c: Color, rough: float, tiles: float) -> StandardMaterial3D:
+	var m := RoomKit.mat(c, rough)
+	m.normal_enabled = true
+	m.normal_texture = preload("res://assets/models/table_wood_normal.png")
+	m.uv1_scale = Vector3.ONE * tiles # UVs des Modells sind in Metern
+	return m
+
+
+## Alles aus Blender: Decke, Leisten, Vorhang mit Stange, Kostüme und Hüte, Schminkspiegel mit
+## Birnen, Schminktisch, Spieltisch auf der Trommel, Lichterkette.
+## Die Materialien gehören zu den Namen, die sie in Blender haben (art/blender/circus.py).
+func _build_model() -> void:
+	var wood := _wood(Color(0.36, 0.2, 0.12), 0.6, 1.5)
+	var cloth := RoomKit.mat(Color(0.07, 0.17, 0.12), 0.95) # grünes Tuch, wie ein Spieltisch
+	_skin_felt = [cloth]
+	_skin_rim = [wood]
+	var stripe := RoomKit.mat(Color(0.85, 0.65, 0.2), 0.4, 0.7)
+	var glass := StandardMaterial3D.new()
+	glass.albedo_color = Color(0.55, 0.6, 0.62)
+	glass.metallic = 1.0
+	glass.roughness = 0.08
+	var costumes := [Color(0.9, 0.75, 0.2), Color(0.2, 0.55, 0.45), Color(0.85, 0.3, 0.55), Color(0.9, 0.9, 0.85)]
+	var mats := {
+		"Decke_Dunkel": RoomKit.mat(Color(0.42, 0.26, 0.16), 0.8), "Decke_Hell": RoomKit.mat(Color(0.75, 0.66, 0.5), 0.8),
+		"Goldleiste": RoomKit.mat(Color(0.75, 0.55, 0.15), 0.45, 0.6), "Vorhang": RoomKit.mat(Color(0.55, 0.05, 0.08), 0.85),
+		"Gold": RoomKit.mat(Color(0.85, 0.65, 0.2), 0.35, 0.9), "Holz_Dunkel": _wood(Color(0.35, 0.22, 0.12), 0.7, 2.0),
+		"Haken": RoomKit.mat(Color(0.6, 0.5, 0.3), 0.4, 0.8), "Kragen": RoomKit.mat(Color(0.95, 0.95, 0.92), 0.8),
+		"Pailletten": RoomKit.glow(Color(1, 0.85, 0.4), 1.2), "Zylinderhut": RoomKit.mat(Color(0.08, 0.08, 0.1), 0.5),
+		"Clownshut": RoomKit.mat(Color(0.2, 0.5, 0.9), 0.6), "Bommel": RoomKit.mat(Color(0.95, 0.3, 0.2), 0.6),
+		"Spiegelrahmen": RoomKit.mat(Color(0.2, 0.12, 0.08), 0.5), "Spiegelglas": glass,
+		"Spiegelbirne": RoomKit.glow(Color(1.0, 0.9, 0.7), 3.0), "Schminktisch": _wood(Color(0.4, 0.24, 0.14), 0.7, 2.0),
+		"Puderdose": RoomKit.mat(Color(0.95, 0.75, 0.75), 0.4), "Lippenstift": RoomKit.mat(Color(0.9, 0.1, 0.15), 0.4),
+		"Tischholz": wood, "Tischtuch": cloth, "Tischgold": stripe, "Trommel": RoomKit.mat(Color(0.75, 0.1, 0.1), 0.5),
+		"Trommelseil": RoomKit.mat(Color(0.9, 0.86, 0.72), 0.8), "Kabel": RoomKit.mat(Color(0.1, 0.1, 0.1), 0.6),
+	}
 	for k in 4:
-		var z := -1.5 + k * 0.38
-		RoomKit.cyl(self, 0.008, 0.008, 0.08, Vector3(x, 1.75, z), hook).rotation.z = PI * 0.5
-		var c := RoomKit.mat(cols[k], 0.7)
-		# Kostüm: Kegel (Kleid / Mantel) mit Kragen
-		RoomKit.cyl(self, 0.06, 0.2, 0.75, Vector3(x + 0.08, 1.33, z), c, 16).scale = Vector3(0.55, 1, 1)
-		RoomKit.torus(self, 0.07, 0.025, Vector3(x + 0.08, 1.7, z), RoomKit.mat(Color(0.95, 0.95, 0.92), 0.8))
-		if k == 2: # Pailletten
-			for j in 12:
-				RoomKit.sphere(self, 0.008, Vector3(x + 0.19, 1.05 + (j % 4) * 0.15, z - 0.09 + (j / 4) * 0.09), RoomKit.glow(Color(1, 0.85, 0.4), 1.2))
-	# Clownshut und Ringmeister-Zylinder auf einem Bord darüber
-	RoomKit.box(self, Vector3(0.25, 0.03, 1.0), Vector3(x + 0.07, 1.95, -0.3), RoomKit.mat(Color(0.35, 0.22, 0.12), 0.7))
-	RoomKit.cyl(self, 0.07, 0.07, 0.16, Vector3(x + 0.08, 2.05, -0.55), RoomKit.mat(Color(0.08, 0.08, 0.1), 0.5))
-	RoomKit.cyl(self, 0.12, 0.12, 0.01, Vector3(x + 0.08, 1.97, -0.55), RoomKit.mat(Color(0.08, 0.08, 0.1), 0.5))
-	RoomKit.cyl(self, 0.0, 0.07, 0.18, Vector3(x + 0.08, 2.06, -0.15), RoomKit.mat(Color(0.2, 0.5, 0.9), 0.6))
-	RoomKit.sphere(self, 0.02, Vector3(x + 0.08, 2.16, -0.15), RoomKit.mat(Color(0.95, 0.3, 0.2), 0.6))
+		mats["Kostuem_%d" % k] = RoomKit.mat(costumes[k], 0.7)
+	var model := RoomKit.model(self, MODEL, mats)
+	# Lichterkette: jede Birne („Lichterkette_00“ … „_21“) hat ihr eigenes Material und blinkt im Wechsel
+	var cols := [Color(1, 0.3, 0.2), Color(1, 0.85, 0.3), Color(0.3, 0.6, 1), Color(0.4, 1, 0.5)]
+	for i in 22:
+		var m := RoomKit.glow(cols[(i % 11) % cols.size()], 1.6)
+		_bulbs.append(m)
+		(model.find_child("Lichterkette_%02d" % i, true, false) as MeshInstance3D).material_override = m
 	# Plakat an der Rückwand links
 	var poster := RoomKit.tex(DIR + "poster.png", 0.9)
 	RoomKit.quad(self, Vector2(0.36, 0.5), Vector3(-1.95, 1.3, BACK_Z + 0.005), poster)
 
 
-func _build_mirror() -> void:
-	var x := ROOM_W * 0.5 - 0.05
-	var root := Node3D.new()
-	root.position = Vector3(x, 1.35, -1.2)
-	root.rotation.y = -PI * 0.5
-	add_child(root)
-	var frame := RoomKit.mat(Color(0.2, 0.12, 0.08), 0.5)
-	RoomKit.box(root, Vector3(0.75, 0.6, 0.03), Vector3.ZERO, frame)
-	var glass := StandardMaterial3D.new()
-	glass.albedo_color = Color(0.55, 0.6, 0.62)
-	glass.metallic = 1.0
-	glass.roughness = 0.08
-	RoomKit.box(root, Vector3(0.6, 0.45, 0.01), Vector3(0, 0, 0.018), glass)
-	var bulb := RoomKit.glow(Color(1.0, 0.9, 0.7), 3.0)
-	for k in 5:
-		RoomKit.sphere(root, 0.022, Vector3(-0.3 + k * 0.15, 0.27, 0.03), bulb)
-	for k in 4:
-		for s: float in [-1.0, 1.0]:
-			RoomKit.sphere(root, 0.022, Vector3(s * 0.345, 0.15 - k * 0.12, 0.03), bulb)
-	# Schminktisch darunter mit Puderdose und Pinsel
-	var wood := RoomKit.mat(Color(0.4, 0.24, 0.14), 0.7)
-	RoomKit.box(self, Vector3(0.35, 0.04, 0.9), Vector3(x - 0.17, 0.85, -1.2), wood)
-	RoomKit.box(self, Vector3(0.3, 0.8, 0.04), Vector3(x - 0.17, 0.43, -1.62), wood)
-	RoomKit.box(self, Vector3(0.3, 0.8, 0.04), Vector3(x - 0.17, 0.43, -0.78), wood)
-	RoomKit.cyl(self, 0.05, 0.05, 0.03, Vector3(x - 0.15, 0.885, -1.0), RoomKit.mat(Color(0.95, 0.75, 0.75), 0.4))
-	RoomKit.cyl(self, 0.012, 0.012, 0.12, Vector3(x - 0.2, 0.93, -1.35), RoomKit.mat(Color(0.9, 0.1, 0.15), 0.4))
-
-
-func _build_table() -> void:
-	var y := TableWorld.TABLE_Y
-	var wood := RoomKit.mat(Color(0.36, 0.2, 0.12), 0.6)
-	var cloth := RoomKit.mat(Color(0.07, 0.17, 0.12), 0.95) # grünes Tuch, wie ein Spieltisch
-	_skin_felt = [cloth]
-	_skin_rim = [wood]
-	RoomKit.box(self, Vector3(TOP.x, 0.04, TOP.y), Vector3(0, y - 0.02, 0), wood)
-	RoomKit.box(self, Vector3(TOP.x - 0.12, 0.003, TOP.y - 0.12), Vector3(0, y - 0.001, 0), cloth)
-	var stripe := RoomKit.mat(Color(0.85, 0.65, 0.2), 0.4, 0.7)
-	for s: float in [-1.0, 1.0]: # Goldkante
-		RoomKit.box(self, Vector3(TOP.x + 0.02, 0.012, 0.02), Vector3(0, y - 0.03, s * (TOP.y * 0.5 + 0.005)), stripe)
-	# Tisch steht auf einer Trommel (Zirkuspodest)
-	var drum := RoomKit.mat(Color(0.75, 0.1, 0.1), 0.5)
-	RoomKit.cyl(self, 0.45, 0.45, y - 0.04, Vector3(0, (y - 0.04) * 0.5, 0), drum, 40)
-	for k in 2:
-		RoomKit.torus(self, 0.455, 0.015, Vector3(0, 0.06 + k * (y - 0.16), 0), stripe)
-
-
 func _build_music_box() -> void:
 	var y := TableWorld.TABLE_Y
-	_box = Node3D.new()
+	# Kasten, Deckel („Deckel“ klappt am Scharnier), Tänzerin, Springteufel und Schlüssel („Key“)
+	# kommen aus Blender; Farben der Figuren stehen dort
+	var scene := RoomKit.model(self, BOX_MODEL, {
+		"Spieluhr_Holz": _wood(Color(0.5, 0.25, 0.14), 0.45, 10.0), "Spieluhr_Gold": RoomKit.mat(Color(0.9, 0.7, 0.3), 0.3, 0.9),
+	})
+	_box = scene.find_child("Spieluhr", true, false) as Node3D
 	_box.position = BOX_POS + Vector3(0, y, 0)
 	_box.rotation.y = 0.5
-	add_child(_box)
-	var wood := RoomKit.mat(Color(0.5, 0.25, 0.14), 0.45)
-	var gold := RoomKit.mat(Color(0.9, 0.7, 0.3), 0.3, 0.9)
-	RoomKit.box(_box, Vector3(0.12, 0.06, 0.09), Vector3(0, 0.03, 0), wood)
-	RoomKit.box(_box, Vector3(0.124, 0.008, 0.094), Vector3(0, 0.058, 0), gold)
-	# Deckel hängt hinten am Scharnier
-	_lid = Node3D.new()
-	_lid.position = Vector3(0, 0.062, -0.045)
-	_box.add_child(_lid)
-	RoomKit.box(_lid, Vector3(0.12, 0.012, 0.09), Vector3(0, 0.006, 0.045), wood)
-	_lid.rotation.x = 0.0
-	# Tänzerin oben auf dem Deckel (dreht sich beim Spielen)
-	_dancer = Node3D.new()
-	_dancer.position = Vector3(0, 0.075, 0)
-	_box.add_child(_dancer)
-	RoomKit.cyl(_dancer, 0.0, 0.022, 0.028, Vector3(0, 0.014, 0), RoomKit.mat(Color(1.0, 0.7, 0.8), 0.6), 12) # Röckchen
-	RoomKit.cyl(_dancer, 0.004, 0.006, 0.02, Vector3(0, 0.035, 0), RoomKit.mat(Color(1.0, 0.7, 0.8), 0.6), 8)
-	RoomKit.sphere(_dancer, 0.006, Vector3(0, 0.05, 0), RoomKit.mat(Color(0.95, 0.85, 0.75), 0.5))
-	var arm := RoomKit.cyl(_dancer, 0.0015, 0.0015, 0.03, Vector3(0, 0.044, 0), RoomKit.mat(Color(0.95, 0.85, 0.75), 0.5), 4)
-	arm.rotation.z = PI * 0.5
-	# Springteufel (versteckt)
-	_jack = Node3D.new()
-	_jack.position = Vector3(0, 0.06, 0)
+	_lid = _box.find_child("Deckel", true, false) as Node3D
+	_dancer = _box.find_child("Taenzerin", true, false) as Node3D
+	_jack = _box.find_child("Springteufel", true, false) as Node3D
 	_jack.visible = false
-	_box.add_child(_jack)
-	var spring := RoomKit.mat(Color(0.7, 0.7, 0.72), 0.3, 0.9)
-	for k in 6:
-		RoomKit.torus(_jack, 0.016, 0.003, Vector3(0, 0.008 + k * 0.012, 0), spring)
-	RoomKit.sphere(_jack, 0.03, Vector3(0, 0.1, 0), RoomKit.mat(Color(0.98, 0.92, 0.85), 0.5)) # Gesicht
-	RoomKit.sphere(_jack, 0.009, Vector3(0, 0.098, 0.03), RoomKit.mat(Color(0.95, 0.1, 0.1), 0.4)) # Nase
-	for s: float in [-1.0, 1.0]:
-		RoomKit.sphere(_jack, 0.004, Vector3(s * 0.011, 0.11, 0.027), RoomKit.mat(Color(0.05, 0.05, 0.05), 0.4))
-		var horn := RoomKit.cyl(_jack, 0.0, 0.014, 0.04, Vector3(s * 0.022, 0.135, 0), RoomKit.mat([Color(0.95, 0.75, 0.15), Color(0.2, 0.45, 0.9)][int(s > 0)], 0.5), 8)
-		horn.rotation.z = -s * 0.6
-		RoomKit.sphere(_jack, 0.006, Vector3(s * 0.034, 0.152, 0), RoomKit.mat(Color(0.95, 0.2, 0.2), 0.5))
-	var collar := RoomKit.torus(_jack, 0.03, 0.008, Vector3(0, 0.07, 0), RoomKit.mat(Color(0.95, 0.95, 0.9), 0.7))
-	collar.scale = Vector3(1, 0.6, 1)
-	# Aufziehschlüssel an der Seite
-	var key := Node3D.new()
-	key.name = "Key"
-	key.position = Vector3(0.068, 0.03, 0)
-	_box.add_child(key)
-	RoomKit.cyl(key, 0.004, 0.004, 0.02, Vector3(0.01, 0, 0), gold, 8).rotation.z = PI * 0.5
-	RoomKit.box(key, Vector3(0.004, 0.03, 0.012), Vector3(0.022, 0, 0), gold)
 	_box_area = RoomKit.click_area(_box, Vector3(0.18, 0.14, 0.14), Vector3(0, 0.05, 0), wind_music_box)
 	_box_area.input_ray_pickable = interactive
-
-
-func _build_string_lights() -> void:
-	var wire := RoomKit.mat(Color(0.1, 0.1, 0.1), 0.6)
-	var cols := [Color(1, 0.3, 0.2), Color(1, 0.85, 0.3), Color(0.3, 0.6, 1), Color(0.4, 1, 0.5)]
-	for z: float in [-1.4, -0.2]:
-		var n := 11
-		for i in n:
-			var u := float(i) / (n - 1)
-			var x := lerpf(-ROOM_W * 0.5 + 0.1, ROOM_W * 0.5 - 0.1, u)
-			var sag := 0.25 * sin(PI * u)
-			var y := WALL_H + 0.05 - sag
-			var m := RoomKit.glow(cols[i % cols.size()], 1.6)
-			_bulbs.append(m)
-			RoomKit.sphere(self, 0.022, Vector3(x, y, z), m, Vector3(1, 1.3, 1))
-			if i < n - 1:
-				var u2 := float(i + 1) / (n - 1)
-				var p2 := Vector3(lerpf(-ROOM_W * 0.5 + 0.1, ROOM_W * 0.5 - 0.1, u2), WALL_H + 0.05 - 0.25 * sin(PI * u2), z)
-				var p1 := Vector3(x, y, z)
-				var w := RoomKit.box(self, Vector3(p1.distance_to(p2), 0.004, 0.004), (p1 + p2) * 0.5 + Vector3(0, 0.025, 0), wire)
-				w.rotation.z = atan2(p2.y - p1.y, p2.x - p1.x)
 
 
 ## Für die Deck-Belohnungen (TableSkin): welche Materialien Filz und Rand sind, Umriss des Rands.

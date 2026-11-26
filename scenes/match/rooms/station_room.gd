@@ -1,6 +1,9 @@
 class_name StationRoom
 extends Node3D
-## Raum „Bahnhofswartesaal“ – ganz in Code gebaut (kein Blender-Modell).
+## Raum „Bahnhofswartesaal“. Formen aus Blender (assets/rooms/station/station.glb und train.glb,
+## gebaut mit art/blender/station.py), Materialien, Lichter, Schriften und alles Bewegliche hier
+## im Code. Boden, Decke, Kachelwände, Bahnsteig, Zeitung und Fahrkarte sind schlichte Flächen
+## und bleiben Code.
 ##
 ## Unten grüne, darüber weiße Wandkacheln, Schachbrett-Fliesenboden, Holzbänke an den
 ## Wänden, ein Heißwasserkessel. Hinten zwei hohe Fenster zum Bahnsteig, dazwischen
@@ -18,6 +21,8 @@ extends Node3D
 signal train_passing(strength: float)
 
 const TEX := "res://assets/rooms/station/"
+const MODEL := preload("res://assets/rooms/station/station.glb")
+const TRAIN := preload("res://assets/rooms/station/train.glb")
 const SND_TRAIN := preload("res://assets/rooms/station/train_pass.wav")
 const SND_BUZZ := preload("res://assets/rooms/station/neon_buzz.wav")
 const SND_TICK := preload("res://assets/rooms/station/neon_tick.wav")
@@ -70,6 +75,7 @@ var _board_rows: Array[Array] = [] # pro Zeile die Label3D (Nr, Ziel, Zeit, Glei
 var _first_departure := 0
 
 
+var _model: Node3D # station.glb
 var _skin_felt: Array[Material] = []
 var _skin_rim: Array[Material] = []
 
@@ -77,15 +83,12 @@ var _skin_rim: Array[Material] = []
 func _ready() -> void:
 	_next_train = randf_range(FIRST_TRAIN.x, FIRST_TRAIN.y)
 	_build_shell()
-	_build_windows()
+	_build_model()
 	_build_outside()
 	_build_board()
 	_build_lives_panel()
 	_build_newspaper()
-	_build_table()
 	_build_on_table()
-	_build_benches()
-	_build_kettle()
 	_build_tubes()
 	_build_train()
 	if DisplayServer.get_name() != "headless":
@@ -222,36 +225,19 @@ func _build_tubes() -> void:
 		[Vector3(-1.2, 2.85, -1.7), 1.2, 0.9, Vector2(4.0, 10.0), false],
 		[Vector3(1.3, 2.85, 1.2), 1.2, 0.7, Vector2(20.0, 45.0), false],
 	]
-	var housing := _mat(Color(0.82, 0.84, 0.8), 0.5)
-	housing.metallic = 0.4
-	var wire := _mat(Color(0.1, 0.1, 0.1), 0.6)
 	for i in defs.size():
 		var d: Array = defs[i]
 		var pos: Vector3 = d[0]
-		var len: float = d[1]
-		var root := Node3D.new()
-		root.position = pos
-		add_child(root)
-		# Blechschiene und Röhre darunter, an zwei Drähten von der Decke
-		_box_in(root, Vector3(len + 0.06, 0.04, 0.12), Vector3(0, 0.03, 0), housing)
+		# Blechschiene, Fassungen und Drähte sind im Modell; die Röhre („Roehre_0“ …) bekommt
+		# ihr eigenes Leuchtmaterial, damit jede einzeln flackern kann
 		var mat := StandardMaterial3D.new()
 		mat.albedo_color = Color(0.92, 1.0, 0.97)
 		mat.emission_enabled = true
 		mat.emission = Color(0.86, 1.0, 0.95)
 		mat.emission_energy_multiplier = 3.0
-		var tube := MeshInstance3D.new()
-		var cm := CylinderMesh.new()
-		cm.top_radius = 0.016
-		cm.bottom_radius = 0.016
-		cm.height = len
-		tube.mesh = cm
+		var tube := _model.find_child("Roehre_%d" % i, true, false) as MeshInstance3D
 		tube.material_override = mat
-		tube.rotation.z = PI * 0.5
 		tube.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		root.add_child(tube)
-		for s in [-1.0, 1.0]:
-			_box_in(root, Vector3(0.03, 0.05, 0.05), Vector3(s * len * 0.5, 0.0, 0), housing) # Fassungen
-			_cyl_in(root, 0.003, 0.003, CEIL - pos.y, Vector3(s * len * 0.35, (CEIL - pos.y) * 0.5, 0), wire)
 		_tubes.append({"mat": mat, "pos": pos, "energy": d[2], "gap": d[3], "main": d[4],
 			"timer": randf_range(1.0, (d[3] as Vector2).x), "flicker": 0.0, "level": 1.0, "seed": i * 2.7})
 
@@ -297,13 +283,7 @@ func _build_shell() -> void:
 						_box_in(self, Vector3(x1 - x0, p[1] - p[0], 0.1), Vector3((x0 + x1) * 0.5, (p[0] + p[1]) * 0.5, BACK_Z - 0.05), b[2])
 			else:
 				_box_in(self, Vector3(x1 - x0, y1 - y0, 0.1), Vector3((x0 + x1) * 0.5, (y0 + y1) * 0.5, BACK_Z - 0.05), b[2])
-	# Sockelleiste und Deckenkehle
-	var dark := _mat(Color(0.12, 0.16, 0.13), 0.6)
-	_box_in(self, Vector3(ROOM_W, 0.1, 0.03), Vector3(0, 0.05, BACK_Z + 0.015), dark)
-	for s in [-1.0, 1.0]:
-		_box_in(self, Vector3(0.03, 0.1, 6.0), Vector3(s * (ROOM_W * 0.5 - 0.015), 0.05, 0.6), dark)
-	var cove := _mat(Color(0.6, 0.6, 0.55), 0.9)
-	_box_in(self, Vector3(ROOM_W, 0.12, 0.12), Vector3(0, CEIL - 0.06, BACK_Z + 0.06), cove)
+	# Sockelleiste, Kachelleisten und Deckenkehle kommen aus Blender
 
 
 func _tiles(tint: Color) -> StandardMaterial3D:
@@ -318,38 +298,64 @@ func _tiles(tint: Color) -> StandardMaterial3D:
 
 # --- Fenster, Bahnsteig, Zug ---------------------------------------------------------
 
-func _build_windows() -> void:
-	var frame := _mat(Color(0.2, 0.28, 0.24), 0.55)
+## Alles aus Blender: Tisch, Fenster mit Heizkörpern, Bänke, Koffer, Heißwasserkessel, Rahmen und
+## Klappfelder der Fahrplantafel, Neonleuchten, Leisten, Zuckerstücke, Bahnsteiglampen.
+## Die Materialien gehören zu den Namen, die sie in Blender haben (art/blender/station.py).
+func _build_model() -> void:
+	var top := StandardMaterial3D.new()
+	top.albedo_texture = preload("res://assets/models/table_wood_color.png")
+	top.albedo_color = Color(0.42, 0.26, 0.16)
+	top.normal_enabled = true
+	top.normal_texture = preload("res://assets/models/table_wood_normal.png")
+	top.normal_scale = 0.3 # nur ein Hauch Maserung, die Platte ist lackiert
+	top.roughness = 0.4
+	top.clearcoat_enabled = true
+	top.clearcoat = 0.3
+	top.uv1_scale = Vector3(0.9, 0.9, 0.9) # UVs des Modells sind in Metern, Maserung längs
+	var wood := top.duplicate() as StandardMaterial3D
+	wood.albedo_color = Color(0.3, 0.18, 0.1)
+	_skin_felt = [top]
+	_skin_rim = [wood]
 	var glass := StandardMaterial3D.new()
 	glass.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	glass.albedo_color = Color(0.55, 0.7, 0.75, 0.12)
 	glass.roughness = 0.08
 	glass.metallic_specular = 1.0
-	var sill := _mat(Color(0.5, 0.5, 0.46), 0.7)
-	var iron := _mat(Color(0.32, 0.34, 0.32), 0.5)
-	for s in [-1.0, 1.0]:
-		var cx: float = s * WIN_X
-		var cy := (WIN_Y.x + WIN_Y.y) * 0.5
-		var h := WIN_Y.y - WIN_Y.x
-		var z := BACK_Z - 0.04
-		# Rahmen, Kreuz und Sprossen
-		for p in [[Vector3(WIN_W, 0.06, 0.08), Vector3(cx, WIN_Y.x + 0.03, z)],
-				[Vector3(WIN_W, 0.06, 0.08), Vector3(cx, WIN_Y.y - 0.03, z)],
-				[Vector3(0.06, h, 0.08), Vector3(cx - WIN_W * 0.5 + 0.03, cy, z)],
-				[Vector3(0.06, h, 0.08), Vector3(cx + WIN_W * 0.5 - 0.03, cy, z)],
-				[Vector3(0.045, h, 0.06), Vector3(cx, cy, z)],
-				[Vector3(WIN_W, 0.04, 0.06), Vector3(cx, WIN_Y.x + h * 0.68, z)],
-				[Vector3(WIN_W, 0.03, 0.05), Vector3(cx, WIN_Y.x + h * 0.34, z)]]:
-			_box_in(self, p[0], p[1], frame)
-		var pane := _plane(Vector2(WIN_W, h), Vector3(cx, cy, z), glass)
-		pane.rotation.x = PI * 0.5
-		_box_in(self, Vector3(WIN_W + 0.12, 0.04, 0.2), Vector3(cx, WIN_Y.x - 0.01, BACK_Z + 0.06), sill)
-		# Heizkörper unter dem Fenster (Gussrippen)
-		for k in 9:
-			var x := cx - 0.32 + k * 0.08
-			_box_in(self, Vector3(0.055, 0.5, 0.08), Vector3(x, 0.45, BACK_Z + 0.09), iron)
-		_box_in(self, Vector3(0.7, 0.03, 0.05), Vector3(cx, 0.68, BACK_Z + 0.09), iron)
-		_box_in(self, Vector3(0.7, 0.03, 0.05), Vector3(cx, 0.22, BACK_Z + 0.09), iron)
+	var slat := StandardMaterial3D.new()
+	slat.albedo_texture = preload("res://assets/models/table_wood_color.png")
+	slat.albedo_color = Color(0.55, 0.36, 0.2)
+	slat.normal_enabled = true
+	slat.normal_texture = preload("res://assets/models/table_wood_normal.png")
+	slat.roughness = 0.55
+	var tin := _mat(Color(0.55, 0.57, 0.52), 0.4)
+	tin.metallic = 0.7
+	var brass := _mat(Color(0.7, 0.55, 0.3), 0.3)
+	brass.metallic = 0.8
+	var housing := _mat(Color(0.82, 0.84, 0.8), 0.5)
+	housing.metallic = 0.4
+	var lamp_glow := StandardMaterial3D.new()
+	lamp_glow.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	lamp_glow.albedo_color = Color(1.0, 0.85, 0.55)
+	_model = RoomKit.model(self, MODEL, {
+		"Tischplatte": top, "Tischgestell": wood,
+		"Fensterrahmen": _mat(Color(0.2, 0.28, 0.24), 0.55), "Fensterglas": glass,
+		"Fensterbank": _mat(Color(0.5, 0.5, 0.46), 0.7), "Gusseisen": _mat(Color(0.32, 0.34, 0.32), 0.5),
+		"Banklatten": slat, "Bankeisen": _mat(Color(0.08, 0.09, 0.08), 0.5),
+		"Kofferleder": _mat(Color(0.36, 0.22, 0.12), 0.6), "Koffergriff": _mat(Color(0.15, 0.1, 0.06), 0.5),
+		"Messing": brass, "Kesselsockel": _mat(Color(0.2, 0.3, 0.24), 0.6), "Kesselblech": tin,
+		"Tafelrahmen": _mat(Color(0.3, 0.3, 0.28), 0.5), "Tafel": _mat(Color(0.03, 0.035, 0.04), 0.8),
+		"Klappfeld": _mat(Color(0.08, 0.085, 0.09), 0.6), "Blech": housing, "Draht": _mat(Color(0.1, 0.1, 0.1), 0.6),
+		"Kachel_Dunkel": _tiles(Color(0.14, 0.3, 0.2)), "Sockelleiste": _mat(Color(0.12, 0.16, 0.13), 0.6),
+		"Deckenkehle": _mat(Color(0.6, 0.6, 0.55), 0.9), "Zucker": _mat(Color(0.97, 0.96, 0.93), 0.9),
+		"Lampenmast": _mat(Color(0.12, 0.12, 0.12), 0.5), "Lampenkugel": lamp_glow,
+	})
+	# Schrift auf dem Heißwasserkessel an der rechten Wand
+	var sign := _label("HEISSWASSER", FONT_SIGN, 48, Color(0.95, 0.92, 0.8))
+	sign.position = Vector3(ROOM_W * 0.5 - 0.3 - 0.205, 1.15, 0.25)
+	sign.rotation.y = -PI * 0.5
+	sign.shaded = true
+	sign.pixel_size = 0.0008 # passt auf den runden Kessel
+	add_child(sign)
 
 
 func _build_outside() -> void:
@@ -368,20 +374,7 @@ func _build_outside() -> void:
 	for dz in [-0.72, 0.72]:
 		_box_in(self, Vector3(40.0, 0.08, 0.06), Vector3(0, 0.06, TRACK_Z + dz), rail)
 	# Bahnsteiglampen mit warmem Licht
-	var lamp_glow := StandardMaterial3D.new()
-	lamp_glow.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	lamp_glow.albedo_color = Color(1.0, 0.85, 0.55)
-	var pole := _mat(Color(0.12, 0.12, 0.12), 0.5)
-	for x in [-WIN_X - 0.6, WIN_X + 0.4]:
-		_cyl_in(self, 0.03, 0.04, 3.0, Vector3(x, 2.4, BACK_Z - 1.2), pole)
-		var bulb := MeshInstance3D.new()
-		var bm := SphereMesh.new()
-		bm.radius = 0.09
-		bm.height = 0.18
-		bulb.mesh = bm
-		bulb.material_override = lamp_glow
-		bulb.position = Vector3(x, 3.6, BACK_Z - 1.2)
-		add_child(bulb)
+	for x in [-WIN_X - 0.6, WIN_X + 0.4]: # Masten und Kugeln sind im Modell
 		var l := OmniLight3D.new()
 		l.position = Vector3(x, 3.4, BACK_Z - 1.0)
 		l.light_color = Color("ffcf88")
@@ -391,27 +384,17 @@ func _build_outside() -> void:
 
 
 func _build_train() -> void:
-	_train = Node3D.new()
-	_train.position = Vector3(_train_x, 0, TRACK_Z)
-	add_child(_train)
 	var body := _mat(Color(0.12, 0.26, 0.18), 0.55) # dunkelgrüne Waggons
-	var roof := _mat(Color(0.2, 0.2, 0.2), 0.6)
-	var stripe := _mat(Color(0.75, 0.68, 0.4), 0.5)
 	var lit := StandardMaterial3D.new()
 	lit.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	lit.albedo_color = Color(1.0, 0.86, 0.5)
 	var dark := _mat(Color(0.05, 0.05, 0.05), 0.8)
-	for c in TRAIN_CARS:
-		var x0 := -c * CAR_LEN - CAR_LEN * 0.5
-		_box_in(_train, Vector3(CAR_LEN - 0.35, 2.7, 2.9), Vector3(x0, 1.85, 0), body)
-		_box_in(_train, Vector3(CAR_LEN - 0.35, 0.2, 2.7), Vector3(x0, 3.28, 0), roof)
-		_box_in(_train, Vector3(CAR_LEN - 0.35, 0.06, 2.92), Vector3(x0, 1.45, 0), stripe)
-		_box_in(_train, Vector3(CAR_LEN - 0.6, 0.4, 2.4), Vector3(x0, 0.35, 0), dark) # Fahrgestell
-		# Abteilfenster (einige dunkel)
-		for k in 8:
-			var x := x0 - CAR_LEN * 0.5 + 0.55 + k * 0.72
-			var m: Material = lit if (c * 8 + k) % 5 != 3 else dark
-			_box_in(_train, Vector3(0.5, 0.55, 2.94), Vector3(x, 2.25, 0), m)
+	# sieben Waggons mit gewölbtem Dach und Abteilfenstern (einige dunkel) aus Blender
+	_train = RoomKit.model(self, TRAIN, {
+		"Waggon": body, "Waggondach": _mat(Color(0.2, 0.2, 0.2), 0.6), "Zierstreifen": _mat(Color(0.75, 0.68, 0.4), 0.5),
+		"Fahrgestell": dark, "Zugfenster_Hell": lit, "Zugfenster_Dunkel": dark,
+	})
+	_train.position = Vector3(_train_x, 0, TRACK_Z)
 	_train.visible = true
 	# Licht aus den Fenstern, das durch den Wartesaal huscht
 	_train_light = OmniLight3D.new()
@@ -427,10 +410,8 @@ func _build_train() -> void:
 func _build_board() -> void:
 	var y := 2.12
 	var z := BACK_Z + 0.03
-	var w := 1.9
 	var h := 0.95
-	_box_in(self, Vector3(w + 0.08, h + 0.08, 0.05), Vector3(0, y, z), _mat(Color(0.3, 0.3, 0.28), 0.5)) # Rahmen
-	_box_in(self, Vector3(w, h, 0.06), Vector3(0, y, z + 0.01), _mat(Color(0.03, 0.035, 0.04), 0.8))
+	# Rahmen, Tafel und Klappfelder sind im Modell; hier nur die Schrift
 	var head := _label("DURAKI BAHNHOF", FONT_SIGN, 64, Color(0.95, 0.95, 0.9))
 	head.position = Vector3(0, y + h * 0.5 - 0.07, z + 0.045)
 	add_child(head)
@@ -440,14 +421,11 @@ func _build_board() -> void:
 		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 		l.position = Vector3(col[0], y + h * 0.5 - 0.16, z + 0.045)
 		add_child(l)
-	var slot := _mat(Color(0.08, 0.085, 0.09), 0.6)
 	for r in ROWS:
 		var ry := y + h * 0.5 - 0.25 - r * 0.112
 		var labels: Array = []
 		for ci in cols.size():
 			var cx: float = cols[ci][0]
-			var cw: float = [0.18, 0.9, 0.24, 0.12][ci]
-			_box_in(self, Vector3(cw, 0.085, 0.01), Vector3(cx + cw * 0.5 - 0.02, ry, z + 0.04), slot) # Klappfeld
 			var l := _label("", FONT_BOARD, 40, Color(1.0, 0.78, 0.3))
 			l.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 			l.position = Vector3(cx, ry, z + 0.048)
@@ -488,27 +466,6 @@ func _advance_board() -> void:
 
 # --- Tisch und Deko -----------------------------------------------------------------
 
-func _build_table() -> void:
-	var y := TableWorld.TABLE_Y
-	var top := StandardMaterial3D.new()
-	top.albedo_texture = preload("res://assets/models/table_wood_color.png")
-	top.albedo_color = Color(0.42, 0.26, 0.16)
-	top.roughness = 0.4
-	top.clearcoat_enabled = true
-	top.clearcoat = 0.3
-	top.uv1_triplanar = true
-	top.uv1_scale = Vector3(0.9, 0.9, 0.9)
-	var wood := top.duplicate() as StandardMaterial3D
-	wood.albedo_color = Color(0.3, 0.18, 0.1)
-	_skin_felt = [top]
-	_skin_rim = [wood]
-	_box_in(self, Vector3(TOP.x, 0.045, TOP.y), Vector3(0, y - 0.0225, 0), top)
-	_box_in(self, Vector3(TOP.x - 0.1, 0.09, TOP.y - 0.1), Vector3(0, y - 0.09, 0), wood) # Zarge
-	for sx in [-1.0, 1.0]:
-		for sz in [-1.0, 1.0]:
-			_box_in(self, Vector3(0.07, y - 0.05, 0.07), Vector3(sx * (TOP.x * 0.5 - 0.1), (y - 0.05) * 0.5, sz * (TOP.y * 0.5 - 0.1)), wood)
-
-
 func _build_on_table() -> void:
 	var y := TableWorld.TABLE_Y
 	# Fahrkarte vorne rechts
@@ -523,11 +480,7 @@ func _build_on_table() -> void:
 	tl.shaded = true
 	tl.pixel_size = 0.00042
 	ticket.add_child(tl)
-	# Zuckerstückchen
-	var sugar := _mat(Color(0.97, 0.96, 0.93), 0.9)
-	for k in 3:
-		var cube := _box_in(self, Vector3(0.014, 0.012, 0.014), Vector3(0.74 + k * 0.018, y + 0.006, -0.06 + (k % 2) * 0.012), sugar)
-		cube.rotation.y = k * 0.7
+	# die Zuckerstückchen daneben sind im Modell
 
 
 ## LED-Anzeige der Leben: Blechkasten an der Rückwand, links unter der Fahrplantafel.
@@ -565,64 +518,6 @@ func _build_newspaper() -> void:
 		hinge.add_child(page)
 
 
-func _build_benches() -> void:
-	# an den Seitenwänden (zur Mitte gedreht) und hinten unter den Fenstern
-	for s in [-1.0, 1.0]:
-		_bench(Vector3(s * (ROOM_W * 0.5 - 0.32), 0, -0.9), -s * PI * 0.5, 2.0)
-		_bench(Vector3(s * (ROOM_W * 0.5 - 0.32), 0, 1.4), -s * PI * 0.5, 2.0)
-		_bench(Vector3(s * WIN_X, 0, BACK_Z + 0.5), 0.0, 1.5)
-	# Koffer neben der linken hinteren Bank
-	var leather := _mat(Color(0.36, 0.22, 0.12), 0.6)
-	var case := _box_in(self, Vector3(0.55, 0.38, 0.18), Vector3(-WIN_X + 0.95, 0.19, BACK_Z + 0.45), leather)
-	case.rotation.y = 0.25
-	_box_in(case, Vector3(0.12, 0.03, 0.03), Vector3(0, 0.205, 0), _mat(Color(0.15, 0.1, 0.06), 0.5))
-
-
-func _bench(pos: Vector3, rot: float, length: float) -> void:
-	var root := Node3D.new()
-	root.position = pos
-	root.rotation.y = rot
-	add_child(root)
-	var slat := StandardMaterial3D.new()
-	slat.albedo_texture = preload("res://assets/models/table_wood_color.png")
-	slat.albedo_color = Color(0.55, 0.36, 0.2)
-	slat.roughness = 0.55
-	slat.uv1_triplanar = true
-	var iron := _mat(Color(0.08, 0.09, 0.08), 0.5)
-	for k in 4: # Sitzlatten
-		_box_in(root, Vector3(length, 0.03, 0.08), Vector3(0, 0.45, -0.15 + k * 0.1), slat)
-	for k in 3: # Lehne
-		var b := _box_in(root, Vector3(length, 0.08, 0.025), Vector3(0, 0.6 + k * 0.12, -0.24 - k * 0.02), slat)
-		b.rotation.x = -0.18
-	var n := 3 if length > 1.6 else 2
-	for k in n: # gusseiserne Seitenteile
-		var x := -length * 0.5 + 0.1 + k * (length - 0.2) / (n - 1)
-		_box_in(root, Vector3(0.04, 0.44, 0.04), Vector3(x, 0.22, 0.12), iron)
-		_box_in(root, Vector3(0.04, 0.88, 0.04), Vector3(x, 0.44, -0.22), iron)
-		_box_in(root, Vector3(0.04, 0.04, 0.4), Vector3(x, 0.42, -0.04), iron)
-	for sx in [-1.0, 1.0]: # Armlehnen
-		_box_in(root, Vector3(0.05, 0.03, 0.4), Vector3(sx * length * 0.5, 0.65, -0.04), iron)
-
-
-## Heißwasserkessel mit Hahn an der rechten Wand (für Tee).
-func _build_kettle() -> void:
-	var tin := _mat(Color(0.55, 0.57, 0.52), 0.4)
-	tin.metallic = 0.7
-	var x := ROOM_W * 0.5 - 0.3
-	var z := 0.25
-	_box_in(self, Vector3(0.4, 0.8, 0.5), Vector3(x, 0.4, z), _mat(Color(0.2, 0.3, 0.24), 0.6)) # Sockel
-	_cyl_in(self, 0.2, 0.2, 0.6, Vector3(x, 1.1, z), tin)
-	_cyl_in(self, 0.21, 0.21, 0.04, Vector3(x, 1.42, z), tin)
-	var tap := _cyl_in(self, 0.015, 0.015, 0.12, Vector3(x - 0.24, 0.92, z), _mat(Color(0.7, 0.55, 0.3), 0.3))
-	tap.rotation.z = PI * 0.5
-	var sign := _label("HEISSWASSER", FONT_SIGN, 48, Color(0.95, 0.92, 0.8))
-	sign.position = Vector3(x - 0.205, 1.15, z)
-	sign.rotation.y = -PI * 0.5
-	sign.shaded = true
-	sign.pixel_size = 0.0008 # passt auf den runden Kessel
-	add_child(sign)
-
-
 # --- Bausteine ------------------------------------------------------------------------
 
 func _label(text: String, font: Font, size: int, color: Color) -> Label3D:
@@ -652,20 +547,6 @@ func _box_in(parent: Node, size: Vector3, pos: Vector3, m: Material) -> MeshInst
 	var b := BoxMesh.new()
 	b.size = size
 	mi.mesh = b
-	mi.material_override = m
-	mi.position = pos
-	parent.add_child(mi)
-	return mi
-
-
-func _cyl_in(parent: Node, top: float, bottom: float, h: float, pos: Vector3, m: Material) -> MeshInstance3D:
-	var mi := MeshInstance3D.new()
-	var c := CylinderMesh.new()
-	c.top_radius = top
-	c.bottom_radius = bottom
-	c.height = h
-	c.radial_segments = 24
-	mi.mesh = c
 	mi.material_override = m
 	mi.position = pos
 	parent.add_child(mi)

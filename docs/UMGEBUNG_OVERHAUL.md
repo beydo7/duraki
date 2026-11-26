@@ -6,8 +6,8 @@ Requisiten, keine neuen Tischformen, gleiche Farben, gleiche Positionen, gleiche
 Lichtidee. Verbessert wird nur die Machart: echte Profile statt Kisten, gerundete Kanten, saubere
 Materialien. Spiellogik wird nicht angefasst.
 
-Pilot ist das **Alte Casino**. Die übrigen Räume (Hinterzimmer, Bahnhof, U-Boot, Zirkuswagen)
-folgen erst nach Pascals Abnahme.
+Pilot war das **Alte Casino**; nach Pascals Freigabe folgten **Bahnhofswartesaal**, **U-Boot**,
+**Zirkuswagen** und die Kleinteile des **Hinterzimmers** (Abschnitte 6 bis 9).
 
 ## 1. Sicherung und Arbeitsordner (auf Pascals PC)
 
@@ -21,10 +21,14 @@ folgen erst nach Pascals Abnahme.
 
 **Blender liefert die Form, Godot die Materialien und alles Bewegliche.**
 
-- `art/blender/casino.py` baut die ganze Szene im laufenden Blender (`casino.build_all()`) und
-  schreibt die Modelle (`casino.export_all()`). Alle Maße und Positionen stammen 1:1 aus den
+- Je Raum ein Skript in `art/blender/` (`casino.py`, `station.py`, `submarine.py`, `circus.py`,
+  dazu `table_small.py`); die gemeinsamen Bausteine (Profile ziehen, Drehkörper, Rohre, Materialien,
+  Export) stehen in `room_kit.py`.
+- `casino.py` baut die ganze Szene im laufenden Blender (`casino.build_all()`) und
+  schreibt die Modelle (`casino.export_all()`); die anderen Skripte genauso. Alle Maße und Positionen stammen 1:1 aus den
   früheren Code-Bauten; Koordinaten im Skript sind Godot-Koordinaten (`geo.G`).
-- `art/blender/casino.blend` ist die gespeicherte Szene zum Ansehen (ganzer Raum mit Kulisse und
+- `art/blender/casino.blend` (ebenso `station.blend`, `submarine.blend`, `circus.blend`,
+  `table_small.blend`) ist die gespeicherte Szene zum Ansehen (ganzer Raum mit Kulisse und
   Licht). Achtung: `casino.build_all()` baut alles neu und verwirft Handarbeit in der Datei.
 - In Godot setzt `RoomKit.model(parent, szene, {Materialname: Material})` das Modell ein und
   ordnet die Materialien **über ihren Namen** zu. Dadurch bleiben Farben, Lauflichter,
@@ -86,7 +90,56 @@ Angepasste Skripte: `scenes/match/rooms/casino_room.gd`, `slot_machine.gd`, `min
 
 ## 5. Prüfen
 
-- Vorher/Nachher aus festen Kameras: `tests/screenshot.tscn` mit `room=casino`, `nohud`,
+- Vorher/Nachher aus festen Kameras: `tests/screenshot.tscn` mit `room=<raum>`, `nohud`,
   `cam=x,y,z,zielx,ziely,zielz[,fov]`, `gold=n`.
-- Tests wie in `docs/GD.md`, Abschnitt Tests; `cosmetics_tests` baut das Casino mit allen
-  Deck-Belohnungen (Filz, Rand, Ecken, Extras).
+- Tests wie in `docs/GD.md`, Abschnitt Tests. `casino_tests` und `rooms_tests` prüfen, dass die
+  Modelle alle Teile enthalten, die der Code bewegt, einzeln schaltet oder umfärbt;
+  `cosmetics_tests` baut jeden Raum mit allen Deck-Belohnungen (Filz, Rand, Ecken, Extras).
+
+## 6. Bahnhofswartesaal (`station.glb`, `train.glb`)
+
+Aus Blender: Holztisch (Platte mit runder Kante, Zarge mit Zierstab, konische Beine), Fenster mit
+profiliertem Rahmen, Sprossen und Fensterbank, Gussheizkörper mit Rohren und Ventil, sechs Bänke
+(Latten mit runden Kanten, Gussseitenteile mit geschwungener Armlehne), Koffer mit Riemen, Griff
+und Beschlägen, Heißwasserkessel (Sockel mit Tür, Kessel mit Bändern, Deckel, Hahn), Rahmen und
+Klappfelder der Fahrplantafel, Neonleuchten (Reflektor, Fassungen, Aufhängung; `Roehre_0…2`
+leuchten einzeln), Kachel- und Sockelleisten, Deckenkehle, Zuckerstücke, Bahnsteiglampen, Zug mit
+gewölbtem Dach, Fensterrahmen und Lüftern.
+Im Code geblieben: Boden, Decke, Kachelwände, Bahnsteig und Gleis, Zeitung, Fahrkarte, alle
+Schriften, LED-Anzeige der Leben.
+Abweichung: Die Gussteile der Bänke sitzen jetzt an den Bankenden (vorher 10 cm eingerückt, die
+Armlehnen schwebten daneben).
+
+## 7. U-Boot (`submarine.glb`, `sea.glb`, `gauge.glb`)
+
+Aus Blender: Spanten als Profilträger mit runden Ecken und Nietenreihen, Rohre mit Flanschen und
+Schellen, Ventilräder mit Speichen und Spindel, Notlicht im Schutzkorb (`Notlicht`), Bullauge
+(Messingrahmen mit Sechskantschrauben, Rohr, Glas), Sonar-Konsole (Gehäuse, Blende, gewölbter
+Schirm, Gitter, Knöpfe), Tisch (Linoleum mit Stahlkante, verschraubte Rohrbeine), Blechbecher,
+Seekarte mit aufgerollter Ecke, Korblampen, Periskop (`Periskop` dreht sich; Ringe, Nieten, Okular,
+geriffelte Griffe), Fische, Wal, Druckanzeigen (Gehäuse, Zeiger `Zeiger`, Kontrollleuchte `Leuchte`).
+Im Code geblieben: Boden, Decke, Wandplatten, Meer, Lichtstrahlen, Luftblasen, Sonarstrahl und
+Echos, Rohre unter den Druckanzeigen, Dampf.
+Abweichung: Die Deckenlampen hängen jetzt an einem Kabelrohr (vorher schwebten sie 15 cm unter
+der Decke).
+
+## 8. Zirkuswagen (`circus.glb`, `music_box.glb`, `balloon.glb`)
+
+Aus Blender: Deckenbretter mit Fugen, Goldleisten mit Profil, Vorhang mit Falten an einer Stange
+mit Ringen, Kostüme auf Bügeln (Falten, Kragen, Pailletten), Zylinder und Clownshut auf dem Bord,
+Schminkspiegel (Profilrahmen, Birnen mit Fassung), Schminktisch mit Schubkastenblende, Puderdose,
+Lippenstift, Spieltisch (eingelassenes Tuch, runde Holzkante, Goldkante), Trommel mit Spannreifen
+und Schnürung, Lichterkette (durchhängendes Kabel, `Lichterkette_00…21` blinken einzeln), Spieluhr
+(`Spieluhr` mit `Deckel`, `Taenzerin`, `Springteufel`, `Key`), Luftballon und Knoten als Vorlage.
+Im Code geblieben: Boden, Bretterwände, Rückwand, Zelt und Manege, Plakat, Ballonschnüre, Konfetti.
+Abweichungen: Goldkante läuft um den ganzen Tisch (vorher nur an den Längsseiten); Kostümleiste
+und Hutbord sitzen an der Wand (vorher 6 cm davor); Vorhang einfarbig rot mit echten Falten
+(vorher zwei Rottöne im Wechsel); Holzteile haben eine Maserung als Relief, Farbe unverändert.
+
+## 9. Hinterzimmer und Kleinteile (`assets/models/table_small.glb`)
+
+Raum, Tisch und Requisiten des Hinterzimmers waren schon Blender-Modelle (`build_models.py`) und
+sind unverändert. Neu aus Blender sind die Teile, die `TableProps` in allen Räumen aus Grundformen
+baute: Kerzen der Leben (Schmelzmulde, Wachstropfen, Docht; drei Höhen), Flamme, Messingteller,
+Goldmünzen (Rand und Mittelfeld). Aschenbecher und Zigarettenschachtel (`ashtray.gd`,
+`cigarette_pack.gd`) sind weiter Code – beide hängen eng an den Rauch-Easter-Eggs.

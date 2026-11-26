@@ -5,6 +5,7 @@ extends Node3D
 ## Verlierst du ein Leben, zittert der rechte Ballon kurz und platzt mit Konfetti.
 
 const SND_POP := preload("res://assets/rooms/circus/pop.wav")
+const MODEL := preload("res://assets/rooms/circus/balloon.glb") # Vorlagen, gebaut mit art/blender/circus.py
 const COLORS := [Color(0.85, 0.12, 0.12), Color(0.95, 0.75, 0.15), Color(0.15, 0.4, 0.85),
 	Color(0.2, 0.7, 0.35), Color(0.8, 0.3, 0.7)]
 const STEP := 0.1
@@ -12,6 +13,8 @@ const R := 0.052
 const STRING_LEN := 0.36
 
 var _balloons: Array[Dictionary] = []
+var _ball_mesh: Mesh # Tropfenform und Knoten aus dem Modell
+var _knot_mesh: Mesh
 var _t := 0.0
 
 
@@ -29,6 +32,11 @@ func set_lives(count: int) -> void:
 	for b in _balloons:
 		(b.root as Node3D).queue_free()
 	_balloons.clear()
+	if _ball_mesh == null:
+		var src := MODEL.instantiate()
+		_ball_mesh = (src.find_child("Ballon", true, false) as MeshInstance3D).mesh
+		_knot_mesh = (src.find_child("Ballonknoten", true, false) as MeshInstance3D).mesh
+		src.free()
 	for i in maxi(count, 0):
 		var root := Node3D.new() # dreht sich um den Knoten an der Tischkante
 		root.position = Vector3((i - (count - 1) * 0.5) * STEP, 0, 0)
@@ -39,8 +47,17 @@ func set_lives(count: int) -> void:
 		var m := RoomKit.mat(COLORS[i % COLORS.size()], 0.25)
 		m.metallic_specular = 0.8
 		var top := Vector3(-sin(s.rotation.z) * STRING_LEN, STRING_LEN, 0)
-		var ball := RoomKit.sphere(root, R, top + Vector3(0, R * 1.1, 0), m, Vector3(1.0, 1.2, 1.0))
-		RoomKit.cyl(root, 0.004, 0.012, 0.018, top + Vector3(0, 0.005, 0), m, 8) # Knoten
+		var ball := MeshInstance3D.new()
+		ball.mesh = _ball_mesh
+		ball.material_override = m
+		ball.position = top + Vector3(0, R * 1.1, 0)
+		ball.scale = Vector3(1.0, 1.2, 1.0)
+		root.add_child(ball)
+		var knot := MeshInstance3D.new() # Knoten
+		knot.mesh = _knot_mesh
+		knot.material_override = m
+		knot.position = top + Vector3(0, 0.005, 0)
+		root.add_child(knot)
 		RoomKit.sphere(ball, 0.008, Vector3(-0.02, 0.025, 0.042), RoomKit.glow(Color(1, 1, 1), 0.4)) # Glanz
 		_balloons.append({"root": root, "ball": ball, "alive": true, "phase": randf() * TAU, "shake": 0.0,
 			"color": COLORS[i % COLORS.size()]})

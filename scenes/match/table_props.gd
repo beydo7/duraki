@@ -18,7 +18,13 @@ var _wax: StandardMaterial3D
 var _flame: StandardMaterial3D
 var _brass: StandardMaterial3D
 var _gold: StandardMaterial3D
-var _coin_mesh: CylinderMesh
+var _coin_mesh: Mesh
+## Vorlagen aus Blender (table_small.glb, gebaut mit art/blender/table_small.py): Kerzen, Flamme, Teller, Münze
+const SMALL_MODEL := preload("res://assets/models/table_small.glb")
+var _candle_meshes: Array[Mesh] = []
+var _flame_mesh: Mesh
+var _dish_mesh: Mesh
+var _wick: StandardMaterial3D
 ## Casino: Pokerchips (rot, schwarz, blau, grün mit weißem Rand) statt Goldmünzen
 var chip_style := false
 const CHIP_MODEL := preload("res://assets/rooms/casino/chip.glb")
@@ -64,11 +70,14 @@ func _init() -> void:
 	_gold.metallic = 1.0
 	if Cosmetics.selected(&"coins") != &"": # Deck-Belohnung: andere Münzen
 		_gold = Cosmetics.coin_material(Cosmetics.selected(&"coins"))
-	_coin_mesh = CylinderMesh.new()
-	_coin_mesh.top_radius = 0.016
-	_coin_mesh.bottom_radius = 0.016
-	_coin_mesh.height = 0.0032
-	_coin_mesh.radial_segments = 20
+	_wick = _mat(Color(0.05, 0.04, 0.03), 0.9)
+	var src := SMALL_MODEL.instantiate()
+	_coin_mesh = (src.find_child("Muenze", true, false) as MeshInstance3D).mesh
+	_flame_mesh = (src.find_child("Flamme", true, false) as MeshInstance3D).mesh
+	_dish_mesh = (src.find_child("Kerzenteller", true, false) as MeshInstance3D).mesh
+	for k in 3:
+		_candle_meshes.append((src.find_child("Kerze_%d" % k, true, false) as MeshInstance3D).mesh)
+	src.free()
 
 
 func _process(delta: float) -> void:
@@ -112,14 +121,10 @@ func set_lives(count: int) -> void:
 	for c in _candles:
 		(c.root as Node3D).queue_free()
 	_candles.clear()
-	var dish := MeshInstance3D.new()
-	var dm := CylinderMesh.new()
-	dm.top_radius = 0.062
-	dm.bottom_radius = 0.066
-	dm.height = 0.008
-	dish.mesh = dm
+	var dish := MeshInstance3D.new() # Messingteller mit Rand (Ursprung = Standfläche)
+	dish.mesh = _dish_mesh
 	dish.material_override = _brass
-	dish.position = CANDLE_ORIGIN + Vector3(0, 0.004, 0)
+	dish.position = CANDLE_ORIGIN
 	add_child(dish)
 	for i in count:
 		var a := TAU * i / maxf(count, 1) + 0.6
@@ -259,43 +264,15 @@ func _candle(pos: Vector3, height: float) -> Dictionary:
 	var root := Node3D.new()
 	root.position = pos
 	add_child(root)
+	# Kerze mit Schmelzmulde, Wachstropfen und Docht aus Blender (drei Höhen: 7, 8, 9 cm)
 	var body := MeshInstance3D.new()
-	var bm := CylinderMesh.new()
-	bm.top_radius = 0.0115
-	bm.bottom_radius = 0.0125
-	bm.height = height
-	bm.radial_segments = 16
-	body.mesh = bm
-	body.material_override = _wax
-	body.position.y = height * 0.5
+	body.mesh = _candle_meshes[clampi(roundi((height - 0.07) / 0.01), 0, 2)]
+	for i in body.mesh.get_surface_count():
+		var wick := body.mesh.surface_get_material(i).resource_name == "Docht"
+		body.set_surface_override_material(i, _wick if wick else _wax)
 	root.add_child(body)
-	# Wachstropfen am Rand
-	for k in 3:
-		var drip := MeshInstance3D.new()
-		var dm := CapsuleMesh.new()
-		dm.radius = 0.0028
-		dm.height = 0.012 + k * 0.006
-		drip.mesh = dm
-		drip.material_override = _wax
-		var a := k * 2.2 + pos.x * 40.0
-		drip.position = Vector3(cos(a) * 0.0115, height - dm.height * 0.4, sin(a) * 0.0115)
-		root.add_child(drip)
-	var wick := MeshInstance3D.new()
-	var wm := CylinderMesh.new()
-	wm.top_radius = 0.0009
-	wm.bottom_radius = 0.0009
-	wm.height = 0.008
-	wick.mesh = wm
-	wick.material_override = _mat(Color(0.05, 0.04, 0.03), 0.9)
-	wick.position.y = height + 0.003
-	root.add_child(wick)
 	var flame := MeshInstance3D.new()
-	var fm := SphereMesh.new()
-	fm.radius = 0.0055
-	fm.height = 0.024
-	fm.radial_segments = 12
-	fm.rings = 8
-	flame.mesh = fm
+	flame.mesh = _flame_mesh
 	flame.material_override = _flame
 	flame.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	var pivot := Node3D.new()

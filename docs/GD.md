@@ -133,7 +133,10 @@ Ein Run = 3 Akte mit je 3 normalen Gegnern + Boss (12 Tische), 3 Leben (Kerzen).
   Geräusche (`roulette*.wav`, -14 dB). Bankerlampe: Zugkette anklicken schaltet sie an/aus
   (`lamp_chain.wav`).
   Texturen und Geräusche: `tools/generate_casino.py` → `assets/rooms/casino/`.
-  **Bahnhofswartesaal** (`StationRoom`, ebenfalls ganz in Code): unten grüne, darüber weiße Kacheln,
+  Auch Bahnhof, U-Boot und Zirkuswagen bekommen ihre Formen aus Blender (`art/blender/station.py`,
+  `submarine.py`, `circus.py`, gemeinsame Bausteine in `room_kit.py`), ebenso Kerzen und Münzen
+  (`table_small.py`); der Code ordnet Materialien zu und bewegt die Teile (`docs/UMGEBUNG_OVERHAUL.md`).
+  **Bahnhofswartesaal** (`StationRoom`): unten grüne, darüber weiße Kacheln,
   Schachbrett-Fliesen, Holzbänke, Heizkörper, Heißwasserkessel, zwei Fenster zum Bahnsteig, Fahrplantafel
   „DURAKI BAHNHOF“ mit deutschen Städten (Hannover, Neustadt am Rübenberge …), brummende Neonröhren, die
   ab und zu flackern. Alle 40–80 s rauscht draußen ein Zug vorbei (Signal `train_passing`): Licht huscht
@@ -142,7 +145,7 @@ Ein Run = 3 Akte mit je 3 normalen Gegnern + Boss (12 Tische), 3 Leben (Kerzen).
   `TableProps.external_lives`): eine rote LED pro Leben, Leben weg → LED blinkt und geht aus.
   Aufgeschlagene Zeitung „Bahnhofs-Anzeiger“ auf der hinteren linken Bank; auf dem Holztisch Fahrkarte
   und Zucker. Texturen und Geräusche: `tools/generate_station.py` → `assets/rooms/station/`.
-  **U-Boot** (`SubmarineRoom`, in Code, Bausteine aus `RoomKit`): grüne Stahlwände mit Nieten und
+  **U-Boot** (`SubmarineRoom`): grüne Stahlwände mit Nieten und
   Spanten, bunte Rohre mit Ventilrädern, Gitterlampen, pulsierendes rotes Notlicht, Metalltisch mit
   Linoleum, Blechbecher und Seekarte. Hinten links ein **Bullauge** (Platte mit rundem Loch, Messingring):
   draußen ziehen Fische und Luftblasen vorbei. Links eine **Sonar-Konsole**: der Strahl kreist, bei jeder
@@ -410,6 +413,8 @@ Run: Schwierigkeit, Hinweise, Tutorial im Hauptmenü anzeigen).
   alle Räume mit allen Belohnungen bauen (107 Checks)
 - `godot --headless --path . res://tests/casino_tests.tscn` → Casino-Modelle: alle Teile da, Hebel, Kessel,
   Zugkette, Lämpchen, Pokerchips, Deck-Belohnungen am Tisch (32 Checks)
+- `godot --headless --path . res://tests/rooms_tests.tscn` → Bahnhof, U-Boot, Zirkuswagen: alle Teile da, Zug,
+  Periskop, Wal, Druckanzeigen, Spieluhr, Ballons (68 Checks)
 - `godot --headless --path . res://tests/relic_tests.tscn` → jedes Relikt im echten Ablauf (28 Checks),
   auch Relikte, die mitten im Duell dazukommen (wirken sofort, `match.gd` `_apply_relics`)
 - Absturz-Suche unter Windows: `Spiel_starten.bat` schreibt das Log nach `logs\letzter_start.log`.

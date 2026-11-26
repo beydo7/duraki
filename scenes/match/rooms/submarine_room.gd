@@ -1,6 +1,8 @@
 class_name SubmarineRoom
 extends Node3D
-## Raum „U-Boot“ – ganz in Code gebaut (kein Blender-Modell).
+## Raum „U-Boot“. Formen aus Blender (assets/rooms/submarine/submarine.glb und sea.glb, gebaut
+## mit art/blender/submarine.py), Materialien, Lichter und alles Bewegliche hier im Code.
+## Boden, Decke, Wandplatten, das Meer hinter dem Bullauge, Sonarstrahl und Luftblasen bleiben Code.
 ##
 ## Enge Messe eines alten U-Boots: grüne Stahlwände mit Nieten und Spanten, Rohre und
 ## Ventilräder an der Decke, Gitterlampen, ein rotes Notlicht. Hinten links ein rundes Bullauge,
@@ -13,6 +15,8 @@ extends Node3D
 ## (Walgesang) und es gibt den geheimen Erfolg „Moby Durak“.
 
 const DIR := "res://assets/rooms/submarine/"
+const MODEL := preload("res://assets/rooms/submarine/submarine.glb")
+const SEA := preload("res://assets/rooms/submarine/sea.glb")
 const SND_HUM := preload("res://assets/rooms/submarine/hum.wav")
 const SND_SONAR := preload("res://assets/rooms/submarine/sonar.wav")
 const SND_CREAK := preload("res://assets/rooms/submarine/creak.wav")
@@ -61,18 +65,17 @@ var _next_creak := 12.0
 var _hum: AudioStreamPlayer
 
 
+var _model: Node3D # submarine.glb
 var _skin_felt: Array[Material] = []
 var _skin_rim: Array[Material] = []
 
 
 func _ready() -> void:
 	_build_shell()
-	_build_pipes()
+	_build_model()
 	_build_porthole()
 	_build_sonar()
-	_build_table()
 	_build_periscope()
-	_build_lamps()
 	lives_panel = GaugeLives.new()
 	lives_panel.position = Vector3(1.55, 1.0, BACK_Z)
 	lives_panel.floor_drop = lives_panel.position.y # Rohre bis zum Boden
@@ -222,35 +225,47 @@ func _build_shell() -> void:
 	var plate := RoomKit.plate_with_hole(ph, PORT_R, hull)
 	plate.position = PORT + Vector3(0, 0, -0.005)
 	add_child(plate)
-	# Spanten (Rippen) an Wänden und Decke
-	var rib := RoomKit.mat(Color(0.2, 0.27, 0.23), 0.5, 0.5)
-	for z: float in [-1.6, -0.5, 0.6, 1.7]:
-		for s: float in [-1.0, 1.0]:
-			RoomKit.box(self, Vector3(0.12, CEIL, 0.16), Vector3(s * (ROOM_W * 0.5 - 0.06), CEIL * 0.5, z), rib)
-		RoomKit.box(self, Vector3(ROOM_W, 0.12, 0.16), Vector3(0, CEIL - 0.06, z), rib)
-	for x: float in [-0.45, 0.45, 2.0, -2.0]:
-		RoomKit.box(self, Vector3(0.14, CEIL, 0.1), Vector3(x, CEIL * 0.5, BACK_Z + 0.05), rib)
+	# Spanten, Rohre, Ventilräder und Lampen kommen aus Blender
 
 
-func _build_pipes() -> void:
+## Alles aus Blender: Spanten mit Nieten, Rohre mit Flanschen und Ventilrädern, Notlicht im Korb,
+## Bullauge, Sonar-Konsole, Tisch mit Blechbecher und Seekarte, Lampen, Periskop.
+## Die Materialien gehören zu den Namen, die sie in Blender haben (art/blender/submarine.py).
+func _build_model() -> void:
 	var cols := [Color(0.55, 0.12, 0.1), Color(0.75, 0.6, 0.2), Color(0.42, 0.45, 0.44), Color(0.3, 0.4, 0.55)]
-	for i in 4: # Rohre quer an der Rückwand oben
-		var m := RoomKit.mat(cols[i], 0.5, 0.4)
-		var p := RoomKit.cyl(self, 0.035 + 0.01 * (i % 2), 0.035 + 0.01 * (i % 2), ROOM_W, Vector3(0, CEIL - 0.3 - i * 0.1, BACK_Z + 0.18 + i * 0.03), m)
-		p.rotation.z = PI * 0.5
-	for s: float in [-1.0, 1.0]: # längs an den Seiten
-		for i in 2:
-			var p := RoomKit.cyl(self, 0.04, 0.04, 6.0, Vector3(s * (ROOM_W * 0.5 - 0.2), CEIL - 0.25 - i * 0.12, 0.6), RoomKit.mat(cols[i + 2], 0.5, 0.4))
-			p.rotation.x = PI * 0.5
-	# Ventilräder an den Rohren
-	for x: float in [-0.9, 0.3, 1.9]:
-		RoomKit.torus(self, 0.08, 0.012, Vector3(x, CEIL - 0.3, BACK_Z + 0.28), RoomKit.mat(Color(0.75, 0.12, 0.1), 0.5)).rotation.x = PI * 0.5
-	# Rotes Notlicht im Gitter an der linken Wand
 	_red_mat = RoomKit.glow(Color(1.0, 0.1, 0.06), 2.0)
-	RoomKit.sphere(self, 0.07, Vector3(-ROOM_W * 0.5 + 0.12, 2.1, -1.2), _red_mat, Vector3(0.7, 1.0, 1.0))
-	var cage := RoomKit.mat(Color(0.15, 0.15, 0.15), 0.5, 0.6)
-	for k in 3:
-		RoomKit.torus(self, 0.08, 0.005, Vector3(-ROOM_W * 0.5 + 0.12, 2.04 + k * 0.06, -1.2), cage)
+	var top := RoomKit.mat(Color(0.18, 0.22, 0.2), 0.75) # Linoleum
+	var steel := RoomKit.mat(Color(0.45, 0.48, 0.47), 0.35, 0.8)
+	_skin_felt = [top]
+	_skin_rim = [steel]
+	var tube := RoomKit.mat(Color(0.2, 0.26, 0.24), 0.5, 0.5)
+	var glass := StandardMaterial3D.new()
+	glass.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	glass.albedo_color = Color(0.6, 0.85, 0.9, 0.12)
+	glass.roughness = 0.05
+	glass.metallic_specular = 1.0
+	var chart := StandardMaterial3D.new()
+	chart.albedo_color = Color(0.82, 0.8, 0.68)
+	chart.roughness = 0.95
+	chart.cull_mode = BaseMaterial3D.CULL_DISABLED # aufgerollte Ecke: auch die Unterseite zeigen
+	_model = RoomKit.model(self, MODEL, {
+		"Spant": RoomKit.mat(Color(0.2, 0.27, 0.23), 0.5, 0.5),
+		"Rohr_Rot": RoomKit.mat(cols[0], 0.5, 0.4), "Rohr_Gelb": RoomKit.mat(cols[1], 0.5, 0.4),
+		"Rohr_Grau": RoomKit.mat(cols[2], 0.5, 0.4), "Rohr_Blau": RoomKit.mat(cols[3], 0.5, 0.4),
+		"Ventilrad": RoomKit.mat(Color(0.75, 0.12, 0.1), 0.5), "Notlicht": _red_mat,
+		"Gitter": RoomKit.mat(Color(0.15, 0.15, 0.15), 0.5, 0.6), "Messing": RoomKit.mat(Color(0.8, 0.6, 0.3), 0.28, 1.0),
+		"Bullaugenrohr": tube, "Bullaugenglas": glass,
+		"Konsole": RoomKit.mat(Color(0.32, 0.36, 0.34), 0.45, 0.6), "Konsole_Dunkel": RoomKit.mat(Color(0.12, 0.12, 0.12), 0.4, 0.5),
+		"Sonarschirm": RoomKit.glow(Color(0.02, 0.25, 0.08), 0.8), "Sonargitter": RoomKit.glow(Color(0.2, 0.9, 0.35), 1.2),
+		"Sonarknopf_0": RoomKit.glow(Color(1, 0.2, 0.1), 1.5), "Sonarknopf_1": RoomKit.glow(Color(1, 0.8, 0.2), 1.5),
+		"Sonarknopf_2": RoomKit.glow(Color(0.3, 1, 0.4), 1.5), "Sonarknopf_3": RoomKit.glow(Color(0.3, 1, 0.4), 1.5),
+		"Linoleum": top, "Tischstahl": steel, "Blechbecher": RoomKit.mat(Color(0.62, 0.64, 0.62), 0.35, 0.8),
+		"Seekarte": chart, "Tinte": RoomKit.mat(Color(0.3, 0.4, 0.55), 0.9),
+		"Periskop_Lack": RoomKit.mat(Color(0.36, 0.42, 0.38), 0.45, 0.35),
+		"Periskop_Dunkel": RoomKit.mat(Color(0.22, 0.26, 0.23), 0.5, 0.35), "Okular": RoomKit.mat(Color(0.05, 0.05, 0.05), 0.4),
+		"Lampenglas": RoomKit.glow(Color(1.0, 0.85, 0.6), 3.0),
+	})
+	# Rotes Notlicht an der linken Wand (pulsiert, siehe _process)
 	_red_light = OmniLight3D.new()
 	_red_light.position = Vector3(-ROOM_W * 0.5 + 0.35, 2.1, -1.2)
 	_red_light.light_color = Color(1.0, 0.15, 0.1)
@@ -259,24 +274,7 @@ func _build_pipes() -> void:
 
 
 func _build_porthole() -> void:
-	var brass := RoomKit.mat(Color(0.8, 0.6, 0.3), 0.28, 1.0)
-	var ring := RoomKit.torus(self, PORT_R + 0.03, 0.045, PORT + Vector3(0, 0, 0.02), brass)
-	ring.rotation.x = PI * 0.5
-	for k in 8: # Schrauben im Ring
-		var a := TAU * k / 8.0
-		RoomKit.sphere(self, 0.016, PORT + Vector3(cos(a), sin(a), 0) * (PORT_R + 0.03) + Vector3(0, 0, 0.065), brass)
-	var tube := RoomKit.cyl(self, PORT_R, PORT_R, 0.3, PORT + Vector3(0, 0, -0.15), RoomKit.mat(Color(0.2, 0.26, 0.24), 0.5, 0.5), 40)
-	tube.rotation.x = PI * 0.5
-	(tube.mesh as CylinderMesh).cap_top = false # offenes Rohr, man schaut hindurch
-	(tube.mesh as CylinderMesh).cap_bottom = false
-	(tube.material_override as StandardMaterial3D).cull_mode = BaseMaterial3D.CULL_DISABLED
-	var glass := StandardMaterial3D.new()
-	glass.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	glass.albedo_color = Color(0.6, 0.85, 0.9, 0.12)
-	glass.roughness = 0.05
-	glass.metallic_specular = 1.0
-	var g := RoomKit.cyl(self, PORT_R, PORT_R, 0.01, PORT + Vector3(0, 0, -0.02), glass, 40)
-	g.rotation.x = PI * 0.5
+	# Messingring, Rohr und Glas sind im Modell
 	# Meer dahinter: dunkles Blau, Lichtstrahlen von oben, Fische, Blasen
 	var sea := StandardMaterial3D.new()
 	sea.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
@@ -290,6 +288,8 @@ func _build_porthole() -> void:
 	for k in 3:
 		var r := RoomKit.quad(self, Vector2(0.25, 3.0), PORT + Vector3(-0.6 + k * 0.55, 0.6, -2.0 + k * 0.2), ray)
 		r.rotation.z = 0.35
+	var sea_model := SEA.instantiate() # Vorlage für die Fische und der Wal
+	var fish_mesh := (sea_model.find_child("Fisch_Koerper", true, false) as MeshInstance3D).mesh
 	var fish_mat := RoomKit.glow(Color(0.55, 0.72, 0.75), 0.5)
 	var fish_mat2 := RoomKit.glow(Color(0.95, 0.65, 0.25), 0.5)
 	for k in 10:
@@ -299,9 +299,10 @@ func _build_porthole() -> void:
 		f.position = Vector3(_view_x(dz) + randf_range(-1.2, 1.2), y, BACK_Z - dz)
 		add_child(f)
 		var m := fish_mat if k % 3 else fish_mat2
-		RoomKit.sphere(f, 0.05, Vector3.ZERO, m, Vector3(1.6, 0.6, 0.35))
-		var tail := RoomKit.box(f, Vector3(0.04, 0.06, 0.005), Vector3(-0.085, 0, 0), m)
-		tail.rotation.z = PI * 0.25
+		var body := MeshInstance3D.new()
+		body.mesh = fish_mesh
+		body.material_override = m
+		f.add_child(body)
 		var sc := randf_range(0.9, 1.6)
 		f.scale = Vector3.ONE * sc
 		_fish.append({"node": f, "y": y, "speed": randf_range(0.12, 0.3), "wobble": randf_range(0.8, 1.6), "phase": randf() * TAU})
@@ -327,46 +328,25 @@ func _build_porthole() -> void:
 	bubbles.mesh = bm
 	add_child(bubbles)
 	# der Wal (unsichtbar bis zum Easter Egg)
-	_whale = Node3D.new()
+	_whale = sea_model.find_child("Wal", true, false) as Node3D
+	_whale.owner = null # gehört nicht mehr zur Vorlagen-Szene
+	for n in _whale.find_children("*", "", true, false):
+		n.owner = null
+	_whale.get_parent().remove_child(_whale)
+	add_child(_whale)
+	sea_model.free()
+	RoomKit.apply_materials(_whale, {
+		"Wal_Haut": RoomKit.glow(Color(0.16, 0.22, 0.3), 0.6), "Wal_Bauch": RoomKit.glow(Color(0.5, 0.56, 0.6), 0.5),
+		"Wal_Auge": RoomKit.mat(Color(0.02, 0.02, 0.02), 0.2), "Wal_Maul": RoomKit.mat(Color(0.05, 0.06, 0.08), 0.6),
+	})
 	_whale.position = PORT + Vector3(-7.0, -0.2, -WHALE_DEPTH)
 	_whale.scale = Vector3.ONE * 0.7
 	_whale.visible = false
-	add_child(_whale)
-	var skin := RoomKit.glow(Color(0.16, 0.22, 0.3), 0.6)
-	var belly := RoomKit.glow(Color(0.5, 0.56, 0.6), 0.5)
-	RoomKit.sphere(_whale, 0.5, Vector3.ZERO, skin, Vector3(3.2, 1.0, 1.0))
-	RoomKit.sphere(_whale, 0.42, Vector3(0.2, -0.2, 0.15), belly, Vector3(3.0, 0.6, 0.8))
-	RoomKit.sphere(_whale, 0.04, Vector3(1.15, 0.12, 0.42), RoomKit.mat(Color(0.02, 0.02, 0.02), 0.2))
-	# Schwanzstiel und Schwanzflosse (zwei Flunken, schräg nach oben und unten)
-	RoomKit.sphere(_whale, 0.3, Vector3(-1.45, 0.06, 0), skin, Vector3(2.0, 0.75, 0.75))
-	for s: float in [-1.0, 1.0]:
-		var lobe := RoomKit.sphere(_whale, 0.3, Vector3(-2.05, 0.06 + s * 0.22, 0), skin, Vector3(0.55, 1.4, 0.18))
-		lobe.rotation.z = -s * 0.55
-	# Brustflossen auf beiden Seiten, nach hinten unten gerichtet
-	for side: float in [-1.0, 1.0]:
-		var fin := RoomKit.sphere(_whale, 0.3, Vector3(0.45, -0.32, side * 0.4), skin, Vector3(1.6, 0.35, 0.12))
-		fin.rotation.z = 0.55
-		fin.rotation.y = side * 0.35
-	# kleine Rückenflosse
-	var dorsal := RoomKit.sphere(_whale, 0.16, Vector3(-0.75, 0.42, 0), skin, Vector3(1.4, 1.0, 0.25))
-	dorsal.rotation.z = 0.5
-	# Maul-Linie
-	var mouth := RoomKit.box(_whale, Vector3(0.7, 0.012, 0.02), Vector3(1.15, -0.12, 0.38), RoomKit.mat(Color(0.05, 0.06, 0.08), 0.6))
-	mouth.rotation.z = -0.12
 
 
 func _build_sonar() -> void:
 	var pos := Vector3(-1.65, 0.62, BACK_Z + 0.25)
-	var steel := RoomKit.mat(Color(0.32, 0.36, 0.34), 0.45, 0.6)
-	RoomKit.box(self, Vector3(0.55, pos.y + 0.45, 0.4), Vector3(pos.x, (pos.y + 0.45) * 0.5, pos.z), steel) # Gehäuse
-	var screen_pos := pos + Vector3(0, 0.22, 0.21)
-	var bezel := RoomKit.cyl(self, 0.2, 0.2, 0.04, screen_pos, RoomKit.mat(Color(0.12, 0.12, 0.12), 0.4, 0.5), 40)
-	bezel.rotation.x = PI * 0.5
-	var screen := RoomKit.cyl(self, 0.17, 0.17, 0.045, screen_pos + Vector3(0, 0, 0.002), RoomKit.glow(Color(0.02, 0.25, 0.08), 0.8), 40)
-	screen.rotation.x = PI * 0.5
-	var grid := RoomKit.glow(Color(0.2, 0.9, 0.35), 1.2)
-	for r: float in [0.06, 0.12]:
-		RoomKit.torus(self, r, 0.002, screen_pos + Vector3(0, 0, 0.025), grid).rotation.x = PI * 0.5
+	var screen_pos := pos + Vector3(0, 0.22, 0.21) # Gehäuse, Schirm, Gitter und Knöpfe sind im Modell
 	_sweep = Node3D.new()
 	_sweep.position = screen_pos + Vector3(0, 0, 0.027)
 	add_child(_sweep)
@@ -379,10 +359,6 @@ func _build_sonar() -> void:
 		m.albedo_color = Color(0.5, 1.0, 0.6, 0.0)
 		b.material_override = m
 		_blips.append(b)
-	# Knöpfe und Lämpchen
-	for k in 4:
-		RoomKit.cyl(self, 0.018, 0.018, 0.02, pos + Vector3(-0.15 + k * 0.1, -0.12, 0.21),
-			RoomKit.glow([Color(1, 0.2, 0.1), Color(1, 0.8, 0.2), Color(0.3, 1, 0.4), Color(0.3, 1, 0.4)][k], 1.5)).rotation.x = PI * 0.5
 
 
 func _blip() -> void:
@@ -393,74 +369,12 @@ func _blip() -> void:
 	(b.material_override as StandardMaterial3D).albedo_color.a = 1.0
 
 
-func _build_table() -> void:
-	var y := TableWorld.TABLE_Y
-	var top := RoomKit.mat(Color(0.18, 0.22, 0.2), 0.75) # Linoleum
-	var steel := RoomKit.mat(Color(0.45, 0.48, 0.47), 0.35, 0.8)
-	_skin_felt = [top]
-	_skin_rim = [steel]
-	RoomKit.box(self, Vector3(TOP.x, 0.035, TOP.y), Vector3(0, y - 0.0175, 0), top)
-	for s: float in [-1.0, 1.0]: # Stahlkante
-		RoomKit.box(self, Vector3(TOP.x + 0.03, 0.05, 0.025), Vector3(0, y - 0.025, s * (TOP.y * 0.5 + 0.0125)), steel)
-		RoomKit.box(self, Vector3(0.025, 0.05, TOP.y), Vector3(s * (TOP.x * 0.5 + 0.0125), y - 0.025, 0), steel)
-	for sx: float in [-1.0, 1.0]: # am Boden verschraubte Beine
-		for sz: float in [-1.0, 1.0]:
-			RoomKit.cyl(self, 0.03, 0.03, y - 0.04, Vector3(sx * (TOP.x * 0.5 - 0.12), (y - 0.04) * 0.5, sz * (TOP.y * 0.5 - 0.12)), steel)
-			RoomKit.cyl(self, 0.07, 0.07, 0.015, Vector3(sx * (TOP.x * 0.5 - 0.12), 0.008, sz * (TOP.y * 0.5 - 0.12)), steel)
-	# Blechbecher und Seekarte
-	var tin := RoomKit.mat(Color(0.62, 0.64, 0.62), 0.35, 0.8)
-	RoomKit.cyl(self, 0.035, 0.032, 0.08, Vector3(0.9, y + 0.04, -0.22), tin)
-	RoomKit.torus(self, 0.022, 0.005, Vector3(0.94, y + 0.045, -0.22), tin).rotation.x = PI * 0.5
-	var chart := StandardMaterial3D.new()
-	chart.albedo_color = Color(0.82, 0.8, 0.68)
-	chart.roughness = 0.95
-	var c := RoomKit.box(self, Vector3(0.3, 0.003, 0.22), Vector3(0.85, y + 0.0015, 0.12), chart)
-	c.rotation.y = 0.3
-	var ink := RoomKit.mat(Color(0.3, 0.4, 0.55), 0.9)
-	for k in 4:
-		RoomKit.box(c, Vector3(0.28, 0.001, 0.003), Vector3(0, 0.002, -0.08 + k * 0.05), ink)
-		RoomKit.box(c, Vector3(0.003, 0.001, 0.2), Vector3(-0.1 + k * 0.07, 0.002, 0), ink)
-
-
 func _build_periscope() -> void:
-	_periscope = Node3D.new()
-	_periscope.position = PERISCOPE_POS
-	add_child(_periscope)
-	# alles in derselben Farbe wie das Rohr; das Rohr dreht sich mit (Nietenreihe und Ringe zeigen es)
-	var paint := RoomKit.mat(Color(0.36, 0.42, 0.38), 0.45, 0.35)
-	var dark := RoomKit.mat(Color(0.22, 0.26, 0.23), 0.5, 0.35)
+	# Rohr mit Ringen, Nieten, Okular und Griffen ist im Modell; der Knoten dreht sich als Ganzes
+	_periscope = _model.find_child("Periskop", true, false) as Node3D
 	var low := 1.25
-	RoomKit.cyl(_periscope, 0.06, 0.06, CEIL - low, Vector3(0, (CEIL + low) * 0.5, 0), paint)
-	for k in 4: # Ringe ums Rohr
-		RoomKit.cyl(_periscope, 0.066, 0.066, 0.025, Vector3(0, low + 0.25 + k * 0.32, 0), dark)
-	for k in 9: # Nietenreihe vorne
-		RoomKit.sphere(_periscope, 0.009, Vector3(0, low + 0.15 + k * 0.13, 0.06), dark)
-	RoomKit.box(_periscope, Vector3(0.16, 0.16, 0.2), Vector3(0, low, 0.04), paint) # Okular-Kasten
-	RoomKit.box(_periscope, Vector3(0.12, 0.06, 0.04), Vector3(0, low + 0.01, 0.15), RoomKit.mat(Color(0.05, 0.05, 0.05), 0.4))
-	for s: float in [-1.0, 1.0]: # Griffe
-		var h := RoomKit.cyl(_periscope, 0.02, 0.02, 0.18, Vector3(s * 0.17, low - 0.02, 0.04), paint)
-		h.rotation.z = PI * 0.5
-		var grip := RoomKit.cyl(_periscope, 0.024, 0.024, 0.07, Vector3(s * 0.23, low - 0.02, 0.04), dark)
-		grip.rotation.z = PI * 0.5
-	# feste Manschette an der Decke (dreht sich nicht)
-	RoomKit.cyl(self, 0.1, 0.1, 0.08, PERISCOPE_POS + Vector3(0, CEIL - 0.04, 0), dark)
 	_periscope_area = RoomKit.click_area(_periscope, Vector3(0.5, 0.5, 0.4), Vector3(0, low, 0.04), turn_periscope)
 	_periscope_area.input_ray_pickable = interactive
-
-
-func _build_lamps() -> void:
-	var glass := RoomKit.glow(Color(1.0, 0.85, 0.6), 3.0)
-	var cage := RoomKit.mat(Color(0.12, 0.12, 0.12), 0.5, 0.6)
-	# kleine Wandlampe über den Druckanzeigen
-	var wp := Vector3(1.55, 1.42, BACK_Z + 0.07)
-	RoomKit.sphere(self, 0.035, wp, glass, Vector3(1.4, 0.8, 0.8))
-	RoomKit.box(self, Vector3(0.12, 0.012, 0.08), wp + Vector3(0, 0.035, -0.02), cage)
-	for x: float in [-1.1, 1.1]:
-		var p := Vector3(x, CEIL - 0.28, -0.4)
-		RoomKit.sphere(self, 0.07, p, glass)
-		for k in 3:
-			RoomKit.torus(self, 0.08, 0.005, p + Vector3(0, -0.04 + k * 0.04, 0), cage)
-		RoomKit.cyl(self, 0.05, 0.05, 0.06, p + Vector3(0, 0.1, 0), cage)
 
 
 ## Für die Deck-Belohnungen (TableSkin): welche Materialien Filz und Rand sind, Umriss des Rands.
