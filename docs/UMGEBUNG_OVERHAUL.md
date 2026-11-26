@@ -7,7 +7,8 @@ Lichtidee. Verbessert wird nur die Machart: echte Profile statt Kisten, gerundet
 Materialien. Spiellogik wird nicht angefasst.
 
 Pilot war das **Alte Casino**; nach Pascals Freigabe folgten **Bahnhofswartesaal**, **U-Boot**,
-**Zirkuswagen** und die Kleinteile des **Hinterzimmers** (Abschnitte 6 bis 9).
+**Zirkuswagen** und die Kleinteile des **Hinterzimmers** (Abschnitte 6 bis 9), danach die
+**Deck-Belohnungen, das Rauchzeug und die sichtbaren Items** (Abschnitt 10).
 
 ## 1. Sicherung und Arbeitsordner (auf Pascals PC)
 
@@ -142,4 +143,74 @@ Raum, Tisch und Requisiten des Hinterzimmers waren schon Blender-Modelle (`build
 sind unverändert. Neu aus Blender sind die Teile, die `TableProps` in allen Räumen aus Grundformen
 baute: Kerzen der Leben (Schmelzmulde, Wachstropfen, Docht; drei Höhen), Flamme, Messingteller,
 Goldmünzen (Rand und Mittelfeld). Aschenbecher und Zigarettenschachtel (`ashtray.gd`,
-`cigarette_pack.gd`) sind weiter Code – beide hängen eng an den Rauch-Easter-Eggs.
+`cigarette_pack.gd`) kamen im nächsten Schritt dazu, siehe Abschnitt 10.
+
+## 10. Deck-Belohnungen, Rauchzeug, Items (`cosmetics.py`)
+
+Gleicher Auftrag, gleiche Regeln: Entwurf, Farben, Maße, Plätze und Bewegungen bleiben, nur die
+Machart wird besser. Sicherung vorher: `D:\Games\Duraki\sicherung_skins_2026-11-26\`
+(`assets/cosmetics`, `cosmetics.gd`, die betroffenen Skripte aus `scenes/match`, `tools`).
+
+`art/blender/cosmetics.py` baut alle Teile als **Vorlagen** (Szene: `art/blender/cosmetics.blend`)
+und schreibt drei Dateien. Der Code instanziert eine Datei einmal, kopiert die gebrauchten Teile
+heraus (`RoomKit.part(lib, "Name", parent, {Materialname: Material})`) und gibt sie wieder frei.
+Die Materialien bleiben im Code, mit denselben Werten wie vorher.
+
+| Datei | Teile | wer sie einsetzt |
+|---|---|---|
+| `assets/cosmetics/cosmetics.glb` | `Totenkopf`, `Doppeladler` (+ `_Juwel`), `Kraehe` (Gelenke `Kraehe_Kopf`, `Kraehe_Schnabel`), `Gloeckchen`, `Seerosenblatt`, `Seerose`, `Hexenkerze`, `Skinflamme`, `Faberge` (+ `_Ei`, `_Juwelen_0…2`, `_Kerze`), `Tischrahmen_Ecke`, `Tischrahmen_Leiste` | `table_skin.gd` |
+| `assets/models/smoking.glb` | `Aschenbecher`, `Schachtel` (Gelenk `Schachtel_Deckel`), `Zigarette_Stange` | `ashtray.gd`, `cigarette_pack.gd` |
+| `assets/models/items.glb` | `Spiegel` (+ `Spiegel_Glas`), `Schnapsglas` | `table_world.gd` (`mirror_flight`), `opponent_figure.gd` (`_make_shot`) |
+
+Was sich je Platz geändert hat:
+
+- **Tischfilz**: Die sieben Filze mit Muster (Federn, Weinrot-Gold, Streifen, Harlekin, Sterne,
+  Krallen, Vollmond) zeichnet `tools/generate_cosmetics.py` jetzt achtfach vergrößert und rechnet
+  sie auf 1024 px herunter (`_fine`): gleiches Muster, gleiche Farben, aber glatte Kanten statt
+  Pixeltreppen. Die einfarbigen Filze und Samt sind Bit für Bit unverändert.
+- **Tischrand**: Farbtexturen unverändert; neu ist je Textur ein Relief
+  (`rim_<id>_normal.png`, aus der Helligkeit berechnet), das `Cosmetics.rim_material` dazulädt:
+  Maserung, Knochenfugen, Risse, Fellsträhnen fangen jetzt Licht. Der Rahmen für Tische ohne
+  eigenen Rand (Bahnhof) ist ein Profil mit runder Oberkante statt vier Kisten: vier Eckstücke auf
+  Gehrung, dazwischen Leisten, die der Code auf die Seitenlänge streckt (gleiche Außenmaße).
+  Seerosen: Blatt mit Kerbe und hochgebogenem Rand, Blüte aus drei Blattkränzen.
+- **Tischecken**: Totenkopf (Hirnschädel, Jochbeine, Augenhöhlen, Nase, Kieferbogen, zwei
+  Zahnreihen), Doppeladler (Sockel mit Profil, Hälse, Köpfe mit Schnabel, Schwingen aus je
+  sieben Federn, drei Kronen, Juwel).
+- **Extras**: Krähe (Körper, Flügel aus Federlagen, Schwanzfedern, Beine mit Zehen; der Kopf dreht
+  sich wie bisher, beim Krächzen klappt der Unterschnabel auf), Glöckchen (Naht, Schlitz mit
+  runden Enden, Bandstummel mit kleiner Rosette; wackeln um denselben Drehpunkt), Hexenkerze
+  (Schmelzmulde, vier Wachstropfen, Docht, Halter mit Rand), Fabergé-Leuchter (Fuß und Schaft mit
+  Profil, drei Goldbänder, sechs Steine, Tülle, Kerze). Flammen sind eine Tropfenform statt einer
+  gestreckten Kugel und flackern wie bisher. Glühwürmchen sind Partikel und bleiben Code.
+- **Zigaretten**: Aschenbecher (Fuß, polierter Wulstrand, drei Kerben als echte Mulden im Rand,
+  dunkle Mulde), Schachtel (gefaste Kanten, Deckel am selben Scharnier, Kragen, Folie),
+  Zigaretten in der Schachtel (Papier, Filter, Tabak am Ende). Die Skin-Farben laufen weiter über
+  `Cosmetics.cig_mat`. Die brennende Zigarette, Stummel und Asche bleiben Code (sie verändern
+  sich beim Rauchen).
+- **Münzen**: Silber, Kupfer und Edelstein sind Materialien auf der Münze aus `table_small.glb`
+  (Abschnitt 9); geprüft, nichts zu ändern.
+- **Items**: Spiegel (Rahmen mit Profil, Glas beidseitig leicht gewölbt, Aufblitzen wie bisher),
+  Schnapsglas (Wandstärke, runder Rand). Feuerzeug, Magnet, Maske usw. sind Sprites/Effekte ohne
+  3D-Körper.
+
+Bewusste, sichtbare Abweichungen (bitte prüfen):
+
+- Die große Krone des Doppeladlers schwebte frei über den Köpfen; sie hängt jetzt mit zwei dünnen
+  Bändern an den beiden Kopfkronen.
+- Die Kerben des Aschenbechers waren dunkle Klötzchen auf dem Rand; jetzt sind es Mulden im
+  Messing (keine dunkle Farbe mehr an der Stelle). Der Rand ist dafür etwa 3 mm höher.
+- Die Seerose hat eine gelbe Mitte (vorher nur fünf rosa Kugeln).
+- Die Glöckchen haben unten eine kleine Rosette aus dem Band.
+- Beim Krächzen kippte der ganze Schnabel; jetzt öffnet sich nur der Unterschnabel.
+
+Nicht angefasst, aber aufgefallen: Die Rand-Farbtexturen schließen am Kachelrand nicht ganz an
+(alle 45 cm eine schwache Naht, liegt am alten Rauschen in `generate_cosmetics.py`). Das Relief
+rechnet deshalb nicht über die Naht hinweg. Beheben würde die Wolkenmuster aller Texturen leicht
+verändern, deshalb nur nach Rücksprache.
+
+Prüfen: `tests/screenshot.gd` kennt dafür `skin=<id>,<id>…` (Belohnungen anlegen), `reel=felt|rim|…`
+(alle eines Platzes nacheinander), `mirror=<0…1>` und `schnaps`. `tests/cosmetics_tests.gd` prüft
+die Teile der drei Dateien, Rahmen, Krähe, Glöckchen, Flammen, Aschenbecher, Schachtel, Spiegel
+und Schnapsglas (175 Checks).
+

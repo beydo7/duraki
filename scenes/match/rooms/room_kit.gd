@@ -14,8 +14,21 @@ static func model(parent: Node, scene: PackedScene, mats := {}) -> Node3D:
 	return root
 
 
+## Ein Teil (Knoten samt Kindern) aus einem instanzierten Modell als Kopie unter `parent` hängen.
+## So dient eine .glb als Vorlagen-Sammlung: einmal instanzieren, Teile herauskopieren, freigeben.
+static func part(lib: Node, part_name: String, parent: Node, mats := {}) -> Node3D:
+	var n := (lib.find_child(part_name, true, false) as Node3D).duplicate() as Node3D
+	n.transform = Transform3D.IDENTITY
+	parent.add_child(n, true) # lesbare Namen (Totenkopf, Totenkopf2, …)
+	apply_materials(n, mats)
+	return n
+
+
 static func apply_materials(root: Node, mats: Dictionary) -> void:
-	for n in root.find_children("*", "MeshInstance3D", true, false):
+	var nodes := root.find_children("*", "MeshInstance3D", true, false)
+	if root is MeshInstance3D:
+		nodes.append(root)
+	for n in nodes:
 		var mi := n as MeshInstance3D
 		if mi.mesh == null:
 			continue

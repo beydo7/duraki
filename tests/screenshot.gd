@@ -2,6 +2,8 @@ extends Node
 ## Rendert Screenshots der Duell-Szene (zum Prüfen des Designs).
 ##   godot --path . res://tests/screenshot.tscn -- out=/tmp/shots   (close = Nahaufnahme des Gegners)
 ## Ohne Bildschirm z. B. mit xvfb-run starten.
+## Deck-Belohnungen prüfen: skin=felt_blue,rim_gold,… legt sie an, reel=felt (oder rim, corners, …)
+## zeigt alle eines Platzes nacheinander; mirror=0.3 und schnaps zeigen die Items.
 
 var out_dir := "user://shots"
 var _bot := SimpleAI.new(RandomNumberGenerator.new(), 0.0)
@@ -24,6 +26,11 @@ func _detach() -> void:
 		if arg.begins_with("room="):
 			# bestimmten Raum zeigen, z. B. room=casino (siehe Rooms)
 			Rooms.forced = StringName(arg.substr(5))
+		if arg.begins_with("skin="):
+			# Deck-Belohnungen anlegen, z. B. skin=felt_blue,rim_gold,corner_skulls (siehe Cosmetics.ITEMS)
+			Cosmetics.dev_free = true
+			for id in arg.substr(5).split(","):
+				Profile.select_cosmetic(Cosmetics.ITEMS[StringName(id)].slot, StringName(id))
 	Run.start_new_run(4242)
 	await get_tree().create_timer(0.5).timeout
 	Run.floor_index = Run.encounters.size() - 1 if "boss" in OS.get_cmdline_user_args() else 0
@@ -80,6 +87,34 @@ func _detach() -> void:
 		w.camera.fov = 22.0
 		w.camera.look_at(w.figure.global_position + Vector3(0, 1.22, 0))
 		scene.hud.visible = false
+	for arg in args:
+		if arg.begins_with("reel="):
+			# alle Deck-Belohnungen eines Platzes nacheinander zeigen, z. B. reel=felt oder reel=rim
+			var slot := StringName(arg.substr(5))
+			Cosmetics.dev_free = true
+			for id: StringName in Cosmetics.ITEMS:
+				if Cosmetics.ITEMS[id].slot != slot:
+					continue
+				Profile.select_cosmetic(slot, id)
+				await get_tree().create_timer(0.6).timeout
+				await _shot(String(id))
+			get_tree().quit()
+			return
+	for arg in args:
+		if arg.begins_with("mirror="):
+			# Item Spiegel: Aufnahme während des Flugs, z. B. mirror=0.3 (Anteil der Flugzeit)
+			(scene.world as TableWorld).mirror_flight(func() -> void: pass)
+			await get_tree().create_timer(TableWorld.MIRROR_TIME * float(arg.substr(7))).timeout
+			await _shot("mirror")
+			get_tree().quit()
+			return
+	if "schnaps" in args:
+		# Runde Schnaps: Gegner hebt das Glas
+		(scene.world as TableWorld).figure.drink_shot()
+		await get_tree().create_timer(OpponentFigure.DRINK_TIME * 0.2).timeout
+		await _shot("schnaps")
+		get_tree().quit()
+		return
 	if "boss" in args or ",".join(args).contains("opp="):
 		await get_tree().create_timer(1.0).timeout
 		await _shot("boss")

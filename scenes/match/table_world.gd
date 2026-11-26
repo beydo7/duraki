@@ -32,6 +32,8 @@ const TABLE_SIZE := Vector2(1.6, 1.2) # x, z
 const THROWN_PAUSE := 0.9
 ## Flugzeit des Spiegels hinter dem Gegner (langsam, damit man ihn sieht)
 const MIRROR_TIME := 4.2
+## Spiegel und Schnapsglas aus Blender (art/blender/cosmetics.py)
+const ITEMS_MODEL := preload("res://assets/models/items.glb")
 const DECK_POS := Vector3(-0.60, TABLE_Y, -0.10)
 const DISCARD_POS := Vector3(0.62, TABLE_Y, -0.12)
 const PLAYER_HAND_POS := Vector3(0.0, 1.0, 0.5)
@@ -654,28 +656,10 @@ func mirror_flight(on_reveal: Callable) -> void:
 	glass_mat.emission_enabled = true
 	glass_mat.emission = Color(0.35, 0.4, 0.55)
 	glass_mat.emission_energy_multiplier = 0.25
-	var frame := MeshInstance3D.new()
-	var fm := CylinderMesh.new()
-	fm.top_radius = 0.16
-	fm.bottom_radius = 0.16
-	fm.height = 0.02
-	fm.radial_segments = 32
-	frame.mesh = fm
-	frame.material_override = frame_mat
-	frame.rotation_degrees.x = 90
-	frame.scale = Vector3(0.8, 1, 1.1)
-	mirror.add_child(frame)
-	var glass := MeshInstance3D.new()
-	var gm := CylinderMesh.new()
-	gm.top_radius = 0.14
-	gm.bottom_radius = 0.14
-	gm.height = 0.024
-	gm.radial_segments = 32
-	glass.mesh = gm
-	glass.material_override = glass_mat
-	glass.rotation_degrees.x = 90
-	glass.scale = Vector3(0.8, 1, 1.1)
-	mirror.add_child(glass)
+	# ovaler Rahmen mit Profil, Glas auf beiden Seiten (Modell, Größe wie bisher)
+	var lib := ITEMS_MODEL.instantiate()
+	RoomKit.part(lib, "Spiegel", mirror, {"Spiegel_Rahmen": frame_mat, "Spiegel_Glas": glass_mat})
+	lib.free()
 	var glow := OmniLight3D.new()
 	glow.light_color = Color(0.75, 0.82, 1.0)
 	glow.omni_range = 0.8

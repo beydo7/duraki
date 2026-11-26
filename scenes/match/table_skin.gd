@@ -7,6 +7,8 @@ extends Node3D
 const SND_CAW := preload("res://assets/cosmetics/caw.wav")
 const SND_BELLS := preload("res://assets/cosmetics/bells.wav")
 const SND_HOWL := preload("res://assets/cosmetics/howl.wav")
+## Vorlagen aus Blender (art/blender/cosmetics.py): Figuren, Extras, Rahmenteile
+const MODEL := preload("res://assets/cosmetics/cosmetics.glb")
 const GOLD := Color(0.95, 0.74, 0.32)
 
 var _t := 0.0
@@ -18,6 +20,7 @@ var _bells: Array[Node3D] = []
 var _flames: Array[Dictionary] = []
 var _howl := false
 var _restore: Array = [] # [Mesh, altes Material] – zum Zurücksetzen beim Umschalten
+var _lib: Node # instanzierte Vorlagen, nur während apply()
 
 
 ## Tisch-Infos für einen rechteckigen Tisch. `half` = halbe Größe der Platte,
@@ -33,6 +36,18 @@ static func rect_info(felt: Array, rim: Array, half: Vector2, frame: bool, lift:
 
 ## Alles anwenden. `root` = Knoten, unter dem die Tischteile hängen (Raum oder TableWorld).
 func apply(root: Node, info: Dictionary) -> void:
+	_lib = MODEL.instantiate()
+	_apply(root, info)
+	_lib.free()
+	_lib = null
+
+
+## Kopie einer Vorlage aus cosmetics.glb; mats = { Materialname aus Blender: Material }.
+func _part(part_name: String, parent: Node, mats := {}) -> Node3D:
+	return RoomKit.part(_lib, part_name, parent, mats)
+
+
+func _apply(root: Node, info: Dictionary) -> void:
 	var felt_id := Cosmetics.selected(&"felt")
 	var rim_id := Cosmetics.selected(&"rim")
 	var felt_mats: Array = info.get("felt", [])
@@ -161,13 +176,25 @@ func _extra_pos(info: Dictionary, i: int) -> Vector3:
 	return Vector3(c.x * 0.8, info.rim_y, c.y)
 
 
+## Rahmen um eine Platte ohne eigenen Rand (5 cm breit, 6 cm hoch wie bisher, jetzt mit Profil):
+## vier Eckstücke auf Gehrung und dazwischen vier Leisten, die auf die Länge gestreckt werden.
 func _build_frame(half: Vector2, m: Material) -> void:
 	var y := TableWorld.TABLE_Y
-	var w := 0.05
-	var h := 0.06
-	for s: float in [-1.0, 1.0]:
-		RoomKit.box(self, Vector3(half.x * 2.0 + w * 2.0, h, w), Vector3(0, y + 0.015 - h * 0.5, s * (half.y + w * 0.5)), m)
-		RoomKit.box(self, Vector3(w, h, half.y * 2.0), Vector3(s * (half.x + w * 0.5), y + 0.015 - h * 0.5, 0), m)
+	var arm := 0.07 # Schenkellänge des Eckstücks (FRAME_ARM in cosmetics.py)
+	# Vorlage: Ecke vorne rechts, Leiste mit Außenseite nach +Z
+	var turns := [0.0, PI * 0.5, PI, -PI * 0.5]
+	var corners := [Vector2(1, 1), Vector2(1, -1), Vector2(-1, -1), Vector2(-1, 1)]
+	var sides := [Vector3(0, half.x, half.y), Vector3(half.x, half.y, 0), Vector3(0, half.x, -half.y), Vector3(-half.x, half.y, 0)]
+	for i in 4:
+		var corner := _part("Tischrahmen_Ecke", self) as MeshInstance3D
+		corner.material_override = m
+		corner.position = Vector3(corners[i].x * half.x, y, corners[i].y * half.y)
+		corner.rotation.y = turns[i]
+		var bar := _part("Tischrahmen_Leiste", self) as MeshInstance3D # 1 m lang
+		bar.material_override = m
+		bar.position = Vector3(sides[i].x, y, sides[i].z)
+		bar.rotation.y = turns[i]
+		bar.scale.x = (sides[i].y - arm) * 2.0 # sides[i].y = halbe Länge dieser Seite
 
 
 func _segments(info: Dictionary) -> Array:
@@ -212,94 +239,56 @@ func _build_lilies(info: Dictionary) -> void:
 	var r := RandomNumberGenerator.new()
 	r.seed = 7
 	var i := 0
+	var heart := RoomKit.mat(Color(0.95, 0.8, 0.25), 0.6)
 	for p in _along(info, 0.33):
-		var c := RoomKit.cyl(self, 0.03, 0.03, 0.004, Vector3(p.x, info.rim_y + 0.002, p.y), pad, 14)
+		var c := _part("Seerosenblatt", self, {"Seerose_Blatt": pad})
+		c.position = Vector3(p.x, info.rim_y, p.y)
 		c.rotation.y = r.randf() * TAU
 		c.scale = Vector3.ONE * r.randf_range(0.8, 1.2)
 		if i % 3 == 1:
-			for k in 5:
-				var a := TAU * k / 5.0
-				var petal := RoomKit.sphere(self, 0.008, Vector3(p.x + cos(a) * 0.009, info.rim_y + 0.01, p.y + sin(a) * 0.009), flower, Vector3(1.0, 0.6, 1.0))
-				petal.rotation.y = -a
+			var bloom := _part("Seerose", self, {"Seerose_Bluete": flower, "Seerose_Mitte": heart})
+			bloom.position = Vector3(p.x, info.rim_y + 0.001, p.y)
 		i += 1
 
 
 func _skull(pos: Vector3) -> void:
-	var root := Node3D.new()
-	root.position = pos
-	root.rotation.y = randf_range(-0.3, 0.3)
-	add_child(root)
-	var bone := RoomKit.mat(Color(0.9, 0.86, 0.74), 0.6)
-	var dark := RoomKit.mat(Color(0.05, 0.04, 0.04), 0.9)
-	RoomKit.sphere(root, 0.032, Vector3(0, 0.035, 0), bone, Vector3(1.0, 0.95, 1.1))
-	RoomKit.box(root, Vector3(0.036, 0.018, 0.03), Vector3(0, 0.01, 0.012), bone) # Kiefer
-	for s: float in [-1.0, 1.0]:
-		RoomKit.sphere(root, 0.009, Vector3(s * 0.012, 0.035, 0.029), dark)
-	RoomKit.sphere(root, 0.005, Vector3(0, 0.022, 0.033), dark, Vector3(1.0, 1.3, 1.0))
-	for k in 4: # Zähne
-		RoomKit.box(root, Vector3(0.005, 0.006, 0.002), Vector3(-0.009 + k * 0.006, 0.012, 0.0275), RoomKit.mat(Color(0.95, 0.93, 0.85), 0.5))
+	var skull := _part("Totenkopf", self, {
+		"Knochen": RoomKit.mat(Color(0.9, 0.86, 0.74), 0.6),
+		"Knochen_Dunkel": RoomKit.mat(Color(0.05, 0.04, 0.04), 0.9),
+		"Zahn": RoomKit.mat(Color(0.95, 0.93, 0.85), 0.5)})
+	skull.position = pos
+	skull.rotation.y = randf_range(-0.3, 0.3)
 
 
 func _eagle(pos: Vector3) -> void:
-	var root := Node3D.new()
-	root.position = pos
-	add_child(root)
-	var gold := RoomKit.mat(GOLD, 0.25, 1.0)
-	RoomKit.cyl(root, 0.022, 0.026, 0.012, Vector3(0, 0.006, 0), gold, 16) # Sockel
-	RoomKit.sphere(root, 0.02, Vector3(0, 0.035, 0), gold, Vector3(0.8, 1.3, 0.6)) # Körper
-	for s: float in [-1.0, 1.0]:
-		var neck := RoomKit.cyl(root, 0.005, 0.007, 0.03, Vector3(s * 0.012, 0.062, 0), gold, 8)
-		neck.rotation.z = -s * 0.5
-		RoomKit.sphere(root, 0.009, Vector3(s * 0.022, 0.078, 0), gold)
-		var beak := RoomKit.cyl(root, 0.0, 0.004, 0.012, Vector3(s * 0.032, 0.077, 0), gold, 6)
-		beak.rotation.z = -s * PI * 0.5
-		var wing := RoomKit.box(root, Vector3(0.04, 0.035, 0.004), Vector3(s * 0.03, 0.05, -0.004), gold)
-		wing.rotation.z = s * 0.6
-		RoomKit.cyl(root, 0.004, 0.005, 0.008, Vector3(s * 0.022, 0.09, 0), gold, 8) # Krönchen
-	RoomKit.cyl(root, 0.006, 0.008, 0.012, Vector3(0, 0.098, 0), gold, 8) # große Krone
-	RoomKit.sphere(root, 0.004, Vector3(0, 0.108, 0), RoomKit.glow(Color(0.9, 0.1, 0.15), 1.0))
+	var eagle := _part("Doppeladler", self, {
+		"Skin_Gold": RoomKit.mat(GOLD, 0.25, 1.0),
+		"Juwel_Rot": RoomKit.glow(Color(0.9, 0.1, 0.15), 1.0)})
+	eagle.position = pos
 
 
 func _build_crow(pos: Vector3) -> void:
-	_crow = Node3D.new()
+	# Modell mit zwei Gelenken: „Kraehe_Kopf“ dreht sich, „Kraehe_Schnabel“ (Unterschnabel) klappt auf
+	_crow = _part("Kraehe", self, {
+		"Kraehe_Federn": RoomKit.mat(Color(0.05, 0.05, 0.07), 0.35, 0.2),
+		"Kraehe_Schnabel": RoomKit.mat(Color(0.2, 0.2, 0.22), 0.4),
+		"Kraehe_Auge": RoomKit.glow(Color(0.9, 0.75, 0.2), 0.8)})
 	_crow.position = pos
 	_crow.rotation.y = -2.3 # schaut schräg zur Tischmitte / zum Spieler
 	_crow.scale = Vector3.ONE * 1.5
-	add_child(_crow)
-	var black := RoomKit.mat(Color(0.05, 0.05, 0.07), 0.35, 0.2)
-	var beak_m := RoomKit.mat(Color(0.2, 0.2, 0.22), 0.4)
-	for s: float in [-1.0, 1.0]: # Beine
-		RoomKit.cyl(_crow, 0.0025, 0.0025, 0.03, Vector3(0, 0.015, s * 0.012), beak_m, 6)
-	RoomKit.sphere(_crow, 0.045, Vector3(0, 0.07, 0), black, Vector3(1.4, 1.0, 0.85)) # Körper
-	var tail := RoomKit.box(_crow, Vector3(0.07, 0.008, 0.04), Vector3(-0.08, 0.06, 0), black)
-	tail.rotation.z = 0.35
-	for s: float in [-1.0, 1.0]: # Flügel
-		var w := RoomKit.sphere(_crow, 0.04, Vector3(-0.01, 0.075, s * 0.033), black, Vector3(1.5, 0.7, 0.3))
-		w.rotation.z = 0.25
-	_crow_head = Node3D.new()
-	_crow_head.position = Vector3(0.055, 0.115, 0)
-	_crow.add_child(_crow_head)
-	RoomKit.sphere(_crow_head, 0.026, Vector3.ZERO, black)
-	for s: float in [-1.0, 1.0]:
-		RoomKit.sphere(_crow_head, 0.005, Vector3(0.012, 0.007, s * 0.019), RoomKit.glow(Color(0.9, 0.75, 0.2), 0.8))
-	_crow_beak = Node3D.new()
-	_crow_beak.position = Vector3(0.02, -0.002, 0)
-	_crow_head.add_child(_crow_beak)
-	var beak := RoomKit.cyl(_crow_beak, 0.0, 0.009, 0.04, Vector3(0.02, 0, 0), beak_m, 8)
-	beak.rotation.z = -PI * 0.5
+	_crow_head = _crow.find_child("Kraehe_Kopf", true, false)
+	_crow_beak = _crow.find_child("Kraehe_Schnabel", true, false)
 
 
 func _build_bells(info: Dictionary) -> void:
 	var gold := RoomKit.mat(GOLD, 0.25, 1.0)
+	var slit := RoomKit.mat(Color(0.1, 0.08, 0.05), 0.6)
 	var ribbon := [RoomKit.mat(Color(0.75, 0.1, 0.1), 0.7), RoomKit.mat(Color(0.85, 0.7, 0.15), 0.7)]
 	var i := 0
 	for p in _along(info, 0.22):
-		var b := Node3D.new()
+		# Drehpunkt unten am Rand: so wackeln die Glöckchen wie bisher
+		var b := _part("Gloeckchen", self, {"Skin_Gold": gold, "Glocke_Schlitz": slit, "Glocke_Band": ribbon[i % 2]})
 		b.position = Vector3(p.x, info.rim_y + 0.002, p.y)
-		add_child(b)
-		RoomKit.cyl(b, 0.005, 0.005, 0.02, Vector3(0, 0.01, 0), ribbon[i % 2], 6)
-		RoomKit.sphere(b, 0.019, Vector3(0, 0.038, 0), gold)
-		RoomKit.box(b, Vector3(0.026, 0.003, 0.005), Vector3(0, 0.032, 0.017), RoomKit.mat(Color(0.1, 0.08, 0.05), 0.6)) # Schlitz
 		_bells.append(b)
 		i += 1
 
@@ -338,8 +327,11 @@ func _build_fireflies(info: Dictionary) -> void:
 
 
 func _candle(pos: Vector3, flame_col: Color, wax: Material) -> void:
-	RoomKit.cyl(self, 0.016, 0.018, 0.11, pos + Vector3(0, 0.055, 0), wax, 14)
-	RoomKit.cyl(self, 0.024, 0.028, 0.008, pos + Vector3(0, 0.004, 0), RoomKit.mat(Color(0.25, 0.22, 0.2), 0.4, 0.8), 14)
+	var candle := _part("Hexenkerze", self, {
+		"Kerzenwachs": wax,
+		"Kerzenhalter": RoomKit.mat(Color(0.25, 0.22, 0.2), 0.4, 0.8),
+		"Docht": RoomKit.mat(Color(0.05, 0.04, 0.03), 0.9)})
+	candle.position = pos
 	_flame(pos + Vector3(0, 0.122, 0), flame_col)
 
 
@@ -347,7 +339,7 @@ func _flame(pos: Vector3, col: Color) -> void:
 	var f := Node3D.new()
 	f.position = pos
 	add_child(f)
-	RoomKit.sphere(f, 0.008, Vector3(0, 0.008, 0), RoomKit.glow(col, 4.0), Vector3(1.0, 2.0, 1.0))
+	_part("Skinflamme", f, {"Skinflamme": RoomKit.glow(col, 4.0)})
 	var l := OmniLight3D.new()
 	l.position = pos + Vector3(0, 0.03, 0)
 	l.light_color = col
@@ -358,20 +350,15 @@ func _flame(pos: Vector3, col: Color) -> void:
 
 
 func _faberge(pos: Vector3) -> void:
-	var gold := RoomKit.mat(GOLD, 0.25, 1.0)
 	var enamel := RoomKit.mat(Color(0.55, 0.05, 0.12), 0.15, 0.3)
 	enamel.clearcoat_enabled = true
-	RoomKit.cyl(self, 0.02, 0.028, 0.012, pos + Vector3(0, 0.006, 0), gold, 16) # Fuß
-	RoomKit.cyl(self, 0.006, 0.008, 0.03, pos + Vector3(0, 0.027, 0), gold, 10)
-	var egg := pos + Vector3(0, 0.075, 0)
-	RoomKit.sphere(self, 0.03, egg, enamel, Vector3(1.0, 1.3, 1.0))
-	for k in 3: # Goldbänder
-		var band := RoomKit.torus(self, 0.031 - abs(k - 1) * 0.006, 0.002, egg + Vector3(0, (k - 1) * 0.022, 0), gold)
-		band.scale = Vector3(1, 1, 1)
-	for k in 6: # Edelsteine
-		var a := TAU * k / 6.0
-		RoomKit.sphere(self, 0.004, egg + Vector3(cos(a) * 0.03, 0.0, sin(a) * 0.03),
-			RoomKit.glow([Color(0.2, 0.5, 1.0), Color(0.1, 0.9, 0.4), Color(1, 1, 1)][k % 3], 1.2))
-	RoomKit.cyl(self, 0.012, 0.012, 0.006, egg + Vector3(0, 0.04, 0), gold, 12) # Tülle
-	RoomKit.cyl(self, 0.008, 0.008, 0.05, egg + Vector3(0, 0.068, 0), RoomKit.mat(Color(0.95, 0.92, 0.85), 0.6), 10)
-	_flame(egg + Vector3(0, 0.095, 0), Color(1.0, 0.7, 0.3))
+	var egg := _part("Faberge", self, {
+		"Skin_Gold": RoomKit.mat(GOLD, 0.25, 1.0),
+		"Faberge_Emaille": enamel,
+		"Faberge_Juwel_0": RoomKit.glow(Color(0.2, 0.5, 1.0), 1.2),
+		"Faberge_Juwel_1": RoomKit.glow(Color(0.1, 0.9, 0.4), 1.2),
+		"Faberge_Juwel_2": RoomKit.glow(Color(1, 1, 1), 1.2),
+		"Faberge_Kerze": RoomKit.mat(Color(0.95, 0.92, 0.85), 0.6),
+		"Docht": RoomKit.mat(Color(0.05, 0.04, 0.03), 0.9)})
+	egg.position = pos
+	_flame(pos + Vector3(0, 0.17, 0), Color(1.0, 0.7, 0.3))

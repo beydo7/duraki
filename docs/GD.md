@@ -188,7 +188,13 @@ Ein Run = 3 Akte mit je 3 normalen Gegnern + Boss (12 Tische), 3 Leben (Kerzen).
   Kaufmann Silber-/Kupfer-/Edelstein-Münzen · Sumpf moosgrün / Moos und Seerosen / Glühwürmchen · Hexe
   violett / Sterne und Monde / grüne Hexenkerzen · Wolf Fellrand / Krallenspuren / Vollmond (Wolf heult
   beim Duellsieg) · Zar roter Samt / goldene Doppeladler / Fabergé-Leuchter.
-  Texturen und Geräusche: `tools/generate_cosmetics.py` → `assets/cosmetics/`.
+  Texturen und Geräusche: `tools/generate_cosmetics.py` → `assets/cosmetics/` (Muster-Filze 1024 px,
+  je Rand-Textur ein Relief `rim_<id>_normal.png`). Figuren und Extras (Totenkopf, Doppeladler, Krähe,
+  Glöckchen, Seerosen, Hexenkerze, Fabergé-Leuchter, Tischrahmen) sind Vorlagen aus Blender
+  (`art/blender/cosmetics.py` → `assets/cosmetics/cosmetics.glb`), ebenso Aschenbecher, Schachtel und
+  Zigarette (`assets/models/smoking.glb`) sowie Spiegel und Schnapsglas (`assets/models/items.glb`);
+  `RoomKit.part` kopiert die Teile heraus, Materialien und Bewegung bleiben im Code
+  (siehe `docs/UMGEBUNG_OVERHAUL.md`, Abschnitt 10).
 - Händler verkauft keine Boni mehr (die bringen die Decks mit), nur Karten, Relikte, Items.
 - Glaskarten wie bei Balatro: bläulicher, durchscheinender Glasgrund (Alpha ~0,65) mit Lichtbändern,
   dunkle deckende Linien (`glass_version` in `tools/generate_cards.py`, Shader mit ALPHA).
@@ -410,7 +416,8 @@ Run: Schwierigkeit, Hinweise, Tutorial im Hauptmenü anzeigen).
 - `godot --headless --path . res://tests/tutorial_test.tscn` → Tutorial komplett durchspielen
 - `godot --headless --path . res://tests/daily_tests.tscn` → Tägliche Herausforderung und Statistik (16 Checks)
 - `godot --headless --path . res://tests/cosmetics_tests.tscn` → Deck-Belohnungen: je Deck drei, Freischalten je Stufe,
-  alle Räume mit allen Belohnungen bauen (107 Checks)
+  alle Räume mit allen Belohnungen bauen, Blender-Vorlagen (Rahmen, Krähe, Glöckchen, Flammen,
+  Aschenbecher, Schachtel, Spiegel, Schnapsglas), Relief der Ränder (175 Checks)
 - `godot --headless --path . res://tests/casino_tests.tscn` → Casino-Modelle: alle Teile da, Hebel, Kessel,
   Zugkette, Lämpchen, Pokerchips, Deck-Belohnungen am Tisch (32 Checks)
 - `godot --headless --path . res://tests/rooms_tests.tscn` → Bahnhof, U-Boot, Zirkuswagen: alle Teile da, Zug,

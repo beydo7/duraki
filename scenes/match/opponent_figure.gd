@@ -147,21 +147,15 @@ func is_drunk() -> bool:
 
 func _make_shot() -> Node3D:
 	var root := Node3D.new()
-	var glass := MeshInstance3D.new()
-	var cyl := CylinderMesh.new()
-	cyl.top_radius = 0.026
-	cyl.bottom_radius = 0.02
-	cyl.height = 0.06
-	cyl.radial_segments = 20
-	glass.mesh = cyl
 	var gm := StandardMaterial3D.new()
 	gm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	gm.albedo_color = Color(0.85, 0.92, 1.0, 0.35)
 	gm.roughness = 0.05
 	gm.metallic_specular = 0.9
-	glass.material_override = gm
-	glass.position.y = 0.03
-	root.add_child(glass)
+	# Glas mit Wandstärke und rundem Rand (Modell, Außenmaße wie bisher; Ursprung = Standfläche)
+	var lib := TableWorld.ITEMS_MODEL.instantiate()
+	RoomKit.part(lib, "Schnapsglas", root, {"Schnapsglas": gm})
+	lib.free()
 	_shot_liquid = Node3D.new()
 	root.add_child(_shot_liquid)
 	var liq := MeshInstance3D.new()

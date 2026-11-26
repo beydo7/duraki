@@ -4,8 +4,11 @@
     python3 tools/generate_cosmetics.py
 
 Schreibt nach assets/cosmetics/:
-  felt_<id>.png   Tischfilz (512 px, kachelbar; felt_moon ist ein Bild für den ganzen Tisch)
+  felt_<id>.png   Tischfilz (kachelbar; felt_moon ist ein Bild für den ganzen Tisch). Einfarbige
+                  Filze 512 px; Filze mit Muster 1024 px, groß gezeichnet und sauber verkleinert
+                  (glatte Kanten statt Pixeltreppen)
   rim_<id>.png    Material für den Tischrand (kachelbar)
+  rim_<id>_normal.png  Relief dazu (Maserung, Fugen, Risse, Strähnen), aus der Helligkeit berechnet
   caw.wav         Krähe krächzt
   bells.wav       Glöckchen klingeln
   howl.wav        Wolfsgeheul
@@ -21,11 +24,13 @@ OUT = ROOT / "assets" / "cosmetics"
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import generate_sfx as sx  # noqa: E402
 
-S = 512
+S = 512  # Kachelgröße; beim Zeichnen der Muster-Filze vorübergehend größer (siehe _fine)
+Q = 1    # Maßstab dazu: alle Pixelmaße der Muster werden mit Q malgenommen
 
 
-def _noise(cells, seed, size=S):
+def _noise(cells, seed, size=None):
     """Kachelbares Wertrauschen (Zellen wiederholen sich am Rand)."""
+    size = size or S
     rng = np.random.default_rng(seed)
     g = rng.random((cells, cells))
     g = np.concatenate([g, g[:1]], 0)
@@ -44,7 +49,44 @@ def _tint(rgb, k):
 
 
 def _save(arr, name):
-    Image.fromarray(np.asarray(arr).clip(0, 255).astype(np.uint8)).save(OUT / name)
+    img = Image.fromarray(np.asarray(arr).clip(0, 255).astype(np.uint8))
+    if Q > 1:  # groß gezeichnetes Muster: je Q/2 × Q/2 Pixel mitteln (bleibt kachelbar)
+        img = img.resize((S // (Q // 2), S // (Q // 2)), Image.BOX)
+    img.save(OUT / name)
+    print("geschrieben:", OUT / name)
+
+
+def _px(v):
+    """Strichbreite in Pixeln im aktuellen Maßstab."""
+    return max(1, int(round(v * Q)))
+
+
+def _fine(fn, q=8):
+    """Muster-Filz in q-facher Größe zeichnen und auf 1024 px verkleinern: gleiches Muster,
+    gleiche Farben, aber glatte Kanten."""
+    global S, Q
+    old = (S, Q)
+    S, Q = 512 * q, q
+    try:
+        fn()
+    finally:
+        S, Q = old
+
+
+def _normal(arr, name, strength=2.0, blur=1.0):
+    """Normal-Map aus der Helligkeit (dunkel = tief). Am Kachelrand wird nicht über die Naht
+    hinweg gerechnet: die Farbtexturen schließen dort nicht ganz an, das gäbe eine Kante."""
+    h = np.asarray(arr, np.float32).mean(axis=2) / 255.0
+    pad = 8
+    hp = np.pad(h, pad, mode="edge")
+    hp = np.asarray(Image.fromarray((hp * 255).clip(0, 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(blur))).astype(np.float32) / 255.0
+    hp = hp[pad - 1:-pad + 1, pad - 1:-pad + 1]
+    dx = (hp[1:-1, 2:] - hp[1:-1, :-2]) * strength
+    dy = (hp[2:, 1:-1] - hp[:-2, 1:-1]) * strength
+    h = hp[1:-1, 1:-1]
+    n = np.stack([-dx, -dy, np.ones_like(h) * 0.25], axis=2)
+    n /= np.linalg.norm(n, axis=2, keepdims=True)
+    Image.fromarray(((n * 0.5 + 0.5) * 255).clip(0, 255).astype(np.uint8)).save(OUT / name)
     print("geschrieben:", OUT / name)
 
 
@@ -62,34 +104,34 @@ def felt_feather():
     for _ in range(28):  # Federn: Kiel + schräge Fahnen, leicht schimmernd
         cx, cy = rng.uniform(0, S, 2)
         ang = rng.uniform(0, np.pi)
-        L = rng.uniform(70, 120)
+        L = rng.uniform(70, 120) * Q
         dx, dy = np.cos(ang), np.sin(ang)
         for ox in (-S, 0, S):
             for oy in (-S, 0, S):
                 x0, y0 = cx + ox - dx * L / 2, cy + oy - dy * L / 2
-                d.line([(x0, y0), (x0 + dx * L, y0 + dy * L)], fill=(110, 116, 140), width=2)
+                d.line([(x0, y0), (x0 + dx * L, y0 + dy * L)], fill=(110, 116, 140), width=_px(2))
                 for t in np.linspace(0.1, 0.95, 14):
                     px, py = x0 + dx * L * t, y0 + dy * L * t
-                    w = 18 * np.sin(np.pi * t)
+                    w = 18 * Q * np.sin(np.pi * t)
                     for s in (-1, 1):
-                        qx = px + (-dy * s * w) - dx * 6
-                        qy = py + (dx * s * w) - dy * 6
-                        d.line([(px, py), (qx, qy)], fill=(74, 82, 108), width=1)
-    _save(np.asarray(img.filter(ImageFilter.GaussianBlur(0.6))), "felt_feather.png")
+                        qx = px + (-dy * s * w) - dx * 6 * Q
+                        qy = py + (dx * s * w) - dy * 6 * Q
+                        d.line([(px, py), (qx, qy)], fill=(74, 82, 108), width=_px(1))
+    _save(np.asarray(img.filter(ImageFilter.GaussianBlur(0.6 * Q))), "felt_feather.png")
 
 
 def felt_wine_gold():
     base = _tint((96, 20, 30), _felt_grain(21))
     img = Image.fromarray(base.astype(np.uint8))
     d = ImageDraw.Draw(img)
-    step = 128
+    step = 128 * Q
     for y in range(0, S + step, step):  # goldene Rauten-Ornamente
         for x in range(0, S + step, step):
             for cx, cy in ((x, y), (x + step / 2, y + step / 2)):
-                r = 22
-                d.polygon([(cx, cy - r), (cx + r, cy), (cx, cy + r), (cx - r, cy)], outline=(214, 170, 80), width=3)
-                d.ellipse([cx - 5, cy - 5, cx + 5, cy + 5], fill=(226, 184, 92))
-    _save(np.asarray(img.filter(ImageFilter.GaussianBlur(0.5))), "felt_wine.png")
+                r = 22 * Q
+                d.polygon([(cx, cy - r), (cx + r, cy), (cx, cy + r), (cx - r, cy)], outline=(214, 170, 80), width=_px(3))
+                d.ellipse([cx - 5 * Q, cy - 5 * Q, cx + 5 * Q, cy + 5 * Q], fill=(226, 184, 92))
+    _save(np.asarray(img.filter(ImageFilter.GaussianBlur(0.5 * Q))), "felt_wine.png")
 
 
 def felt_stripes():
@@ -113,8 +155,8 @@ def felt_harlequin():
     d = ImageDraw.Draw(img)
     for i in range(-n, 2 * n + 1):  # schwarze Rautenlinien
         a = i * S / n
-        d.line([(a, 0), (a - S, S)], fill=(30, 20, 20), width=3)
-        d.line([(a, 0), (a + S, S)], fill=(30, 20, 20), width=3)
+        d.line([(a, 0), (a - S, S)], fill=(30, 20, 20), width=_px(3))
+        d.line([(a, 0), (a + S, S)], fill=(30, 20, 20), width=_px(3))
     _save(np.asarray(img), "felt_harlequin.png")
 
 
@@ -125,8 +167,8 @@ def felt_stars():
     rng = np.random.default_rng(52)
     gold = (226, 196, 120)
     for _ in range(26):
-        x, y = rng.uniform(10, S - 10, 2)
-        r = rng.uniform(5, 10)
+        x, y = rng.uniform(10, 512 - 10, 2) * Q
+        r = rng.uniform(5, 10) * Q
         pts = []
         for k in range(10):
             a = -np.pi / 2 + k * np.pi / 5
@@ -134,11 +176,11 @@ def felt_stars():
             pts.append((x + np.cos(a) * rr, y + np.sin(a) * rr))
         d.polygon(pts, fill=gold)
     for _ in range(6):  # Mondsicheln
-        x, y = rng.uniform(30, S - 30, 2)
-        r = rng.uniform(14, 20)
+        x, y = rng.uniform(30, 512 - 30, 2) * Q
+        r = rng.uniform(14, 20) * Q
         d.ellipse([x - r, y - r, x + r, y + r], fill=gold)
-        d.ellipse([x - r + r * 0.45, y - r - 2, x + r + r * 0.45, y + r - 2], fill=tuple(int(c) for c in base[int(y) % S, int(x) % S]))
-    _save(np.asarray(img.filter(ImageFilter.GaussianBlur(0.5))), "felt_stars.png")
+        d.ellipse([x - r + r * 0.45, y - r - 2 * Q, x + r + r * 0.45, y + r - 2 * Q], fill=tuple(int(c) for c in base[int(y) % S, int(x) % S]))
+    _save(np.asarray(img.filter(ImageFilter.GaussianBlur(0.5 * Q))), "felt_stars.png")
 
 
 def felt_claws():
@@ -147,21 +189,23 @@ def felt_claws():
     d = ImageDraw.Draw(img)
     rng = np.random.default_rng(62)
     for _ in range(5):  # je drei Krallenspuren, aufgerissener (hellerer) Filz
-        x, y = rng.uniform(40, S - 40, 2)
+        x, y = rng.uniform(40, 512 - 40, 2) * Q
         ang = rng.uniform(-0.6, 0.6) + np.pi / 2
         for k in range(3):
-            ox = (k - 1) * 14
+            ox = (k - 1) * 14 * Q
             pts = []
-            for t in np.linspace(0, 1, 12):
-                L = 110
-                px = x + ox * np.cos(ang - np.pi / 2) + np.cos(ang) * L * t + 6 * np.sin(t * 3)
+            for t in np.linspace(0, 1, 12 if Q == 1 else 48):
+                L = 110 * Q
+                px = x + ox * np.cos(ang - np.pi / 2) + np.cos(ang) * L * t + 6 * Q * np.sin(t * 3)
                 py = y + ox * np.sin(ang - np.pi / 2) + np.sin(ang) * L * t
                 pts.append((px, py))
             for i in range(len(pts) - 1):
-                w = int(1 + 4 * np.sin(np.pi * i / (len(pts) - 1)))
-                d.line([pts[i], pts[i + 1]], fill=(20, 22, 20), width=w + 2)
-                d.line([pts[i], pts[i + 1]], fill=(120, 116, 96), width=max(1, w - 1))
-    _save(np.asarray(img.filter(ImageFilter.GaussianBlur(0.4))), "felt_claws.png")
+                w = 1 + 4 * np.sin(np.pi * i / (len(pts) - 1))
+                if Q == 1:
+                    w = int(w)
+                d.line([pts[i], pts[i + 1]], fill=(20, 22, 20), width=_px(w + 2))
+                d.line([pts[i], pts[i + 1]], fill=(120, 116, 96), width=_px(max(1, w - 1)))
+    _save(np.asarray(img.filter(ImageFilter.GaussianBlur(0.4 * Q))), "felt_claws.png")
 
 
 def felt_moon():
@@ -170,9 +214,9 @@ def felt_moon():
     yy, xx = np.mgrid[0:S, 0:S].astype(np.float32)
     c = S / 2
     r = np.hypot(xx - c, yy - c)
-    glow = np.clip(1 - (r - 70) / 90, 0, 1) ** 2 * 0.25
+    glow = np.clip(1 - (r - 70 * Q) / (90 * Q), 0, 1) ** 2 * 0.25
     base = base + glow[..., None] * np.array((120, 130, 150), np.float32)
-    moon = r < 70
+    moon = r < 70 * Q
     crater = 0.85 + 0.15 * _noise(12, 72)
     mcol = np.array((140, 140, 128), np.float32)[None, None, :] * crater[..., None]
     base = np.where(moon[..., None], mcol, base)
@@ -181,10 +225,10 @@ def felt_moon():
     rng = np.random.default_rng(73)
     for _ in range(60):
         x, y = rng.uniform(0, S, 2)
-        if np.hypot(x - c, y - c) > 110:
-            s = rng.uniform(0.8, 2.0)
+        if np.hypot(x - c, y - c) > 110 * Q:
+            s = rng.uniform(0.8, 2.0) * Q
             d.ellipse([x - s, y - s, x + s, y + s], fill=(220, 220, 240))
-    _save(np.asarray(img.filter(ImageFilter.GaussianBlur(0.6))), "felt_moon.png")
+    _save(np.asarray(img.filter(ImageFilter.GaussianBlur(0.6 * Q))), "felt_moon.png")
 
 
 def felt_velvet():
@@ -207,6 +251,7 @@ def rim_wood(name, rgb, seed, coarse=False, moss=False):
         m = np.clip(_noise(16, seed + 3) - 0.45, 0, 1) * 2.2
         arr = arr * (1 - m[..., None]) + np.array((70, 110, 40), np.float32) * m[..., None] * (0.8 + 0.4 * _noise(128, seed + 4))[..., None]
     _save(arr, f"rim_{name}.png")
+    _normal(arr, f"rim_{name}_normal.png", 2.2 if coarse else 1.6, 0.8)
 
 
 def rim_bone():
@@ -217,7 +262,9 @@ def rim_bone():
     for x in range(0, S, 64):  # Gelenk-Knubbel quer über den Rand
         d.line([(x, 0), (x, S)], fill=(150, 136, 110), width=4)
         d.line([(x + 6, 0), (x + 6, S)], fill=(240, 232, 210), width=2)
-    _save(np.asarray(img.filter(ImageFilter.GaussianBlur(1.0))), "rim_bone.png")
+    arr = np.asarray(img.filter(ImageFilter.GaussianBlur(1.0)))
+    _save(arr, "rim_bone.png")
+    _normal(arr, "rim_bone_normal.png", 2.6, 1.6)
 
 
 def rim_stone(name, seed, moss=False):
@@ -233,6 +280,7 @@ def rim_stone(name, seed, moss=False):
             d.line([(p, 0), (p, S)], fill=(70, 68, 64), width=3)
         arr = np.asarray(img).astype(np.float32)
     _save(arr, f"rim_{name}.png")
+    _normal(arr, f"rim_{name}_normal.png", 2.4, 1.2)
 
 
 def rim_fur():
@@ -245,7 +293,9 @@ def rim_fur():
         a = np.pi / 2 + rng.uniform(-0.4, 0.4)
         c = int(rng.uniform(70, 190))
         d.line([(x, y), (x + np.cos(a) * L, y + np.sin(a) * L)], fill=(c, c - 2, c - 8), width=1)
-    _save(np.asarray(img.filter(ImageFilter.GaussianBlur(0.5))), "rim_fur.png")
+    arr = np.asarray(img.filter(ImageFilter.GaussianBlur(0.5)))
+    _save(arr, "rim_fur.png")
+    _normal(arr, "rim_fur_normal.png", 1.4, 0.7)
 
 
 # --- Geräusche ----------------------------------------------------------------------
@@ -304,13 +354,8 @@ if __name__ == "__main__":
     felt_plain("bone", (214, 204, 176), 5)
     felt_plain("moss", (66, 96, 40), 6)
     felt_plain("violet", (84, 44, 120), 7)
-    felt_feather()
-    felt_wine_gold()
-    felt_stripes()
-    felt_harlequin()
-    felt_stars()
-    felt_claws()
-    felt_moon()
+    for pattern in (felt_feather, felt_wine_gold, felt_stripes, felt_harlequin, felt_stars, felt_claws, felt_moon):
+        _fine(pattern)
     felt_velvet()
     rim_wood("oak", (150, 108, 64), 111, coarse=True)
     rim_wood("ebony", (40, 30, 28), 112)

@@ -11,6 +11,8 @@ extends Node3D
 
 ## Platz des Aschenbechers hinten links (Gegnerseite, nur Deko)
 const BACK_CENTER := Vector3(-0.68, 0.8, -0.42)
+## Aschenbecher, Schachtel und Zigarette aus Blender (art/blender/cosmetics.py)
+const MODEL := preload("res://assets/models/smoking.glb")
 const PUFFS := 5
 const SMOULDER_TIME := 12.0
 const PAPER_LEN := 0.062
@@ -131,34 +133,14 @@ func _build_tray() -> void:
 	var bright := _mat(Color(0.55, 0.4, 0.22), 0.25, 0.9)
 	var well := _mat(Color(0.05, 0.045, 0.045), 0.9)
 	var ash := _mat(Color(0.42, 0.41, 0.39), 1.0)
-	# schwerer Messingkörper
-	var body := CylinderMesh.new()
-	body.top_radius = 0.066
-	body.bottom_radius = 0.071
-	body.height = 0.022
-	body.radial_segments = 40
-	_mesh(body, metal, Vector3(0, 0.011, 0))
-	# Mulde (dunkel) und Rand (poliert)
-	var bowl := CylinderMesh.new()
-	bowl.top_radius = 0.051
-	bowl.bottom_radius = 0.047
-	bowl.height = 0.003
-	bowl.radial_segments = 40
-	_mesh(bowl, well, Vector3(0, 0.0215, 0))
-	var rim := TorusMesh.new()
-	rim.inner_radius = 0.05
-	rim.outer_radius = 0.067
-	rim.rings = 40
-	rim.ring_segments = 12
-	var rim_node := _mesh(rim, bright, Vector3(0, 0.022, 0))
-	rim_node.scale = Vector3(1, 0.45, 1)
-	# drei Kerben im Rand
-	for k in 3:
-		var dir := notch_dir.normalized().rotated(Vector3.UP, k * TAU / 3.0)
-		var notch := BoxMesh.new()
-		notch.size = Vector3(0.011, 0.006, 0.022)
-		var n := _mesh(notch, well, dir * 0.059 + Vector3(0, 0.0245, 0))
-		n.basis = Basis.looking_at(dir, Vector3.UP)
+	# schwerer Messingkörper, polierter Rand mit drei Kerben, dunkle Mulde (Modell)
+	var lib := MODEL.instantiate()
+	var tray := RoomKit.part(lib, "Aschenbecher", self,
+		{"Aschenbecher_Metall": metal, "Aschenbecher_Rand": bright, "Aschenbecher_Mulde": well})
+	lib.free()
+	# die erste Kerbe des Modells zeigt nach +Z: zur Zigarette drehen
+	var dir := notch_dir.normalized()
+	tray.rotation.y = atan2(dir.x, dir.z)
 	# Asche und ein alter Stummel
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 42

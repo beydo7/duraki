@@ -166,6 +166,12 @@ static func rim_material(id: StringName) -> StandardMaterial3D:
 		m.uv1_world_triplanar = true
 		m.uv1_scale = Vector3.ONE * 2.2
 		m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+		# Relief passend zur Textur (Maserung, Fugen, Risse, Strähnen), siehe tools/generate_cosmetics.py
+		var relief := DIR + String(it.tex).get_basename() + "_normal.png"
+		if ResourceLoader.exists(relief):
+			m.normal_enabled = true
+			m.normal_texture = load(relief)
+			m.normal_scale = 0.9
 	else:
 		m.albedo_color = it.color
 	m.metallic = it.get("metal", 0.0)

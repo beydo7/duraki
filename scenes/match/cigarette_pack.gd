@@ -37,29 +37,14 @@ func _build() -> void:
 	var inner := _mat(Color(0.82, 0.78, 0.68), 0.8) # Silberpapier/Karton innen
 	var foil := _mat(Color(0.75, 0.74, 0.7), 0.3, 0.8)
 	var body_h := H - LID_H
-	_box(Vector3(W, body_h, D), white, Vector3(0, body_h * 0.5, 0), self)
-	# roter Streifen unten (eigenes Design, kein Markenlogo)
-	_box(Vector3(W + 0.0006, 0.007, D + 0.0006), red, Vector3(0, 0.009, 0), self)
-	# Innenkragen, der beim Öffnen sichtbar wird
-	_box(Vector3(W - 0.003, 0.012, D - 0.003), inner, Vector3(0, body_h + 0.004, 0), self)
-	_box(Vector3(W - 0.006, 0.002, D - 0.006), foil, Vector3(0, body_h + 0.0095, 0), self)
-	# Deckel: Scharnier an der Rückseite oben
-	_lid = Node3D.new()
-	_lid.position = Vector3(0, body_h, -D * 0.5)
-	add_child(_lid)
-	_box(Vector3(W + 0.0008, LID_H, D + 0.0008), red, Vector3(0, LID_H * 0.5, D * 0.5), _lid)
+	# Modell (Maße wie die Konstanten oben): Körper mit rotem Streifen unten und rotem Dreieck vorne
+	# und hinten (eigenes Design, kein Markenlogo), Innenkragen und Folie, die beim Öffnen sichtbar
+	# werden, Deckel mit Scharnier an der Rückseite oben
+	var lib := Ashtray.MODEL.instantiate()
+	var pack := RoomKit.part(lib, "Schachtel", self,
+		{"Schachtel_Weiss": white, "Schachtel_Farbe": red, "Schachtel_Innen": inner, "Schachtel_Folie": foil})
+	_lid = pack.find_child("Schachtel_Deckel", true, false)
 	# Beschriftung vorne (Label3D, erfundene Marke)
-	# rotes Dreieck vorne und hinten: hängt vom Deckel herab, Spitze zeigt nach unten (eigenes Design)
-	for side in [1.0, -1.0]:
-		var tri := MeshInstance3D.new()
-		var prism := PrismMesh.new()
-		prism.left_to_right = 0.5
-		prism.size = Vector3(W + 0.0006, body_h * 0.46, 0.0004)
-		tri.mesh = prism
-		tri.material_override = red
-		tri.position = Vector3(0, body_h - body_h * 0.23, side * (D * 0.5 + 0.0003))
-		tri.rotation.z = PI # Spitze nach unten
-		add_child(tri)
 	_label("★", 22, Color(0.98, 0.9, 0.7), Vector3(0, body_h * 0.86, D * 0.5 + 0.0008), self)
 	_brand = _label("DURAKI", 28, red.albedo_color, Vector3(0, body_h * 0.43, D * 0.5 + 0.0008), self)
 	Profile.changed.connect(func() -> void: _brand.modulate = Cosmetics.cig_mat(&"pack").albedo_color)
@@ -70,9 +55,10 @@ func _build() -> void:
 		var c := Node3D.new()
 		c.position = Vector3((i - 1) * 0.013, body_h - CIG_LEN * 0.5 + 0.004, 0.0)
 		add_child(c)
-		_stick(c)
+		_stick(c, lib)
 		c.visible = false
 		_cigs.append(c)
+	lib.free()
 	# Klickfläche über die ganze Schachtel
 	var area := Area3D.new()
 	area.input_ray_pickable = true
@@ -161,40 +147,12 @@ func _take() -> void:
 
 # --- Bausteine ------------------------------------------------------------------------
 
-func _stick(parent: Node3D) -> void:
-	var paper := Cosmetics.cig_mat(&"paper")
-	var filter := _mat(Color(0.82, 0.55, 0.28), 0.7)
-	var p := CylinderMesh.new()
-	p.top_radius = CIG_R
-	p.bottom_radius = CIG_R
-	p.height = CIG_LEN * 0.72
-	p.radial_segments = 12
-	var pm := MeshInstance3D.new()
-	pm.mesh = p
-	pm.material_override = paper
-	pm.position.y = -CIG_LEN * 0.14
-	parent.add_child(pm)
-	var f := CylinderMesh.new()
-	f.top_radius = CIG_R
-	f.bottom_radius = CIG_R
-	f.height = CIG_LEN * 0.28
-	f.radial_segments = 12
-	var fm := MeshInstance3D.new()
-	fm.mesh = f
-	fm.material_override = filter
-	fm.position.y = CIG_LEN * 0.36
-	parent.add_child(fm)
-
-
-func _box(size: Vector3, mat: Material, pos: Vector3, parent: Node3D) -> MeshInstance3D:
-	var b := BoxMesh.new()
-	b.size = size
-	var m := MeshInstance3D.new()
-	m.mesh = b
-	m.material_override = mat
-	m.position = pos
-	parent.add_child(m)
-	return m
+## Zigarette in der Schachtel: steht senkrecht, Filter oben (Modell mit Papier, Filter, Tabak).
+func _stick(parent: Node3D, lib: Node) -> void:
+	RoomKit.part(lib, "Zigarette_Stange", parent, {
+		"Zigarettenpapier": Cosmetics.cig_mat(&"paper"),
+		"Zigarettenfilter": _mat(Color(0.82, 0.55, 0.28), 0.7),
+		"Tabak": _mat(Color(0.35, 0.22, 0.1), 0.95)})
 
 
 func _label(text: String, size: int, color: Color, pos: Vector3, parent: Node3D) -> Label3D:
