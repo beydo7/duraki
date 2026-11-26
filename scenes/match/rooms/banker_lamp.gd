@@ -6,8 +6,10 @@ extends Node3D
 ## Leben, flackert die Lampe und ein Lämpchen geht aus; beim letzten geht die Lampe aus.
 ## Zugkette: anklicken (wenn `interactive`) → die Kette wird ein Stück heruntergezogen
 ## und schnellt zurück, mit Klick-Geräusch geht die Lampe an bzw. aus.
-## Ganz in Code gebaut (kein Blender). Maße in echten Metern, am Ende verkleinert.
+## Die Form kommt aus Blender (banker_lamp.glb, gebaut mit art/blender/casino.py); Materialien,
+## Licht, Zugkette und Lämpchen steuert der Code. Maße in echten Metern, am Ende verkleinert.
 
+const MODEL := preload("res://assets/rooms/casino/banker_lamp.glb")
 const SND_CHAIN := preload("res://assets/rooms/casino/lamp_chain.wav")
 
 const SIZE := 0.75 # Verkleinerung gegenüber einer echten Lampe (passt zu den Karten)
@@ -19,6 +21,9 @@ var _root: Node3D
 var _jewels: Array[MeshInstance3D] = []
 var _jewel_on: StandardMaterial3D
 var _jewel_off: StandardMaterial3D
+var _jewel_mesh: Mesh # geschliffenes Lämpchen und seine Messingfassung (Vorlagen aus dem Modell)
+var _bezel_mesh: Mesh
+var _brass: StandardMaterial3D
 var _inner: StandardMaterial3D
 var _bulb: StandardMaterial3D
 var _glass: StandardMaterial3D
@@ -103,16 +108,17 @@ func set_lives(count: int) -> void:
 	_jewels.clear()
 	_lives = count
 	var step := minf(0.026, 0.15 / maxf(count - 1, 1))
-	var m := SphereMesh.new()
-	m.radius = 0.0085
-	m.height = 0.012
 	for i in count:
 		var j := MeshInstance3D.new()
-		j.mesh = m
+		j.mesh = _jewel_mesh
 		j.material_override = _jewel_on
 		j.position = Vector3((i - (count - 1) * 0.5) * step, 0.036, 0.05)
 		_root.add_child(j)
 		_jewels.append(j)
+		var bezel := MeshInstance3D.new()
+		bezel.mesh = _bezel_mesh
+		bezel.material_override = _brass
+		j.add_child(bezel)
 
 
 ## Ein Leben weg: Lampe flackert, das letzte leuchtende Lämpchen erlischt.
@@ -135,6 +141,7 @@ func lose_life() -> void:
 
 func _build() -> void:
 	var brass := StandardMaterial3D.new()
+	_brass = brass
 	brass.albedo_color = Color(0.86, 0.64, 0.3)
 	brass.metallic = 1.0
 	brass.roughness = 0.22
@@ -166,83 +173,24 @@ func _build() -> void:
 	_jewel_off.albedo_color = Color(0.2, 0.03, 0.03)
 	_jewel_off.roughness = 0.25
 
-	# Fuß: zwei ovale Stufen und ein kleiner Kegel
-	_cyl(0.11, 0.115, 0.02, Vector3(0, 0.01, 0), brass, 0.62)
-	_cyl(0.085, 0.095, 0.016, Vector3(0, 0.028, 0), brass, 0.6)
-	_cyl(0.022, 0.045, 0.03, Vector3(0, 0.05, -0.02), brass)
-	# Säule mit Zierknauf und Ring
-	_cyl(0.009, 0.009, 0.24, Vector3(0, 0.18, -0.02), brass)
-	var knob := MeshInstance3D.new()
-	var km := SphereMesh.new()
-	km.radius = 0.02
-	km.height = 0.032
-	knob.mesh = km
-	knob.material_override = brass
-	knob.position = Vector3(0, 0.1, -0.02)
-	_root.add_child(knob)
-	_cyl(0.016, 0.016, 0.008, Vector3(0, 0.22, -0.02), brass)
-	# Halter zum Schirm (kurzer Bogen nach vorn)
-	_cyl(0.007, 0.007, 0.045, Vector3(0, SHADE_Y - 0.01, -0.0), brass).rotation.x = PI * 0.5
-	# Schirm: halbe Röhre, Öffnung unten, leicht zum Spieler gekippt
-	var shade := Node3D.new()
-	shade.position = Vector3(0, SHADE_Y, 0.02)
-	shade.rotation.x = 0.28
-	_root.add_child(shade)
-	var outer := MeshInstance3D.new()
-	outer.mesh = _half_tube(SHADE_R, SHADE_LEN, true)
-	outer.material_override = _glass
-	shade.add_child(outer)
-	var inner := MeshInstance3D.new()
-	inner.mesh = _half_tube(SHADE_R * 0.96, SHADE_LEN * 0.99, false)
-	inner.material_override = _inner
-	inner.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	shade.add_child(inner)
-	# Messingkappen an den Enden und Leiste unten
-	for sx in [-1.0, 1.0]:
-		var cap := MeshInstance3D.new()
-		var cm := TorusMesh.new()
-		cm.inner_radius = SHADE_R - 0.004
-		cm.outer_radius = SHADE_R + 0.004
-		cm.rings = 32
-		cm.ring_segments = 6
-		cap.mesh = cm
-		cap.material_override = brass
-		cap.rotation.z = PI * 0.5
-		cap.scale = Vector3(1, 0.5, 1)
-		cap.position.x = sx * SHADE_LEN * 0.5
-		shade.add_child(cap)
-	# Glühbirne unter dem Schirm
-	var bulb := MeshInstance3D.new()
-	var bm := SphereMesh.new()
-	bm.radius = 0.022
-	bm.height = 0.05
-	bulb.mesh = bm
-	bulb.material_override = _bulb
-	bulb.position = Vector3(0, -0.01, 0)
-	bulb.rotation.z = PI * 0.5
-	bulb.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	shade.add_child(bulb)
-	# Zugkette rechts am Schirm (Kügelchen mit Messinggriff), beweglich und anklickbar
-	_chain = Node3D.new()
-	shade.add_child(_chain)
-	var bead := SphereMesh.new()
-	bead.radius = 0.0035
-	bead.height = 0.007
-	for k in 12:
-		var b := MeshInstance3D.new()
-		b.mesh = bead
-		b.material_override = brass
-		b.position = Vector3(SHADE_LEN * 0.36, -0.012 - k * 0.0085, SHADE_R * 0.55)
-		_chain.add_child(b)
-	var grip := MeshInstance3D.new()
-	var gm := CylinderMesh.new()
-	gm.top_radius = 0.004
-	gm.bottom_radius = 0.008
-	gm.height = 0.022
-	grip.mesh = gm
-	grip.material_override = brass
-	grip.position = Vector3(SHADE_LEN * 0.36, -0.12, SHADE_R * 0.55)
-	_chain.add_child(grip)
+	# Fuß, Säule, Schirm, Birnen und Zugkette aus Blender; „Schirm“ ist leicht zum Spieler gekippt
+	var model := RoomKit.model(_root, MODEL, {
+		"Lampenmessing": brass, "Glas_Gruen": _glass, "Schirm_Innen": _inner, "Gluehbirne": _bulb,
+	})
+	var shade := model.find_child("Schirm", true, false) as Node3D
+	for part in ["Schirm_Innen", "Schirm_Birnen"]:
+		(shade.find_child(part, true, false) as GeometryInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	# Zugkette rechts am Schirm (Knoten „Kette“), beweglich und anklickbar
+	_chain = shade.find_child("Kette", true, false) as Node3D
+	# Vorlagen für die Lämpchen herausnehmen (set_lives setzt je Leben eines auf den Fuß)
+	for part in ["Juwel", "Juwel_Fassung"]:
+		var tpl := model.find_child(part, true, false) as MeshInstance3D
+		if part == "Juwel":
+			_jewel_mesh = tpl.mesh
+		else:
+			_bezel_mesh = tpl.mesh
+		tpl.get_parent().remove_child(tpl)
+		tpl.free()
 	# großzügige Klickfläche um Kette und Griff (dünne Kette wäre schwer zu treffen)
 	_chain_area = Area3D.new()
 	_chain_area.input_ray_pickable = interactive
@@ -268,47 +216,3 @@ func _build() -> void:
 	_glow.omni_range = 0.45
 	_glow.position = Vector3(0, 0.09, 0)
 	shade.add_child(_glow)
-
-
-## Halbe Röhre entlang x (obere Hälfte), Öffnung zeigt nach unten.
-## Mit Halbkreis-Deckeln an beiden Enden (nur außen).
-static func _half_tube(r: float, length: float, caps: bool) -> ArrayMesh:
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var seg := 28
-	var hx := length * 0.5
-	for i in seg:
-		var a0 := PI * i / seg
-		var a1 := PI * (i + 1) / seg
-		var n0 := Vector3(0, sin(a0), cos(a0))
-		var n1 := Vector3(0, sin(a1), cos(a1))
-		var p00 := Vector3(-hx, 0, 0) + n0 * r
-		var p10 := Vector3(hx, 0, 0) + n0 * r
-		var p01 := Vector3(-hx, 0, 0) + n1 * r
-		var p11 := Vector3(hx, 0, 0) + n1 * r
-		for v in [[p00, n0], [p10, n0], [p11, n1], [p00, n0], [p11, n1], [p01, n1]]:
-			st.set_normal(v[1])
-			st.add_vertex(v[0])
-		if caps:
-			for sx in [-1.0, 1.0]:
-				var c := Vector3(sx * hx, 0, 0)
-				var n := Vector3(sx, 0, 0)
-				for v in [c, c + Vector3(0, 0, 0) + n0 * r, c + n1 * r]:
-					st.set_normal(n)
-					st.add_vertex(Vector3(sx * hx, v.y, v.z))
-	return st.commit()
-
-
-func _cyl(top: float, bottom: float, h: float, pos: Vector3, m: Material, squash := 1.0) -> MeshInstance3D:
-	var mi := MeshInstance3D.new()
-	var c := CylinderMesh.new()
-	c.top_radius = top
-	c.bottom_radius = bottom
-	c.height = h
-	c.radial_segments = 32
-	mi.mesh = c
-	mi.material_override = m
-	mi.position = pos
-	mi.scale.z = squash
-	_root.add_child(mi)
-	return mi

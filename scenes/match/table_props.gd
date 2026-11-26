@@ -21,9 +21,9 @@ var _gold: StandardMaterial3D
 var _coin_mesh: CylinderMesh
 ## Casino: Pokerchips (rot, schwarz, blau, grün mit weißem Rand) statt Goldmünzen
 var chip_style := false
+const CHIP_MODEL := preload("res://assets/rooms/casino/chip.glb")
 const CHIP_COLORS := [Color(0.72, 0.06, 0.08), Color(0.06, 0.06, 0.07), Color(0.08, 0.2, 0.55), Color(0.06, 0.4, 0.2)]
-var _chip_mesh: CylinderMesh
-var _chip_ring: TorusMesh
+var _chip_mesh: Mesh
 var _chip_mats: Array[StandardMaterial3D] = []
 var _chip_white: StandardMaterial3D
 ## Casino: grüne Bankerlampe statt Kerzen (vor set_lives setzen)
@@ -238,31 +238,21 @@ func set_gold(amount: int, animate := true) -> void:
 
 # --- Bausteine ------------------------------------------------------------------
 
-## Münze in einen Pokerchip verwandeln (Farbe je Stapel, weißer Randring).
+## Münze in einen Pokerchip verwandeln (Farbe je Stapel, weißer Ring und weiße Randeinlagen).
+## Der Chip kommt aus Blender (chip.glb, zwei Materialien: „Chipfarbe“ und „Chipweiss“).
 func _make_chip(coin: MeshInstance3D, stack: int) -> void:
 	if _chip_mesh == null:
-		_chip_mesh = CylinderMesh.new()
-		_chip_mesh.top_radius = 0.019
-		_chip_mesh.bottom_radius = 0.019
-		_chip_mesh.height = 0.0042
-		_chip_mesh.radial_segments = 24
-		_chip_ring = TorusMesh.new()
-		_chip_ring.inner_radius = 0.0125
-		_chip_ring.outer_radius = 0.0148
-		_chip_ring.rings = 24
-		_chip_ring.ring_segments = 6
+		var src := CHIP_MODEL.instantiate()
+		_chip_mesh = (src.find_child("Chip", true, false) as MeshInstance3D).mesh
+		src.free()
 		for c in CHIP_COLORS:
 			_chip_mats.append(_mat(c, 0.45))
 		_chip_white = _mat(Color(0.94, 0.92, 0.86), 0.5)
 	coin.mesh = _chip_mesh
-	coin.material_override = _chip_mats[stack % _chip_mats.size()]
-	for y in [0.0021, -0.0021]: # Ring oben und unten
-		var ring := MeshInstance3D.new()
-		ring.mesh = _chip_ring
-		ring.material_override = _chip_white
-		ring.position.y = y
-		ring.scale = Vector3(1, 0.12, 1)
-		coin.add_child(ring)
+	coin.material_override = null
+	for i in _chip_mesh.get_surface_count():
+		var white := _chip_mesh.surface_get_material(i).resource_name == "Chipweiss"
+		coin.set_surface_override_material(i, _chip_white if white else _chip_mats[stack % _chip_mats.size()])
 
 
 func _candle(pos: Vector3, height: float) -> Dictionary:

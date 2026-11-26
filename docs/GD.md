@@ -116,7 +116,10 @@ Ein Run = 3 Akte mit je 3 normalen Gegnern + Boss (12 Tische), 3 Leben (Kerzen).
 - **Räume** (`scenes/match/rooms/`, `Rooms.for_floor`): Jeder Tisch spielt in einem zufälligen Raum
   (Hinterzimmer, **Altes Casino**, **Bahnhofswartesaal**, **U-Boot** oder **Zirkuswagen**), fest pro Run-Seed und Tisch, damit Weg und Duell denselben Raum
   zeigen; eigener Zufallsgenerator, `Run.rng` bleibt unberührt. Das Tutorial spielt immer im Hinterzimmer.
-  Das Casino ist ganz in Code gebaut (kein Blender): Damast-Tapete, Teppich, Vorhänge, Kronleuchter,
+  Das Casino: Formen aus Blender (`art/blender/casino.py` → `assets/rooms/casino/*.glb`), Materialien,
+  Lichter und alles Bewegliche im Code; Zuordnung über Materialnamen mit `RoomKit.model` (Einzelheiten
+  und Liste der Teile: `docs/UMGEBUNG_OVERHAUL.md`). Boden, Decke, Tapetenwände, Walzen und Schriften
+  bleiben Code. Damast-Tapete, Teppich, Vorhänge, Kronleuchter,
   Neonschild „CASINO“, zwei alte Spielautomaten mit „DURAKI“-Schild und großem Hebel (anklickbar: Walzen
   drehen, selten 7-7-7), größerer abgerundeter Pokertisch, Würfel, Cocktailglas, Pokerchips statt
   Goldmünzen (`TableProps.chip_style`), kein Aschenbecher, keine Zigaretten.
@@ -405,11 +408,14 @@ Run: Schwierigkeit, Hinweise, Tutorial im Hauptmenü anzeigen).
 - `godot --headless --path . res://tests/daily_tests.tscn` → Tägliche Herausforderung und Statistik (16 Checks)
 - `godot --headless --path . res://tests/cosmetics_tests.tscn` → Deck-Belohnungen: je Deck drei, Freischalten je Stufe,
   alle Räume mit allen Belohnungen bauen (107 Checks)
+- `godot --headless --path . res://tests/casino_tests.tscn` → Casino-Modelle: alle Teile da, Hebel, Kessel,
+  Zugkette, Lämpchen, Pokerchips, Deck-Belohnungen am Tisch (32 Checks)
 - `godot --headless --path . res://tests/relic_tests.tscn` → jedes Relikt im echten Ablauf (28 Checks),
   auch Relikte, die mitten im Duell dazukommen (wirken sofort, `match.gd` `_apply_relics`)
 - Absturz-Suche unter Windows: `Spiel_starten.bat` schreibt das Log nach `logs\letzter_start.log`.
 - `xvfb-run godot --path . res://tests/click_test.tscn` → Handkarten per Klick
-- `tests/screenshot.tscn` (Args: transfer, result, boss, opp=<id>, nohud, many, enh, film) und
+- `tests/screenshot.tscn` (Args: transfer, result, boss, opp=<id>, room=<id>, nohud, many, enh, film,
+  gold=<n>, cam=x,y,z,zielx,ziely,zielz[,fov] für eine freie Kamera) und
   `tests/ui_shots.tscn` → Screenshots aller Bildschirme
 - Tests rufen `Profile.reset_for_tests()` auf, damit das echte Profil nicht überschrieben wird.
 

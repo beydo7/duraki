@@ -1,6 +1,33 @@
 class_name RoomKit
 ## Kleine Bausteine für Räume aus Grundformen (Kisten, Zylinder, Flächen, Schrift, Geräusche).
 ## Von U-Boot und Zirkuswagen benutzt; Casino und Bahnhof haben eigene Kopien davon.
+## Dazu `model()`: Blender-Modell (.glb) einsetzen und die Materialien über ihre Namen zuordnen.
+
+
+## Blender-Modell unter `parent` hängen. `mats` = { Materialname in Blender: Godot-Material }.
+## So bleiben Farben, Lauflichter und Tisch-Looks im Code; Blender liefert die Form.
+## Materialien, die nicht in `mats` stehen, bleiben so, wie sie aus Blender kommen.
+static func model(parent: Node, scene: PackedScene, mats := {}) -> Node3D:
+	var root := scene.instantiate() as Node3D
+	parent.add_child(root)
+	apply_materials(root, mats)
+	return root
+
+
+static func apply_materials(root: Node, mats: Dictionary) -> void:
+	for n in root.find_children("*", "MeshInstance3D", true, false):
+		var mi := n as MeshInstance3D
+		if mi.mesh == null:
+			continue
+		var count := mi.mesh.get_surface_count()
+		for i in count:
+			var src := mi.mesh.surface_get_material(i)
+			if src == null or not mats.has(src.resource_name):
+				continue
+			if count == 1: # ein Material → material_override (TableSkin tauscht darüber)
+				mi.material_override = mats[src.resource_name]
+			else:
+				mi.set_surface_override_material(i, mats[src.resource_name])
 
 
 static func mat(c: Color, rough := 0.6, metal := 0.0) -> StandardMaterial3D:

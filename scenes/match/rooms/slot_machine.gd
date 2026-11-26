@@ -3,6 +3,8 @@ extends Node3D
 ## Alter Spielautomat („einarmiger Bandit“) für das Casino: Holzsockel, rotes Gehäuse
 ## mit Chromkanten, runder Kopf mit Lauflichtern, drei Walzen hinter Glas und ein
 ## großer Hebel an der rechten Seite. Kein Touchscreen.
+## Die Form kommt aus Blender (slot_machine.glb, gebaut mit art/blender/casino.py);
+## Materialien, Walzen, Schrift und alles Bewegliche bleiben hier im Code.
 ##
 ## `interactive`: Klick auf den Automaten zieht den Hebel, die Walzen drehen sich und
 ## halten nacheinander an. Drei Siebenen (ca. 1 %) → Glocke, Münzen, die Lichter blinken
@@ -11,6 +13,7 @@ extends Node3D
 signal pulled
 signal jackpot
 
+const MODEL := preload("res://assets/rooms/casino/slot_machine.glb")
 const REELS := preload("res://assets/rooms/casino/reels.png")
 const SND_PULL := preload("res://assets/rooms/casino/slot_pull.wav")
 const SND_SPIN := preload("res://assets/rooms/casino/slot_spin.wav")
@@ -60,8 +63,9 @@ func _process(delta: float) -> void:
 func _build() -> void:
 	var wood := _mat(Color(0.2, 0.1, 0.05), 0.55)
 	wood.albedo_texture = preload("res://assets/models/table_wood_color.png")
-	wood.uv1_triplanar = true
-	wood.uv1_scale = Vector3(2, 2, 2)
+	wood.normal_enabled = true
+	wood.normal_texture = preload("res://assets/models/table_wood_normal.png")
+	wood.uv1_scale = Vector3(2, 2, 2) # UVs des Modells sind in Metern
 	var chrome := _mat(Color(0.86, 0.86, 0.9), 0.18)
 	chrome.metallic = 1.0
 	var gold := _mat(Color(0.92, 0.7, 0.3), 0.3)
@@ -70,41 +74,17 @@ func _build() -> void:
 	red.clearcoat_enabled = true
 	red.clearcoat = 0.8
 	var dark := _mat(Color(0.03, 0.03, 0.04), 0.6)
+	var bmat := _mat(Color(0.8, 0.04, 0.05), 0.2)
+	bmat.clearcoat_enabled = true
 
-	# Sockel mit Messingleiste
-	_box(Vector3(W + 0.06, BASE_H, D + 0.06), Vector3(0, BASE_H * 0.5, 0), wood)
-	_box(Vector3(W + 0.07, 0.02, D + 0.07), Vector3(0, BASE_H, 0), gold)
-	# Gehäuse
+	# Sockel, Gehäuse, Chrom, Fensterhaube, Schale, Knöpfe und Hebel aus Blender
+	var model := RoomKit.model(self, MODEL, {
+		"Sockelholz": wood, "Chrom": chrome, "Messing": gold, "Lack": red, "Dunkel": dark,
+		"Fensterglas": _glass(), "Gewinnlinie": _mat(Color(0.9, 0.1, 0.1), 0.5), "Knauf": bmat,
+	})
+	(model.find_child("Fensterglas", true, false) as GeometryInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	var top := BASE_H + BODY_H
-	_box(Vector3(W, BODY_H, D), Vector3(0, BASE_H + BODY_H * 0.5, 0), red)
-	for s in [-1.0, 1.0]: # Chromkanten
-		_box(Vector3(0.022, BODY_H, 0.022), Vector3(s * W * 0.5, BASE_H + BODY_H * 0.5, D * 0.5), chrome)
-	# runder Kopf
-	var head := MeshInstance3D.new()
-	var hc := CylinderMesh.new()
-	hc.top_radius = W * 0.5
-	hc.bottom_radius = W * 0.5
-	hc.height = D
-	hc.radial_segments = 32
-	head.mesh = hc
-	head.material_override = red
-	head.rotation.x = PI * 0.5
-	head.position = Vector3(0, top, 0)
-	add_child(head)
-	var arch := MeshInstance3D.new() # Chrombogen um den Kopf
-	var pts := PackedVector3Array()
-	for i in 33:
-		var a := PI * i / 32.0
-		pts.append(Vector3(cos(a) * (W * 0.5 + 0.004), sin(a) * (W * 0.5 + 0.004), 0))
-	arch.mesh = _arc_tube(pts, 0.011)
-	var chrome2 := chrome.duplicate() as StandardMaterial3D
-	chrome2.cull_mode = BaseMaterial3D.CULL_DISABLED
-	arch.material_override = chrome2
-	arch.position = Vector3(0, top, D * 0.5)
-	add_child(arch)
-	# Schild im Kopf
-	var plate := _box(Vector3(W * 0.78, 0.1, 0.01), Vector3(0, top + 0.06, D * 0.5 + 0.002), dark)
-	plate.name = "Schild"
+	# Schrift auf dem Schild im Kopf
 	var sign := Label3D.new()
 	sign.text = "DURAKI"
 	sign.font = preload("res://assets/fonts/RussoOne-Regular.ttf")
@@ -115,34 +95,19 @@ func _build() -> void:
 	sign.outline_modulate = Color(0.5, 0.08, 0.04)
 	sign.position = Vector3(0, top + 0.06, D * 0.5 + 0.009)
 	add_child(sign)
-	# Lauflicht-Birnen im Bogen
-	var bm := SphereMesh.new()
-	bm.radius = 0.011
-	bm.height = 0.022
+	# Lauflicht-Birnen im Bogen („Birne_00“ … „Birne_12“): jede mit eigenem Material
 	for i in 13:
-		var a := PI * (0.06 + 0.88 * i / 12.0)
-		var b := MeshInstance3D.new()
-		b.mesh = bm
+		var b := model.find_child("Birne_%02d" % i, true, false) as MeshInstance3D
 		var m := _mat(Color(1, 0.85, 0.5), 0.3)
 		m.emission_enabled = true
 		m.emission = Color(1, 0.72, 0.3)
 		b.material_override = m
 		_bulbs.append(m)
-		b.position = Vector3(cos(a) * (W * 0.5 - 0.03), top + sin(a) * (W * 0.5 - 0.03), D * 0.5 + 0.012)
-		add_child(b)
 
-	# Walzenfenster: tiefer schwarzer Rahmen, drei Walzen dahinter, Glas davor.
-	# Die Walzen ragen etwas aus dem Gehäuse; der Rahmen verdeckt alles außer dem Fenster.
+	# Drei Walzen hinter dem Fenster (drehen sich um x); Haube und Glas davor sind im Modell
 	var win_w := W * 0.8
-	var win_h := 0.17
 	var fz := D * 0.5
 	var depth := 0.065
-	_box(Vector3(win_w + 0.06, 0.09, depth), Vector3(0, REEL_Y + win_h * 0.5 + 0.045, fz + depth * 0.5), dark)
-	_box(Vector3(win_w + 0.06, 0.09, depth), Vector3(0, REEL_Y - win_h * 0.5 - 0.045, fz + depth * 0.5), dark)
-	for s in [-1.0, 1.0]:
-		_box(Vector3(0.03, win_h, depth), Vector3(s * (win_w * 0.5 + 0.015), REEL_Y, fz + depth * 0.5), dark)
-		_box(Vector3(win_w + 0.08, 0.016, 0.012), Vector3(0, REEL_Y + s * (win_h * 0.5 + 0.008), fz + depth + 0.002), chrome)
-		_box(Vector3(0.016, win_h + 0.03, 0.012), Vector3(s * (win_w * 0.5 + 0.008), REEL_Y, fz + depth + 0.002), chrome)
 	var reel_mat := _mat(Color.WHITE, 0.45)
 	reel_mat.albedo_texture = REELS
 	reel_mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
@@ -154,58 +119,9 @@ func _build() -> void:
 		r.position = Vector3((i - 1) * win_w / 3.0, REEL_Y, fz + depth - 0.012 - REEL_R)
 		add_child(r)
 		_reels.append(r)
-		if i > 0: # Trennstege
-			_box(Vector3(0.006, win_h, 0.02), Vector3((i - 1.5) * win_w / 3.0, REEL_Y, fz + depth - 0.008), dark)
-	var glass := _box(Vector3(win_w, win_h, 0.004), Vector3(0, REEL_Y, fz + depth - 0.002), _glass())
-	glass.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	# Gewinnlinie
-	_box(Vector3(win_w, 0.003, 0.002), Vector3(0, REEL_Y, fz + depth + 0.001), _mat(Color(0.9, 0.1, 0.1), 0.5))
-	# Münzschlitz, Knöpfe und Auffangschale
-	_box(Vector3(0.05, 0.008, 0.004), Vector3(W * 0.28, REEL_Y - 0.16, fz + 0.003), dark)
-	_box(Vector3(W * 0.7, 0.06, 0.08), Vector3(0, BASE_H + 0.06, fz + 0.035), chrome)
-	_box(Vector3(W * 0.6, 0.04, 0.06), Vector3(0, BASE_H + 0.075, fz + 0.042), dark)
-	var knob := SphereMesh.new()
-	knob.radius = 0.016
-	knob.height = 0.02
-	for k in 3:
-		var bt := MeshInstance3D.new()
-		bt.mesh = knob
-		bt.material_override = _mat([Color(0.9, 0.2, 0.1), Color(0.95, 0.75, 0.2), Color(0.2, 0.6, 0.3)][k], 0.3)
-		bt.position = Vector3(-W * 0.25 + k * 0.05, REEL_Y - 0.17, fz + 0.004)
-		add_child(bt)
 
-	# Großer Hebel rechts: Lager, Chromstange, roter Knauf
-	_lever = Node3D.new()
-	_lever.position = Vector3(W * 0.5 + 0.035, REEL_Y - 0.08, 0.02)
-	add_child(_lever)
-	var hub := MeshInstance3D.new()
-	var hm := CylinderMesh.new()
-	hm.top_radius = 0.035
-	hm.bottom_radius = 0.035
-	hm.height = 0.05
-	hub.mesh = hm
-	hub.material_override = chrome
-	hub.rotation.z = PI * 0.5
-	_lever.add_child(hub)
-	var rod := MeshInstance3D.new()
-	var rm := CylinderMesh.new()
-	rm.top_radius = 0.011
-	rm.bottom_radius = 0.014
-	rm.height = 0.42
-	rod.mesh = rm
-	rod.material_override = chrome
-	rod.position = Vector3(0.012, 0.21, 0)
-	_lever.add_child(rod)
-	var ball := MeshInstance3D.new()
-	var bs := SphereMesh.new()
-	bs.radius = 0.04
-	bs.height = 0.08
-	ball.mesh = bs
-	var bmat := _mat(Color(0.8, 0.04, 0.05), 0.2)
-	bmat.clearcoat_enabled = true
-	ball.material_override = bmat
-	ball.position = Vector3(0.012, 0.44, 0)
-	_lever.add_child(ball)
+	# Großer Hebel rechts: Drehpunkt ist der Knoten „Hebel“ im Modell
+	_lever = model.find_child("Hebel", true, false) as Node3D
 
 	# Klickfläche über den ganzen Automaten
 	var area := Area3D.new()
@@ -243,31 +159,6 @@ static func _reel_mesh(radius: float, width: float) -> ArrayMesh:
 			st.set_uv(q[1])
 			st.add_vertex(pos)
 	st.generate_tangents()
-	return st.commit()
-
-
-## Röhre entlang eines Bogens (für den Chrombogen am Kopf).
-static func _arc_tube(path: PackedVector3Array, radius: float) -> ArrayMesh:
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var sides := 10
-	var rings: Array = []
-	for i in path.size():
-		var t := (path[mini(i + 1, path.size() - 1)] - path[maxi(i - 1, 0)]).normalized()
-		var a1 := t.cross(Vector3.FORWARD).normalized()
-		var a2 := t.cross(a1).normalized()
-		var ring := []
-		for k in sides:
-			var ang := TAU * k / sides
-			var nrm := a1 * cos(ang) + a2 * sin(ang)
-			ring.append([path[i] + nrm * radius, nrm])
-		rings.append(ring)
-	for i in path.size() - 1:
-		for k in sides:
-			var k1 := (k + 1) % sides
-			for v in [rings[i][k], rings[i + 1][k], rings[i + 1][k1], rings[i][k], rings[i + 1][k1], rings[i][k1]]:
-				st.set_normal(v[1])
-				st.add_vertex(v[0])
 	return st.commit()
 
 
@@ -340,17 +231,6 @@ func _play(stream: AudioStream, db: float) -> void:
 
 
 # --- Bausteine ------------------------------------------------------------------
-
-func _box(size: Vector3, pos: Vector3, m: Material) -> MeshInstance3D:
-	var mi := MeshInstance3D.new()
-	var b := BoxMesh.new()
-	b.size = size
-	mi.mesh = b
-	mi.material_override = m
-	mi.position = pos
-	add_child(mi)
-	return mi
-
 
 static func _mat(c: Color, rough: float) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()

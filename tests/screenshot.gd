@@ -20,6 +20,10 @@ func _detach() -> void:
 	var placeholder := Node.new()
 	get_tree().root.add_child(placeholder)
 	get_tree().current_scene = placeholder
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("room="):
+			# bestimmten Raum zeigen, z. B. room=casino (siehe Rooms)
+			Rooms.forced = StringName(arg.substr(5))
 	Run.start_new_run(4242)
 	await get_tree().create_timer(0.5).timeout
 	Run.floor_index = Run.encounters.size() - 1 if "boss" in OS.get_cmdline_user_args() else 0
@@ -54,6 +58,21 @@ func _detach() -> void:
 		await _shot("many")
 		get_tree().quit()
 		return
+	if "nohud" in args:
+		scene.hud.visible = false
+	for arg in args:
+		if arg.begins_with("gold="):
+			# Münzen/Chips auf den Tisch legen, z. B. gold=20
+			(scene.world as TableWorld).props.set_gold(int(arg.substr(5)), false)
+		if arg.begins_with("cam="):
+			# freie Kamera zum Prüfen des Raums: cam=x,y,z,zielx,ziely,zielz[,fov]
+			var v := arg.substr(4).split_floats(",")
+			var w2: TableWorld = scene.world
+			w2.set_process(false)
+			w2.camera.global_position = Vector3(v[0], v[1], v[2])
+			w2.camera.look_at(Vector3(v[3], v[4], v[5]))
+			if v.size() > 6:
+				w2.camera.fov = v[6]
 	if "close" in args:
 		# Nahaufnahme des Gegners (Modell prüfen)
 		var w: TableWorld = scene.world

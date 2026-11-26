@@ -3,6 +3,8 @@ extends Node3D
 ## Kleines Tisch-Roulette (Deko im Casino, steht dort, wo im Hinterzimmer der
 ## Aschenbecher steht). Holzschale, drehender Kessel mit Zahlenfächern, goldenes
 ## Drehkreuz und eine weiße Kugel.
+## Schale und Kessel kommen aus Blender (roulette.glb, gebaut mit art/blender/casino.py);
+## der Knoten „Kessel“ dreht sich, Kugel und Aufleuchten bleiben hier im Code.
 ##
 ## Kleines Easter Egg (`interactive`): Die ersten Klicks stupsen den Kessel nur leicht an,
 ## beim 5. Klick kurz hintereinander wird richtig gedreht. Die Kugel läuft gegenläufig, wird
@@ -26,6 +28,7 @@ const VOLUME_DB := -14.0
 const BOUNCE_TIME := 1.9
 const HOPS := 6
 
+const MODEL := preload("res://assets/rooms/casino/roulette.glb")
 const TEX := preload("res://assets/rooms/casino/roulette.png")
 const SND := preload("res://assets/rooms/casino/roulette.wav")
 const ORDER := [0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23, 10,
@@ -62,69 +65,28 @@ func _ready() -> void:
 	var wood := StandardMaterial3D.new()
 	wood.albedo_texture = preload("res://assets/models/table_wood_color.png")
 	wood.albedo_color = Color(0.55, 0.32, 0.18)
+	wood.normal_enabled = true
+	wood.normal_texture = preload("res://assets/models/table_wood_normal.png")
 	wood.roughness = 0.45
-	wood.uv1_triplanar = true
-	wood.uv1_scale = Vector3(8, 8, 8)
+	wood.uv1_scale = Vector3(8, 8, 8) # UVs des Modells sind in Metern
 	var gold := StandardMaterial3D.new()
 	gold.albedo_color = Color(0.92, 0.7, 0.3)
 	gold.metallic = 1.0
 	gold.roughness = 0.28
-	# Schale (Fuß, Wand, Rand)
-	_cyl(R * 0.75, R * 0.8, 0.012, Vector3(0, 0.006, 0), wood)
-	_cyl(R, R * 0.86, 0.022, Vector3(0, 0.022, 0), wood)
-	var rim := MeshInstance3D.new()
-	var tm := TorusMesh.new()
-	tm.inner_radius = R - 0.004
-	tm.outer_radius = R + 0.004
-	tm.rings = 48
-	rim.mesh = tm
-	rim.material_override = gold
-	rim.position.y = 0.033
-	add_child(rim)
-	# Kessel mit den Fächern (Bild von oben, rund ausgeschnitten)
-	_wheel = Node3D.new()
-	_wheel.position.y = 0.0335
-	add_child(_wheel)
-	var disc := MeshInstance3D.new()
-	var pm := PlaneMesh.new()
-	pm.size = Vector2(R * 1.86, R * 1.86)
-	disc.mesh = pm
+	# Zahlenbild des Kessels (liegt im Modell auf der leicht gewölbten Scheibe)
 	var dm := StandardMaterial3D.new()
 	dm.albedo_texture = TEX
-	dm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
-	dm.alpha_scissor_threshold = 0.5
 	dm.roughness = 0.85
 	dm.metallic_specular = 0.15
 	dm.albedo_color = Color(0.85, 0.85, 0.85) # unter der Tischlampe sonst überstrahlt
 	dm.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
-	disc.material_override = dm
-	_wheel.add_child(disc)
 	# Stege zwischen den Fächern (leicht erhöht → die Fächer wirken eingekerbt)
 	var fret_mat := gold.duplicate() as StandardMaterial3D
 	fret_mat.roughness = 0.35
 	var step := TAU / ORDER.size()
-	for p in ORDER.size():
-		var a := _pocket_angle(p) + step * 0.5
-		var fret := MeshInstance3D.new()
-		var fm := BoxMesh.new()
-		fm.size = Vector3(R * 0.26, 0.0032, 0.0011)
-		fret.mesh = fm
-		fret.material_override = fret_mat
-		fret.position = Vector3(cos(a) * R * 0.54, 0.0016, -sin(a) * R * 0.54)
-		fret.rotation.y = a
-		_wheel.add_child(fret)
-	for rr in [R * 0.41, R * 0.67]: # Ringe innen und außen
-		var ring := MeshInstance3D.new()
-		var rm := TorusMesh.new()
-		rm.inner_radius = rr - 0.0008
-		rm.outer_radius = rr + 0.0008
-		rm.rings = 64
-		rm.ring_segments = 4
-		ring.mesh = rm
-		ring.material_override = fret_mat
-		ring.position.y = 0.0012
-		ring.scale = Vector3(1, 2.0, 1)
-		_wheel.add_child(ring)
+	# Schale, Kessel mit Fächern, Stegen, Ringen und Drehkreuz aus Blender
+	var model := RoomKit.model(self, MODEL, {"Kesselholz": wood, "Kesselgold": gold, "Steggold": fret_mat, "Scheibe": dm})
+	_wheel = model.find_child("Kessel", true, false) as Node3D
 	# Leuchtfleck für das Fach, in dem die Kugel landet (unsichtbar bis dahin)
 	_flash_mat = StandardMaterial3D.new()
 	_flash_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
@@ -148,20 +110,6 @@ func _ready() -> void:
 	_flash_outer.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_flash_outer.visible = false
 	_wheel.add_child(_flash_outer)
-	# Drehkreuz in der Mitte
-	var post := _cyl(0.006, 0.009, 0.022, Vector3(0, 0.011, 0), gold)
-	post.reparent(_wheel, false)
-	for k in 2:
-		var bar := MeshInstance3D.new()
-		var bm := CylinderMesh.new()
-		bm.top_radius = 0.0022
-		bm.bottom_radius = 0.0022
-		bm.height = 0.04
-		bar.mesh = bm
-		bar.material_override = gold
-		bar.rotation = Vector3(PI * 0.5, k * PI * 0.5, 0)
-		bar.position.y = 0.02
-		_wheel.add_child(bar)
 	# Kugel
 	_ball = MeshInstance3D.new()
 	var sm := SphereMesh.new()
@@ -331,17 +279,3 @@ func _play(stream: AudioStream, db: float) -> void:
 	add_child(p)
 	p.play()
 	p.finished.connect(p.queue_free)
-
-
-func _cyl(top: float, bottom: float, h: float, pos: Vector3, m: Material) -> MeshInstance3D:
-	var mi := MeshInstance3D.new()
-	var c := CylinderMesh.new()
-	c.top_radius = top
-	c.bottom_radius = bottom
-	c.height = h
-	c.radial_segments = 40
-	mi.mesh = c
-	mi.material_override = m
-	mi.position = pos
-	add_child(mi)
-	return mi

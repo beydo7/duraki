@@ -8,6 +8,8 @@ Schreibt nach assets/rooms/casino/:
   carpet.png      Casino-Teppich: Ornamente auf Dunkelblau (kachelbar)
   roulette.png    Draufsicht des kleinen Roulettes (Fächer rot/schwarz, grüne Null)
   reels.png       Walzenband des Spielautomaten (7, Kirsche, Glocke, BAR, Zitrone)
+  leather_normal.png  Ledernarbung für den Tischrand (Normalmap, kachelbar)
+  velvet_normal.png   Samtflor für die Vorhänge (Normalmap, kachelbar)
   slot_pull.wav   Hebel ziehen (Ratsche + Klacken)
   slot_spin.wav   Walzen laufen und rasten nacheinander ein
   slot_win.wav    Gewinn: Glocke und klimpernde Münzen
@@ -194,6 +196,51 @@ def reels():
     return img
 
 
+# --- Feinstruktur für die Blender-Modelle (Normalmaps, kachelbar) --------------------
+
+def _noise(size, sigma, seed, aspect=1.0):
+    """Glattes, kachelbares Rauschen in [0, 1] (über FFT, also periodisch)."""
+    rng = np.random.default_rng(seed)
+    white = rng.standard_normal((size, size))
+    fy = np.fft.fftfreq(size)[:, None]
+    fx = np.fft.fftfreq(size)[None, :]
+    kernel = np.exp(-2 * (np.pi ** 2) * ((fx * sigma * aspect) ** 2 + (fy * sigma) ** 2))
+    out = np.real(np.fft.ifft2(np.fft.fft2(white) * kernel))
+    out -= out.min()
+    return out / max(out.max(), 1e-9)
+
+
+def _normal_map(height, strength):
+    """Normalmap (OpenGL/glTF-Konvention) aus einer Höhenkarte, kachelbar."""
+    dx = (np.roll(height, -1, axis=1) - np.roll(height, 1, axis=1)) * 0.5
+    dy = (np.roll(height, -1, axis=0) - np.roll(height, 1, axis=0)) * 0.5
+    nx, ny, nz = -dx * strength, dy * strength, np.ones_like(height)
+    length = np.sqrt(nx ** 2 + ny ** 2 + nz ** 2)
+    n = np.stack([nx / length, ny / length, nz / length], axis=-1) * 0.5 + 0.5
+    return Image.fromarray((np.clip(n, 0, 1) * 255).astype(np.uint8), "RGB")
+
+
+def leather_normal():
+    """Ledernarbung für den gepolsterten Tischrand: kleine Kissen, dazwischen feine Rillen."""
+    S = 512
+    cells = _noise(S, 2.6, 11)
+    grooves = np.clip(1.0 - np.abs(cells - 0.5) / 0.035, 0.0, 1.0)  # Rillen entlang der Höhenlinien
+    pores = _noise(S, 0.9, 12)
+    soft = _noise(S, 14.0, 13)
+    height = cells * 0.35 - grooves * 0.55 + pores * 0.18 + soft * 0.3
+    return _normal_map(height, 5.0)
+
+
+def velvet_normal():
+    """Samt der Vorhänge: sehr feiner Flor mit leichtem Strich nach unten."""
+    S = 512
+    pile = _noise(S, 0.8, 21, aspect=0.45)
+    streaks = _noise(S, 1.6, 22, aspect=0.12)
+    waves = _noise(S, 22.0, 23)
+    height = pile * 0.5 + streaks * 0.35 + waves * 0.4
+    return _normal_map(height, 3.2)
+
+
 # --- Geräusche ---------------------------------------------------------------------
 
 def save_wav(name, x, peak=0.85):
@@ -302,6 +349,8 @@ if __name__ == "__main__":
     carpet().save(OUT / "carpet.png")
     roulette().save(OUT / "roulette.png")
     reels().save(OUT / "reels.png")
+    leather_normal().save(OUT / "leather_normal.png")
+    velvet_normal().save(OUT / "velvet_normal.png")
     print("Texturen geschrieben:", OUT)
     save_wav("slot_pull.wav", slot_pull())
     save_wav("slot_spin.wav", slot_spin())
