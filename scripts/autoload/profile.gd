@@ -54,6 +54,20 @@ var endless_records: Array[Dictionary] = []
 const ENDLESS_RECORDS := 10
 ## Name in der Bestenliste
 var player_name := "Du"
+
+## Statistik (Index → STATISTIK). Zähler über alle Runs.
+var stats := {
+	"duels_won": 0, "duels_lost": 0, "bosses": 0, "points": 0, "best_bout": 0,
+	"best_run_points": 0, "best_act": 0, "transfers": 0, "items_used": 0, "gold_won": 0,
+	"play_seconds": 0.0,
+}
+## Siege und Niederlagen je Gegner (Dateiname ohne Endung → Anzahl)
+var wins_vs := {}
+var losses_vs := {}
+
+## Tägliche Herausforderung: Datum (JJJJ-MM-TT) → {points, tables, endless, done}.
+## Nur der erste Versuch eines Tages zählt (`done` = fertig gespielt).
+var daily_results := {}
 ## Frisch freigeschaltete Decks, die noch nicht angezeigt wurden.
 var pending_unlocks: Array[DeckData] = []
 
@@ -164,6 +178,107 @@ func on_run_finished(won: bool, tables_won: int, factor := 1.0, deck_id: StringN
 	return gained
 
 
+# --- Statistik -----------------------------------------------------------------------
+
+## Ein Duell ist vorbei (nicht im Tutorial). `points` = Punkte in diesem Duell.
+func record_duel(opponent: OpponentData, won: bool, points: int) -> void:
+	if opponent == null:
+		return
+	var oid := String(opponent.resource_path.get_file().get_basename())
+	var table: Dictionary = wins_vs if won else losses_vs
+	table[oid] = int(table.get(oid, 0)) + 1
+	var key := "duels_won" if won else "duels_lost"
+	stats[key] = int(stats.get(key, 0)) + 1
+	stats["points"] = int(stats.get("points", 0)) + points
+	if won and opponent.is_boss:
+		stats["bosses"] = int(stats.get("bosses", 0)) + 1
+	save_profile()
+
+
+## Zähler um `amount` erhöhen (ohne zu speichern – gespeichert wird am Duell-Ende).
+func add_stat(key: String, amount := 1) -> void:
+	stats[key] = int(stats.get(key, 0)) + amount
+
+
+## Höchstwert merken (beste Runde, bester Run …).
+func max_stat(key: String, value: int) -> void:
+	stats[key] = maxi(int(stats.get(key, 0)), value)
+
+
+## Gegner mit den meisten Siegen bzw. Niederlagen: [Dateiname, Anzahl] oder [].
+func top_opponent(wins: bool) -> Array:
+	var table: Dictionary = wins_vs if wins else losses_vs
+	var best := ""
+	for k in table:
+		if best == "" or int(table[k]) > int(table[best]):
+			best = k
+	return [best, int(table[best])] if best != "" else []
+
+
+func _process(delta: float) -> void:
+	# Spielzeit: nur zählen, solange ein Run läuft (nicht im Hauptmenü)
+	if Run.encounters.size() > 0 and not Run.tutorial and get_tree().current_scene != null \
+			and get_tree().current_scene.scene_file_path != Run.SCENE_MENU:
+		stats["play_seconds"] = float(stats.get("play_seconds", 0.0)) + delta
+
+
+# --- Tägliche Herausforderung -----------------------------------------------------------
+
+## Heutiges Datum (JJJJ-MM-TT, lokale Zeit).
+static func today() -> String:
+	return _local_date(Time.get_unix_time_from_system())
+
+
+static func _local_date(unix: float) -> String:
+	var bias := int(Time.get_time_zone_from_system().get("bias", 0))
+	return Time.get_date_string_from_unix_time(int(unix) + bias * 60)
+
+
+func daily_entry(date := "") -> Dictionary:
+	return daily_results.get(date if date != "" else today(), {})
+
+
+## Versuch beginnt: gibt true zurück, wenn er zählt (der erste des Tages).
+func daily_begin(date: String) -> bool:
+	if daily_results.has(date):
+		return false
+	daily_results[date] = {"points": 0, "tables": 0, "endless": 0, "done": false}
+	save_profile()
+	return true
+
+
+func daily_finish(date: String, points: int, tables: int, endless: int) -> void:
+	var e: Dictionary = daily_results.get(date, {})
+	if e.is_empty() or bool(e.get("done", false)):
+		return
+	e.points = points
+	e.tables = tables
+	e.endless = endless
+	e.done = true
+	daily_results[date] = e
+	save_profile()
+	changed.emit()
+
+
+## Tage in Folge (bis heute bzw. gestern) mit gespielter Herausforderung.
+func daily_streak() -> int:
+	var n := 0
+	var t := Time.get_unix_time_from_system()
+	if not daily_results.has(today()):
+		t -= 86400
+	while daily_results.has(_local_date(t)):
+		n += 1
+		t -= 86400
+	return n
+
+
+func daily_best() -> int:
+	var best := 0
+	for d in daily_results:
+		best = maxi(best, int(daily_results[d].get("points", 0)))
+	return best
+
+
 ## Endlos-Ergebnis in die (lokale) Bestenliste eintragen. Gibt den Platz zurück (1 = bester)
 ## oder 0, wenn es nicht unter die besten ENDLESS_RECORDS kommt.
 func record_endless(score: int, decks: int, deck_name: String) -> int:
@@ -266,6 +381,12 @@ func load_profile() -> void:
 		achievements.append(StringName(id))
 	cigarettes_smoked = int(cfg.get_value("stats", "cigarettes", 0))
 	endless_records.assign(cfg.get_value("endless", "records", []))
+	var saved: Dictionary = cfg.get_value("stats", "more", {})
+	for k in saved:
+		stats[k] = saved[k]
+	wins_vs = cfg.get_value("stats", "wins_vs", {})
+	losses_vs = cfg.get_value("stats", "losses_vs", {})
+	daily_results = cfg.get_value("daily", "results", {})
 	player_name = String(cfg.get_value("profile", "name", "Du"))
 
 
@@ -289,6 +410,10 @@ func save_profile() -> void:
 		done.append(String(id))
 	cfg.set_value("achievements", "done", done)
 	cfg.set_value("endless", "records", endless_records)
+	cfg.set_value("stats", "more", stats)
+	cfg.set_value("stats", "wins_vs", wins_vs)
+	cfg.set_value("stats", "losses_vs", losses_vs)
+	cfg.set_value("daily", "results", daily_results)
 	cfg.set_value("profile", "name", player_name)
 	cfg.save(PATH)
 
@@ -304,3 +429,8 @@ func reset_for_tests() -> void:
 	selected = DEFAULT_DECK
 	pending_unlocks.clear()
 	endless_records.clear()
+	for k in stats:
+		stats[k] = 0.0 if k == "play_seconds" else 0
+	wins_vs.clear()
+	losses_vs.clear()
+	daily_results.clear()

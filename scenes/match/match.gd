@@ -93,6 +93,8 @@ func _ready() -> void:
 	score.bout_scored.connect(func(points: int, text: String) -> void:
 		if points >= 100 and not Run.tutorial:
 			Profile.unlock_achievement(&"big_bout")
+		if not Run.tutorial:
+			Profile.max_stat("best_bout", points)
 		hud.bout_scored(points, text)
 		for r in Run.relics:
 			if r.bonus_mult > 0:
@@ -128,6 +130,8 @@ func _ready() -> void:
 	duel.transferred.connect(func(who: int, card: Card) -> void:
 		if who == DurakMatch.PLAYER:
 			Profile.unlock_achievement(&"transfer")
+			if not Run.tutorial:
+				Profile.add_stat("transfers")
 		world.note_transfer(card)
 		hud.speed_lines(who == DurakMatch.PLAYER)
 		hud.close_choice()

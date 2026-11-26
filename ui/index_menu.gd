@@ -6,11 +6,12 @@ extends Control
 ##   RELIKTE  alle Relikte aus data/relics/ mit Effekt
 ##   ITEMS    Feuerzeug, Spiegel …
 ##   ERFOLGE  erreichte und offene Erfolge; geheime zeigen ihre Aufgabe erst, wenn erreicht
+##   STATISTIK  Zahlen über alle Runs, Gegner (Lieblings- und Angstgegner), Tägliche Herausforderung
 ##     var menu := IndexMenu.new(); add_child(menu); menu.closed.connect(...)
 
 signal closed
 
-const TABS := ["KARTEN", "RELIKTE", "ITEMS", "ERFOLGE"] # Boni stehen bei den Decks
+const TABS := ["KARTEN", "RELIKTE", "ITEMS", "ERFOLGE", "STATISTIK"] # Boni stehen bei den Decks
 const CARD_SIZE := Vector2(80, 112)
 const ENH_COLORS := [UIKit.P_CREAM, UIKit.P_GOLD, Color(0.55, 0.82, 1.0), Color(0.42, 0.85, 0.5)]
 const ENH_LABELS := ["NORMAL", "GOLD", "GLAS", "GLÜCK"]
@@ -117,6 +118,7 @@ func _show_tab(index: int) -> void:
 		1: _content.add_child(_relics_tab())
 		2: _content.add_child(_items_tab())
 		3: _content.add_child(_achievements_tab())
+		4: _content.add_child(_stats_tab())
 	_tab_buttons[index].grab_focus()
 
 
@@ -346,3 +348,163 @@ func _achievements_tab() -> Control:
 			UIKit.body_font(600, 1), 13, UIKit.P_GOLD if got else Color(UIKit.P_CREAM, 0.45)))
 		grid.add_child(cell)
 	return box
+
+
+# --- STATISTIK ----------------------------------------------------------------------------
+
+func _stats_tab() -> Control:
+	var st := Profile.stats
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	var cols := HBoxContainer.new()
+	cols.add_theme_constant_override("separation", 34)
+	cols.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(cols)
+
+	# links: Zahlen-Kacheln
+	var left := VBoxContainer.new()
+	left.add_theme_constant_override("separation", 14)
+	cols.add_child(left)
+	left.add_child(_stat_head("ALLGEMEIN"))
+	var grid := GridContainer.new()
+	grid.columns = 3
+	grid.add_theme_constant_override("h_separation", 12)
+	grid.add_theme_constant_override("v_separation", 12)
+	left.add_child(grid)
+	var played := Profile.runs_played
+	var won := int(st.get("duels_won", 0))
+	var lost := int(st.get("duels_lost", 0))
+	var tiles := [
+		["%d" % played, "Runs gespielt"],
+		["%d" % Profile.runs_won, "Runs gewonnen" + (" (%d %%)" % roundi(100.0 * Profile.runs_won / played) if played > 0 else "")],
+		["%d" % int(st.get("best_act", 0)), "Bester Akt (von %d)" % Run.ACTS],
+		["%d" % won, "Duelle gewonnen"],
+		["%d" % lost, "Duelle verloren"],
+		["%d" % int(st.get("bosses", 0)), "Bosse besiegt"],
+		[_num(int(st.get("points", 0))), "Punkte insgesamt"],
+		[_num(int(st.get("best_bout", 0))), "Beste Runde"],
+		[_num(int(st.get("best_run_points", 0))), "Bester Run (Punkte)"],
+		[_num(Profile.endless_best()), "Endlos-Rekord"],
+		["%d" % int(st.get("transfers", 0)), "Mal geschoben"],
+		["%d" % int(st.get("items_used", 0)), "Items eingesetzt"],
+		[_num(int(st.get("gold_won", 0))), "Gold gewonnen"],
+		["%d" % Profile.cigarettes_smoked, "Zigaretten geraucht"],
+		[_time(float(st.get("play_seconds", 0.0))), "Spielzeit"],
+		["%d / %d" % [Profile.achievements.size(), Profile.ACHIEVEMENTS.size()], "Erfolge"],
+	]
+	for t in tiles:
+		grid.add_child(_stat_tile(t[0], t[1]))
+
+	# rechts: Gegner und Tägliche Herausforderung
+	var right := VBoxContainer.new()
+	right.add_theme_constant_override("separation", 10)
+	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	cols.add_child(right)
+	right.add_child(_stat_head("GEGNER"))
+	var fav := Profile.top_opponent(true)
+	var fear := Profile.top_opponent(false)
+	right.add_child(_line("Lieblingsgegner", "%s (%d Siege)" % [_opp_name(fav[0]), fav[1]] if not fav.is_empty() else "–"))
+	right.add_child(_line("Angstgegner", "%s (%d Niederlagen)" % [_opp_name(fear[0]), fear[1]] if not fear.is_empty() else "–"))
+	var list := VBoxContainer.new()
+	list.add_theme_constant_override("separation", 4)
+	right.add_child(list)
+	var files := ResourceLoader.list_directory(Run.OPPONENT_DIR)
+	files.sort()
+	for f in files:
+		if not f.ends_with(".tres"):
+			continue
+		var o := load(Run.OPPONENT_DIR + f) as OpponentData
+		if o == null or o.portrait == null:
+			continue
+		var oid := f.get_basename()
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 10)
+		var pic := TextureRect.new()
+		pic.texture = o.portrait
+		pic.custom_minimum_size = Vector2(34, 34)
+		pic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		pic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		row.add_child(pic)
+		var n := UIKit.poster_label(o.display_name, UIKit.body_font(600), 16, UIKit.P_CREAM)
+		n.custom_minimum_size.x = 190
+		n.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		row.add_child(n)
+		var w := int(Profile.wins_vs.get(oid, 0))
+		var l := int(Profile.losses_vs.get(oid, 0))
+		var wl := UIKit.poster_label("%d : %d" % [w, l], UIKit.body_font(600), 16,
+			UIKit.P_GOLD if w > l else (Color(1, 0.55, 0.5) if l > w else Color(UIKit.P_CREAM, 0.6)))
+		wl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		wl.tooltip_text = "Siege : Niederlagen"
+		wl.mouse_filter = Control.MOUSE_FILTER_STOP
+		row.add_child(wl)
+		list.add_child(row)
+
+	var gap := Control.new()
+	gap.custom_minimum_size = Vector2(0, 8)
+	right.add_child(gap)
+	right.add_child(_stat_head("TÄGLICHE HERAUSFORDERUNG"))
+	var played_days := 0
+	for d in Profile.daily_results:
+		if bool(Profile.daily_results[d].get("done", false)):
+			played_days += 1
+	right.add_child(_line("Tage gespielt", "%d" % played_days))
+	right.add_child(_line("Serie", "%d in Folge" % Profile.daily_streak()))
+	right.add_child(_line("Bester Tag", "%s Punkte" % _num(Profile.daily_best())))
+	var today := Profile.daily_entry()
+	right.add_child(_line("Heute", ("%s Punkte" % _num(int(today.points))) if bool(today.get("done", false)) else "noch offen"))
+	return scroll
+
+
+func _stat_head(text: String) -> Control:
+	return UIKit.poster_label(text, UIKit.display_font(1), 20, Color(1, 0.8, 0.76))
+
+
+func _stat_tile(value: String, label: String) -> Control:
+	var cell := PanelContainer.new()
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0, 0, 0, 0.25)
+	sb.border_color = Color(UIKit.P_CREAM, 0.15)
+	sb.border_width_left = 5
+	sb.border_color = UIKit.P_RED
+	sb.set_content_margin_all(10)
+	cell.add_theme_stylebox_override("panel", sb)
+	cell.custom_minimum_size = Vector2(176, 78)
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 0)
+	cell.add_child(col)
+	col.add_child(UIKit.poster_label(value, UIKit.display_font(1), 26, UIKit.P_CREAM))
+	var l := UIKit.poster_label(label, UIKit.body_font(500), 13, Color(UIKit.P_CREAM, 0.65))
+	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	col.add_child(l)
+	return cell
+
+
+func _line(label: String, value: String) -> Control:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	var l := UIKit.poster_label(label, UIKit.body_font(500), 16, Color(UIKit.P_CREAM, 0.65))
+	l.custom_minimum_size.x = 160
+	row.add_child(l)
+	row.add_child(UIKit.poster_label(value, UIKit.body_font(600), 16, UIKit.P_CREAM))
+	return row
+
+
+func _opp_name(oid: String) -> String:
+	var o := load(Run.OPPONENT_DIR + oid + ".tres") as OpponentData
+	return o.display_name if o != null else oid
+
+
+## 12345 → „12.345“
+static func _num(n: int) -> String:
+	var s := str(absi(n))
+	var out := ""
+	while s.length() > 3:
+		out = "." + s.right(3) + out
+		s = s.left(s.length() - 3)
+	return ("-" if n < 0 else "") + s + out
+
+
+static func _time(sec: float) -> String:
+	var m := int(sec) / 60
+	return "%d h %02d min" % [m / 60, m % 60] if m >= 60 else "%d min" % m

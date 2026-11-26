@@ -62,6 +62,7 @@ func _build_cards() -> void:
 	_has_tutorial = bool(Settings.get_value("general/show_tutorial"))
 	var specs := [
 		["SPIELEN", "Neuer Run", "♠", Color("ecc87c"), _start_run],
+		["TÄGLICH", "Herausforderung", "☀", Color("8fc3e8"), _open_daily],
 		["DECKS", "Karten wählen", "♥", Color("f2625c"), _open_decks],
 		["OPTIONEN", "Bild · Ton · Spiel", "♦", Color("f2625c"), _open_options],
 		["INDEX", "Alles im Spiel", "★", Color("ecc87c"), _open_index],
@@ -69,7 +70,7 @@ func _build_cards() -> void:
 	]
 	if _has_tutorial:
 		specs.push_front(["TUTORIAL", "Übungsrunde mit Hilfe", "?", Color("8fd18a"), _start_tutorial])
-	var spread := 0.175 if specs.size() <= 5 else 0.165
+	var spread := 0.175 if specs.size() <= 5 else (0.165 if specs.size() == 6 else 0.15)
 	for i in specs.size():
 		var s: Array = specs[i]
 		var card := MenuCard3D.new().setup(s[0], s[1], s[2], s[3])
@@ -133,6 +134,18 @@ func _start_run() -> void:
 	menu.started.connect(func() -> void:
 		_sub_open = false
 		_begin_run())
+
+
+func _open_daily() -> void:
+	if _leaving or _sub_open:
+		return
+	var menu := DailyMenu.new()
+	add_child(menu)
+	_sub_open = true
+	menu.closed.connect(func() -> void: _sub_open = false)
+	menu.started.connect(func() -> void:
+		_sub_open = false
+		_begin_run(Run.start_daily))
 
 
 func _start_tutorial() -> void:

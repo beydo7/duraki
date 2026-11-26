@@ -60,6 +60,13 @@ Ein Run = 3 Akte mit je 3 normalen Gegnern + Boss (12 Tische), 3 Leben (Kerzen).
   `assets/models/placeholder/shadow_figure.tscn`), Porträts `assets/portraits/placeholder_*.png`.
   Durch echte Gegner ersetzen: einfach die `placeholder_*.tres` löschen, sobald 9 normale + 3 Bosse da sind.
 - **F8**: Gegner überspringen, zum Boss des Akts, Boss-Händler, Endlos-Modus starten.
+- **Tägliche Herausforderung** (Menükarte TÄGLICH, `ui/daily_menu.gd`, `Run.start_daily`): Seed aus dem
+  Datum (`Run.daily_seed`), Standard-Deck, Schwierigkeit Normal → alle spielen denselben Run (Gegner,
+  Räume, Händler). Gewertet: alle Punkte des Runs (`Run.run_points`, auch Endlos). Nur der erste Versuch
+  des Tages zählt (`Profile.daily_results`, danach „Üben“). Serie und bester Tag in der Statistik.
+- **Statistik** (Index → STATISTIK, `Profile.stats`, `wins_vs`, `losses_vs`): Runs, Siegquote, bester
+  Akt, Duelle, Bosse, Punkte, beste Runde, bester Run, Endlos-Rekord, Schieben, Items, Gold, Zigaretten,
+  Spielzeit, Erfolge; Siege : Niederlagen je Gegner mit Lieblings- und Angstgegner; Tägliche.
 - **Händler** nach jedem Sieg: Relikte (Ass im Ärmel, Glücksmünze, Samowar, Wodka), verbesserte
   Karten (Gold/Glas/Glück), Verbesserungen (Farb-Schliff, Trumpf-Kenner, Pflaster, Sparschwein),
   Neu mischen, Zinsen (je 5 Gold +1, max. 5).
@@ -360,6 +367,7 @@ Run: Schwierigkeit, Hinweise, Tutorial im Hauptmenü anzeigen).
 - `godot --headless --path . res://tests/autoplay.tscn` → 5 komplette Runs automatisch
   (`DURAKI_DIFF=0/1/2` wählt die Schwierigkeit, `DURAKI_RUNS=n` die Anzahl)
 - `godot --headless --path . res://tests/tutorial_test.tscn` → Tutorial komplett durchspielen
+- `godot --headless --path . res://tests/daily_tests.tscn` → Tägliche Herausforderung und Statistik (16 Checks)
 - `godot --headless --path . res://tests/relic_tests.tscn` → jedes Relikt im echten Ablauf (28 Checks),
   auch Relikte, die mitten im Duell dazukommen (wirken sofort, `match.gd` `_apply_relics`)
 - Absturz-Suche unter Windows: `Spiel_starten.bat` schreibt das Log nach `logs\letzter_start.log`.

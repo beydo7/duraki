@@ -44,6 +44,8 @@ func _ready() -> void:
 		_stat("Bestenliste", "Platz %d" % Run.last_endless_place if Run.last_endless_place > 0 else "nicht unter den besten 10")
 	else:
 		_stat("Akt", "%d / %d" % [mini(Run.act_of() + 1, Run.ACTS), Run.ACTS])
+	if Run.daily:
+		_stat("Tägliche Herausforderung", ("%d Punkte" % Run.run_points) + ("" if Run.daily_counts else "  (Übung, zählt nicht)"))
 	_stat("Gegner besiegt", "%d / %d" % [mini(Run.floor_index, Run.encounters.size()), Run.encounters.size()])
 	_stat("Gold", "%d" % Run.gold)
 	_stat("Relikte", "%d" % Run.relics.size() if Run.relics.size() > 0 else "keine")

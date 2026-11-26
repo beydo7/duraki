@@ -24,6 +24,8 @@ const ACT_GROWTH := 1.6
 ## Händler nach einem Boss: so viel Rabatt auf alles, dazu ein Relikt geschenkt (1 von 3)
 const BOSS_DISCOUNT := 0.3
 const BOSS_GIFT_CHOICES := 3
+## Tägliche Herausforderung: feste Schwierigkeit (Normal)
+const DAILY_DIFFICULTY := 1
 ## Zinsen nach jedem Sieg: +1 Gold pro 5 Gold, höchstens so viel.
 const INTEREST_PER := 5
 const INTEREST_MAX := 4 # Balance: weniger Gold-Überschuss (Boni gibt es nicht mehr zu kaufen)
@@ -122,10 +124,40 @@ var endless_opponent: OpponentData
 var last_duel_points := 0
 ## Platz in der Bestenliste nach dem letzten Endlos-Run (0 = nicht drin)
 var last_endless_place := 0
+## Punkte aller Duelle dieses Runs (für Statistik und Tägliche Herausforderung)
+var run_points := 0
+
+## Tägliche Herausforderung: alle spielen am selben Tag denselben Run (gleicher Seed, Standard-Deck,
+## Schwierigkeit Normal). Nur der erste Versuch des Tages zählt (`daily_counts`).
+var daily := false
+var daily_date := ""
+var daily_counts := false
 
 ## Aktuelle Shop-Auslage (siehe make_shop_offers) und Preis fürs Neu-Mischen.
 var shop_offers: Array[Dictionary] = []
 var reroll_price := REROLL_BASE_PRICE
+
+
+## Tägliche Herausforderung starten (Seed aus dem Datum).
+func start_daily() -> void:
+	var date := Profile.today()
+	var counts := Profile.daily_begin(date)
+	_reset(daily_seed(date))
+	daily = true
+	daily_date = date
+	daily_counts = counts
+	difficulty = DAILY_DIFFICULTY
+	hints = bool(Settings.get_value("general/hints"))
+	lives = maxi(1, START_LIVES + DIFF_LIVES[difficulty])
+	encounters = _build_encounters()
+	_apply_deck(Profile.deck(Profile.DEFAULT_DECK))
+	changed.emit()
+	goto(SCENE_MAP)
+
+
+## Seed für einen Tag – für alle Spieler gleich.
+static func daily_seed(date: String) -> int:
+	return maxi(1, absi(hash("duraki-tag-" + date)))
 
 
 func start_new_run(p_seed := 0) -> void:
@@ -189,6 +221,10 @@ func _reset(p_seed: int) -> void:
 	endless_decks = 0
 	endless_opponent = null
 	last_duel_points = 0
+	run_points = 0
+	daily = false
+	daily_date = ""
+	daily_counts = false
 
 
 ## Effekte des gewählten Decks auf den neuen Run anwenden.
@@ -317,6 +353,7 @@ func on_match_finished(loser: int) -> void:
 			return
 		goto(SCENE_MENU)
 		return
+	_record_duel(loser)
 	if endless:
 		_on_endless_finished(loser)
 		return
@@ -346,6 +383,15 @@ func on_match_finished(loser: int) -> void:
 			goto(SCENE_MAP) # Unentschieden: nochmal gegen denselben Gegner
 
 
+## Statistik für das gerade beendete Duell.
+func _record_duel(loser: int) -> void:
+	run_points += last_duel_points
+	var won := loser == DurakMatch.OPPONENT
+	Profile.record_duel(current_opponent(), won, last_duel_points)
+	if not endless:
+		Profile.max_stat("best_act", act_of() + (1 if won and current_opponent() != null and current_opponent().is_boss else 0))
+
+
 ## Gold für einen Sieg (Belohnung des Gegners, Relikte, Zinsen).
 func _pay_win(opponent: OpponentData) -> void:
 	last_gold_reward = opponent.gold_reward
@@ -354,6 +400,7 @@ func _pay_win(opponent: OpponentData) -> void:
 	var interest_cap := INTEREST_MAX + interest_max_bonus + (4 if has_relic(&"sock") else 0)
 	last_interest = mini(gold / INTEREST_PER, interest_cap)
 	gold += last_gold_reward + last_interest
+	Profile.add_stat("gold_won", last_gold_reward + last_interest)
 
 
 ## Weiter nach dem Händler: normal zum nächsten Tisch; nach dem letzten Boss in den
@@ -631,6 +678,8 @@ func add_item(id: StringName) -> void:
 func use_item(i: int) -> void:
 	if i >= 0 and i < items.size():
 		items.remove_at(i)
+		if not tutorial:
+			Profile.add_stat("items_used")
 		changed.emit()
 
 
@@ -658,6 +707,9 @@ func abandon() -> void:
 
 func _end_run(won: bool) -> void:
 	won_run = won
+	Profile.max_stat("best_run_points", run_points)
+	if daily and daily_counts:
+		Profile.daily_finish(daily_date, run_points, mini(floor_index, encounters.size()), endless_score)
 	if endless:
 		last_endless_place = Profile.record_endless(endless_score, endless_decks, deck_name())
 	last_souls = Profile.on_run_finished(won, mini(floor_index, encounters.size()), souls_factor(),
