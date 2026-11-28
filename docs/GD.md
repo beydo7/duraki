@@ -79,7 +79,7 @@ Ein Run = 3 Akte mit je 3 normalen Gegnern + Boss (12 Tische), 3 Leben (Kerzen).
   Zinsen (je 5 Gold +1, max. 4; Sparstrumpf +4, Kaufmann-Deck +2).
 - **Run beenden**: „Aufgeben“ auf dem Weg und Pause → „ZUM HAUPTMENÜ“ werten den Run (Seelen, Statistik,
   Bestenliste, Tägliche) und zeigen das Ergebnis (`Run.abandon`, `Run.run_active`). Wer im Endlos-Modus
-  aufgibt, hat alle drei Bosse besiegt: der Run zählt als gewonnen. Jeder Run und jedes Duell wird nur
+  aufgibt (oder beim Händler nach dem 3. Boss), hat alle drei Bosse besiegt: der Run zählt als gewonnen. Jeder Run und jedes Duell wird nur
   einmal gewertet, auch wenn „WEITER“/„AUFGEBEN“ doppelt gedrückt wird (`Run.finished`, `duel_key`).
 - **Endlos-Modus**: jedes Duell in einem neuen Raum (`Rooms.for_floor` mit `Run.endless_duels`).
 - **Decks = Skins mit kleinem Effekt** (`data/decks/*.tres`, `scripts/data/deck_data.gd`), 12 Stück:
@@ -429,7 +429,7 @@ Run: Schwierigkeit, Hinweise, Tutorial im Hauptmenü anzeigen).
 - `godot --headless --path . res://tests/daily_tests.tscn` → Tägliche Herausforderung und Statistik (23 Checks)
 - `godot --headless --path . res://tests/flow_tests.tscn` → Ablauf: WEITER/Aufgeben doppelt, Boss-Geschenk nicht
   nochmal kaufbar, Aufgeben/Pause werten den Run, Tägliche gleiche Karten und Auslage, Startspieler, Endlos-Räume,
-  Falle, Ergebnis-Überschriften (21 Checks)
+  Falle, Ergebnis-Überschriften (22 Checks)
 - `godot --headless --path . res://tests/cosmetics_tests.tscn` → Deck-Belohnungen: je Deck drei, Freischalten je Stufe,
   alle Räume mit allen Belohnungen bauen, Blender-Vorlagen (Rahmen, Krähe, Glöckchen, Flammen,
   Aschenbecher, Schachtel, Spiegel, Schnapsglas), Relief der Ränder (175 Checks)

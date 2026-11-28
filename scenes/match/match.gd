@@ -402,6 +402,9 @@ func _maybe_throw_more() -> void:
 	if extra == null:
 		return
 	await get_tree().create_timer(randf_range(0.35, 0.65) * Settings.ai_delay_factor(), false).timeout
+	# nicht, solange das Spiel auf dich wartet (Tutorial-Hinweis, Feuerzeug, Kartentausch)
+	if coach_hold or _burning >= 0 or _swapping >= 0:
+		return
 	if duel.can_attack_with(extra):
 		duel.attack(extra)
 

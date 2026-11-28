@@ -361,10 +361,14 @@ func sync(duel: DurakMatch, playable: Array[Card]) -> void:
 			var final_xf := xf
 			var i_take := take_i
 			take_i += 1
+			var ref: WeakRef = weakref(node) # Karte kann vorher verschwinden (siehe _make_room_later)
 			tw0.finished.connect(func() -> void:
-				_on_landed(node, "play", card.suit == duel.trump_suit, null)
-				if is_instance_valid(node) and _cards.get(card) == node:
-					_move(node, final_xf, THROWN_PAUSE + i_take * 0.06, MOVE_TIME, "take"))
+				var n: Card3D = ref.get_ref() as Card3D
+				if n == null:
+					return
+				_on_landed(n, "play", card.suit == duel.trump_suit, null)
+				if _cards.get(card) == n:
+					_move(n, final_xf, THROWN_PAUSE + i_take * 0.06, MOVE_TIME, "take"))
 			continue
 		elif prev == "trump" and zone in ["hand", "opp"]:
 			style = "deal"
@@ -427,10 +431,13 @@ func sync(duel: DurakMatch, playable: Array[Card]) -> void:
 			var txf := _table_xf(idx, last_attacks.size(), true, card)
 			var tw0 := _move(node, txf, 0.0, MOVE_TIME, "play")
 			var under: Card = last_attacks[idx]
+			var ref: WeakRef = weakref(node)
 			tw0.finished.connect(func() -> void:
-				_on_landed(node, "play", card.suit == duel.trump_suit, under)
-				if is_instance_valid(node):
-					_to_discard(node, DISCARD_DELAY))
+				var n: Card3D = ref.get_ref() as Card3D
+				if n == null:
+					return
+				_on_landed(n, "play", card.suit == duel.trump_suit, under)
+				_to_discard(n, DISCARD_DELAY))
 		else:
 			_to_discard(node, wait)
 	into_deck.clear()
@@ -440,12 +447,16 @@ func sync(duel: DurakMatch, playable: Array[Card]) -> void:
 ## Handkarte rückt nach `wait` Sekunden an ihren endgültigen Platz – falls bis dahin kein
 ## neuer sync etwas anderes vorhat.
 func _make_room_later(node: Card3D, xf: Transform3D, wait: float) -> void:
+	# Karte nur schwach festhalten: ist sie bis dahin weg (verbrannt, neues Duell), meldet
+	# ein Lambda, das sie direkt hält, sonst „Lambda capture … was freed“
+	var ref: WeakRef = weakref(node)
 	get_tree().create_timer(wait * Settings.anim_time_factor(), false).timeout.connect(func() -> void:
-		if not is_instance_valid(node):
+		var n: Card3D = ref.get_ref() as Card3D
+		if n == null:
 			return
-		if _hold.has(node) and _base.has(node) and (_base[node] as Transform3D).is_equal_approx(xf):
-			_hold.erase(node)
-			_move(node, _with_hover(node, xf), 0.0, MOVE_TIME))
+		if _hold.has(n) and _base.has(n) and (_base[n] as Transform3D).is_equal_approx(xf):
+			_hold.erase(n)
+			_move(n, _with_hover(n, xf), 0.0, MOVE_TIME))
 
 
 ## Wo eine Handkarte gerade ruht (zusammengerückt oder an ihrem Platz).
@@ -464,12 +475,15 @@ func _beaten_slot(card: Card, attacks: Array, defs: Array, trump: Card.Suit) -> 
 func _to_discard(node: Card3D, delay: float) -> void:
 	var xf := Transform3D(Basis(Vector3.UP, randf_range(-0.3, 0.3)) * Basis(Vector3.FORWARD, PI), DISCARD_POS + Vector3(0, 0.02, 0))
 	var tw := _move(node, xf, delay, 0.45, "bito")
+	var ref: WeakRef = weakref(node)
 	tw.finished.connect(func() -> void:
 		_discard_count += 1
 		_discard_pile.visible = true
 		_set_pile_height(_discard_pile, DISCARD_POS, _discard_count)
 		discard_changed.emit()
-		node.queue_free())
+		var n: Node = ref.get_ref() as Node
+		if n != null:
+			n.queue_free())
 
 
 ## Gegnerkarten bewegen sich mit der Hand der Gestalt (Atmen, Ausspielen, Trommeln …).

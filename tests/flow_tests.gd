@@ -104,6 +104,16 @@ func _run() -> void:
 	check(Run.won_run and Profile.runs_won == won + 1, "Aufgeben im Endlos-Modus: Run gewonnen (alle Bosse besiegt)")
 	await get_tree().process_frame
 
+	# --- Aufgeben beim Händler nach dem 3. Boss (noch vor dem Endlos-Modus): auch gewonnen
+	Run.start_new_run(8)
+	await get_tree().process_frame
+	Run.floor_index = Run.encounters.size()
+	Run.boss_shop = true
+	won = Profile.runs_won
+	Run.abandon()
+	check(Run.won_run and Profile.runs_won == won + 1, "Aufgeben nach dem 3. Boss: Run gewonnen")
+	await get_tree().process_frame
+
 	# --- Pause → Hauptmenü wertet einen laufenden Run
 	Run.start_new_run(7)
 	await get_tree().process_frame

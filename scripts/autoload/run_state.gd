@@ -764,11 +764,12 @@ func run_active() -> bool:
 
 
 ## Run vorzeitig beenden. Zählt als verloren (Seelen für besiegte Tische gibt es trotzdem) –
-## außer im Endlos-Modus: da sind alle drei Bosse schon besiegt, der Run ist gewonnen.
+## außer wenn alle drei Bosse schon besiegt sind (Endlos-Modus oder Händler nach dem 3. Boss):
+## dann ist der Run gewonnen.
 func abandon() -> void:
 	if not run_active():
 		return
-	_end_run(endless)
+	_end_run(endless or floor_index >= encounters.size())
 
 
 func _end_run(won: bool) -> void:
