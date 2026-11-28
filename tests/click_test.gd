@@ -27,21 +27,41 @@ func _run() -> void:
 		var options := duel.legal_defenses() if defending else duel.legal_attacks()
 		if options.is_empty():
 			continue
-		var target: Card = options[0]
 		var world: TableWorld = scene.world
-		var node: Card3D = world._cards[target]
+		if Time.get_ticks_msec() / 1000.0 < world.busy_until():
+			continue # es wird noch ausgeteilt
+		# Die Karten im Fächer überlappen: zielen, warten, bis die Maus-Abfrage (Physik) gelaufen ist,
+		# und nur klicken, wenn die Karte unter der Maus spielbar ist.
+		var target: Card = null
+		var screen := Vector2.ZERO
 		var shrink: float = scene.get_node("%View").stretch_shrink
-		var screen := world.camera.unproject_position(node.global_transform * Vector3(0, 0, -Card3D.HEIGHT * 0.3)) * shrink
+		for c: Card in options:
+			var node: Card3D = world._cards[c]
+			# über die Karte wandern, bis sie selbst (nicht die Nachbarkarte) unter der Maus liegt
+			for fx: float in [0.35, 0.2, 0.0, -0.2, -0.35]:
+				screen = world.camera.unproject_position(node.global_transform * Vector3(Card3D.WIDTH * fx, 0, -Card3D.HEIGHT * 0.3)) * shrink
+				_mouse(screen, false)
+				for k in 3:
+					await get_tree().physics_frame
+				if node.hovered:
+					target = c
+					break
+			if target != null:
+				break
+		if target == null:
+			print("Versuch %d: keine spielbare Karte unter der Maus" % attempt)
+			continue
 		var before := duel.hand(DurakMatch.PLAYER).size()
-		_mouse(screen, false)
-		await get_tree().create_timer(0.2).timeout
+		# sehr schneller Klick: Drücken und Loslassen im selben Bild (wie Tippen aufs Touchpad)
 		_mouse(screen, true)
-		await get_tree().process_frame
-		_mouse(screen, false, false)
+		_mouse(screen, true, false)
 		await get_tree().create_timer(0.3).timeout
 		var after := duel.hand(DurakMatch.PLAYER).size()
-		print("Klick auf %s bei %s: Handkarten %d -> %d" % [target, screen, before, after])
-		ok = after < before
+		# Passt die Karte auf mehrere Angriffskarten (oder geht Schieben), fragt das Spiel erst nach:
+		# dann ist der Klick auch angekommen.
+		var asked: bool = scene.hud._choice != null and is_instance_valid(scene.hud._choice)
+		print("Klick auf %s bei %s: Handkarten %d -> %d%s" % [target, screen, before, after, " (Auswahl offen)" if asked else ""])
+		ok = after < before or asked
 		break
 	print("KLICKTEST: ", "OK" if ok else "FEHLGESCHLAGEN")
 	get_tree().quit(0 if ok else 1)

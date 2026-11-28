@@ -328,6 +328,7 @@ func sync(duel: DurakMatch, playable: Array[Card]) -> void:
 				spawn_from.erase(card)
 			add_child(node)
 			node.grabbed.connect(_on_grabbed)
+			node.let_go.connect(_on_let_go)
 			node.hover_changed.connect(_on_hover)
 			_cards[card] = node
 			if from_pile:
@@ -702,6 +703,16 @@ func _on_grabbed(node: Card3D) -> void:
 	_drag_node = node
 	_drag_from = get_viewport().get_mouse_position()
 	_dragging = false
+
+
+## Sehr schneller Klick (z. B. Tippen aufs Touchpad): Drücken und Loslassen kommen im selben
+## Physik-Schritt an. Das Loslassen lief dann schon durch _input, bevor die Karte gegriffen war –
+## der Klick ging verloren. Die Karte meldet das Loslassen darum selbst noch einmal.
+func _on_let_go(node: Card3D) -> void:
+	if node != _drag_node or _dragging:
+		return
+	_drag_node = null
+	card_clicked.emit(node.card)
 
 
 func _input(event: InputEvent) -> void:

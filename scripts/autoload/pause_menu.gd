@@ -72,7 +72,8 @@ var _dev: DevMenu
 
 func _unhandled_input(event: InputEvent) -> void:
 	# F8: Entwicklermenü überall (Hauptmenü, Weg, Händler). Im Duell öffnet es match.gd selbst.
-	if event is InputEventKey and event.pressed and not event.echo and (event as InputEventKey).keycode == KEY_F8:
+	if event is InputEventKey and event.pressed and not event.echo and (event as InputEventKey).keycode == KEY_F8 \
+			and DevMenu.allowed():
 		if _dev == null and not is_open():
 			get_viewport().set_input_as_handled()
 			_dev = DevMenu.new()
@@ -150,7 +151,10 @@ func open() -> void:
 			quit.text = "WIRKLICH? RUN ENDET"
 			return
 		close()
-		Run.goto(Run.SCENE_MENU))
+		if Run.run_active():
+			Run.abandon() # Run wird gewertet (wie „Aufgeben“ auf dem Weg), dann Ergebnis → Menü
+		else:
+			Run.goto(Run.SCENE_MENU))
 	resume.grab_focus()
 	UIKit.appear(panel, 0.0, Vector2(0, 20), 0.3)
 

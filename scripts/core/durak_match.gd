@@ -78,7 +78,7 @@ func start(rng: RandomNumberGenerator, player_hand_size := 6, opponent_hand_size
 	hand_sizes = [player_hand_size, opponent_hand_size]
 	_refill(PLAYER)
 	_refill(OPPONENT)
-	attacker = _lowest_trump_holder()
+	attacker = _lowest_trump_holder(rng)
 	message.emit("Trumpf ist %s. %s beginnt." % [Card.SUIT_NAMES[trump_suit], name_of(attacker)])
 	changed.emit()
 
@@ -454,12 +454,15 @@ func _check_end() -> void:
 	finished.emit(loser)
 
 
-func _lowest_trump_holder() -> int:
-	var best_player := PLAYER
+## Wer den niedrigsten Trumpf hat, beginnt. Hat keiner Trumpf, entscheidet der Zufall.
+func _lowest_trump_holder(rng: RandomNumberGenerator) -> int:
+	var best_player := -1
 	var best_rank := 99
 	for p in [PLAYER, OPPONENT]:
 		for c in hand(p):
 			if c.suit == trump_suit and c.rank < best_rank:
 				best_rank = c.rank
 				best_player = p
+	if best_player == -1:
+		return PLAYER if rng.randi_range(0, 1) == 0 else OPPONENT
 	return best_player

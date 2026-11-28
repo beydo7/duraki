@@ -4,7 +4,7 @@ Dieses Dokument fasst zusammen, was in den Chats zwischen Pascal (beydo7) und Cl
 gebaut wurde. Es ist für das Team **und für Claude-Instanzen** gedacht, damit alle auf demselben Stand
 sind. Bitte aktuell halten, wenn sich etwas Grundlegendes ändert.
 
-Stand: 22.11.2026 · Godot 4.7.2 (GL Compatibility) · Build 0.6
+Stand: 28.11.2026 · Godot 4.7.2 (GL Compatibility) · Build 0.6
 
 ---
 
@@ -26,6 +26,7 @@ Ein Run = 3 Akte mit je 3 normalen Gegnern + Boss (12 Tische), 3 Leben (Kerzen).
   Kann die Karte auch schlagen, fragt das Spiel „Schlagen oder Schieben?“.
 - **Nachwerfen:** Nimmt der Verteidiger auf, darf der Angreifer passende Karten hinterherwerfen
   (Knopf „FERTIG“).
+- Wer den niedrigsten Trumpf hat, greift zuerst an; hat keiner Trumpf, entscheidet der Zufall.
 - Bube wird als **„J“** angezeigt (nicht „B“), Dame als „D“, König „K“, Ass „A“.
 - Logik: `scripts/core/durak_match.gd` (`transfer()`, `take()`/`finish_take()`, Signale
   `transferred`, `take_declared`), KI: `scripts/ai/simple_ai.gd`.
@@ -34,7 +35,7 @@ Ein Run = 3 Akte mit je 3 normalen Gegnern + Boss (12 Tische), 3 Leben (Kerzen).
 
 `scripts/core/score_tracker.gd`
 - Jede eigene Karte bringt Chips (nach Rang), jede Verteidigung +1 Mult, jede nachgelegte
-  Angriffskarte ab der zweiten +1 Mult, jeder gespielte Trumpf +1 Mult.
+  Angriffskarte ab der zweiten +1 Mult (auch die Schiebekarte zählt so), jeder gespielte Trumpf +1 Mult.
 - Rundenende: Fertig/abgewehrter Angriff → Chips × Mult; Gegner muss nehmen → × 2 („Volltreffer“);
   du musst nehmen → 0.
 - Ist der Gegner am Ende der Durak: +15 pro Karte auf seiner Hand.
@@ -59,18 +60,28 @@ Ein Run = 3 Akte mit je 3 normalen Gegnern + Boss (12 Tische), 3 Leben (Kerzen).
   Die Graue Herrin (Boss) – Kapuzengestalt aus Grundformen (`tools/build_placeholder.gd` →
   `assets/models/placeholder/shadow_figure.tscn`), Porträts `assets/portraits/placeholder_*.png`.
   Durch echte Gegner ersetzen: einfach die `placeholder_*.tres` löschen, sobald 9 normale + 3 Bosse da sind.
-- **F8**: Gegner überspringen, zum Boss des Akts, Boss-Händler, Endlos-Modus starten.
+- **F8** (nur im Editor und in Debug-Exporten, `DevMenu.allowed()`): Gegner überspringen, zum Boss
+  des Akts, Boss-Händler, Endlos-Modus starten.
 - **Tägliche Herausforderung** (Menükarte TÄGLICH, `ui/daily_menu.gd`, `Run.start_daily`): Seed aus dem
   Datum (`Run.daily_seed`), Deck des Tages (`Run.daily_deck`, jeden Tag ein anderes, auch nicht
-  freigeschaltete), Schwierigkeit Normal → alle spielen denselben Run (Gegner, Räume, Händler, Deck). Gewertet: alle Punkte des Runs (`Run.run_points`, auch Endlos). 3 Versuche pro Tag
+  freigeschaltete), Schwierigkeit Normal → alle haben dieselbe Ausgangslage: Gegner, Räume, Deck, und an
+  jeder Stelle (Tisch, Versuch am Tisch, Endlos-Duell) dieselben Karten, dieselbe Händler-Auslage und dieselben
+  Glückswürfe (`Run.stream`, `Run.begin_duel`, `Run.duel_stream`, `Run.shop_rng`). Was der Gegner im Duell
+  tut, hängt natürlich von deinen Zügen ab. Abzeichen und Tisch-Belohnung gibt ein Sieg nur, wenn das Deck
+  des Tages schon freigeschaltet ist. Gewertet: alle Punkte des Runs (`Run.run_points`, auch Endlos). 3 Versuche pro Tag
   (`Profile.DAILY_TRIES`), der beste zählt; angefangene Versuche sind verbraucht; danach „Üben“.
   Anzeige ●●○ im Fenster, „Versuch 2/3“ auf dem Weg und am Run-Ende (`Profile.daily_results`). Serie und bester Tag in der Statistik.
-- **Statistik** (Index → STATISTIK, `Profile.stats`, `wins_vs`, `losses_vs`): Runs, Siegquote, bester
-  Akt, Duelle, Bosse, Punkte, beste Runde, bester Run, Endlos-Rekord, Schieben, Items, Gold, Zigaretten,
+- **Statistik** (Index → STATISTIK, `Profile.stats`, `wins_vs`, `losses_vs`): Runs, Siegquote, geschaffte
+  Akte (bester Run), Duelle, Bosse, Punkte, beste Runde, bester Run, Endlos-Rekord, Schieben, Items, Gold, Zigaretten,
   Spielzeit, Erfolge; Siege : Niederlagen je Gegner mit Lieblings- und Angstgegner; Tägliche.
-- **Händler** nach jedem Sieg: Relikte (Ass im Ärmel, Glücksmünze, Samowar, Wodka), verbesserte
-  Karten (Gold/Glas/Glück), Verbesserungen (Farb-Schliff, Trumpf-Kenner, Pflaster, Sparschwein),
-  Neu mischen, Zinsen (je 5 Gold +1, max. 5).
+- **Händler** nach jedem Sieg: 2 Relikte (keine, die man schon hat – auch nicht das gerade gewählte
+  Boss-Geschenk, `Run.is_owned`), 2 verbesserte Karten (Gold/Glas/Glück), 3 Items, Neu mischen,
+  Zinsen (je 5 Gold +1, max. 4; Sparstrumpf +4, Kaufmann-Deck +2).
+- **Run beenden**: „Aufgeben“ auf dem Weg und Pause → „ZUM HAUPTMENÜ“ werten den Run (Seelen, Statistik,
+  Bestenliste, Tägliche) und zeigen das Ergebnis (`Run.abandon`, `Run.run_active`). Wer im Endlos-Modus
+  aufgibt, hat alle drei Bosse besiegt: der Run zählt als gewonnen. Jeder Run und jedes Duell wird nur
+  einmal gewertet, auch wenn „WEITER“/„AUFGEBEN“ doppelt gedrückt wird (`Run.finished`, `duel_key`).
+- **Endlos-Modus**: jedes Duell in einem neuen Raum (`Rooms.for_floor` mit `Run.endless_duels`).
 - **Decks = Skins mit kleinem Effekt** (`data/decks/*.tres`, `scripts/data/deck_data.gd`), 12 Stück:
   Starter „Hinterzimmer“; je eins pro besiegtem Gegner (Bandit, Sumpfmann, Krähe, Wölfin, Gaukler,
   Knochenmann, Hexe, Riese/Run-Sieg); kaufbar mit **Seelen**: Kaufmann 25, Zar 40, Goldrand 60.
@@ -78,9 +89,10 @@ Ein Run = 3 Akte mit je 3 normalen Gegnern + Boss (12 Tische), 3 Leben (Kerzen).
 - **Seelen** (Autoload `Profile`, `user://profile.cfg`): 3 pro gewonnenem Tisch, 10 für Run-Sieg,
   multipliziert mit `Run.souls_factor()` (Schwierigkeit × 1,5 ohne Hinweise).
 - **Schwierigkeit** (Dialog „Neuer Run“ beim Klick auf SPIELEN, `ui/run_setup_menu.gd`; gemerkt in
-  `general/difficulty`): Leicht / Normal / Schwer = Punkteziel ×0,8 / ×1,15 / ×1,45, Fehlerquote der
+  `general/difficulty`): Leicht / Normal / Schwer = Punkteziel ×0,8 / ×1,15 / ×1,4, Fehlerquote der
   Gegner ×1,3 / ×0,6 / ×0,25, Leben +1 / 0 / −1, Seelen ×0,75 / ×1 / ×1,25 (`Run.DIFF_*`).
-  Autoplay-Bot (fehlerfrei): Leicht 8/8, Normal 6/8, Schwer 2/8 Runs gewonnen.
+  Autoplay-Bot (fehlerfrei, einfache KI, Stand 28.11. mit 3 Akten): Leicht 2/8, Normal 0/5, Schwer 0/4
+  Runs gewonnen; auf Schwer endet jeder Bot-Run am 2. Tisch (vor den 3 Akten: 8/8, 6/8, 2/8).
 - **Hinweise aus** (`general/hints`): spielbare Karten leuchten nicht, alle Handkarten sind anklickbar,
   unpassende werden mit „passt gerade nicht“ abgewiesen → ×1,5 Seelen.
 - **Tutorial** (Hauptmenü-Karte „TUTORIAL“, solange `general/show_tutorial` an ist): `Run.start_tutorial()`
@@ -102,7 +114,7 @@ Ein Run = 3 Akte mit je 3 normalen Gegnern + Boss (12 Tische), 3 Leben (Kerzen).
     (`burn` in `card_face.gdshaderinc`), Flammen und Knistern (`burn.wav`). Seine ungeschlagene Angriffskarte
     → er muss neu angreifen; seine Verteidigungskarte → er muss neu schlagen oder nehmen
     (`DurakMatch.burnable_cards/burn`). Rechtsklick/Esc bricht ab, das Feuerzeug bleibt.
-  - 🪞 **Spiegel** (5 G): schwebt hinter dem Gegner vorbei (`TableWorld.mirror_flight`, `mirror.wav`) und
+  - 🪞 **Spiegel** (4 G): schwebt hinter dem Gegner vorbei (`TableWorld.mirror_flight`, `mirror.wav`) und
     deckt eine zufällige Karte seiner Hand auf; sie ragt 2,6 s offen aus seinem Fächer (`TableWorld.revealed`),
     dann dreht er sie um und sie bleibt klein über ihm sichtbar (`MatchHUD.add_known`), bis er sie spielt
     (platzt dann weg).
@@ -169,7 +181,7 @@ Ein Run = 3 Akte mit je 3 normalen Gegnern + Boss (12 Tische), 3 Leben (Kerzen).
 - **Tutorial**: zeigt zum Start eine Glücksmünze und einen Spiegel und erklärt Relikte und Item-Plätze
   oben rechts. Nach dem Sieg öffnet sich der Händler mit 15 Gold und fünf Erklärschritten
   (`shop.gd`, `Run.tutorial_shop`); „TUTORIAL BEENDEN“ führt ins Hauptmenü.
-- **Entwicklermenü** (F8, `ui/dev_menu.gd`): beliebige Karte mit Verbesserung auf die Hand,
+- **Entwicklermenü** (F8, nur Editor/Debug-Export, `ui/dev_menu.gd`): beliebige Karte mit Verbesserung auf die Hand,
   Items, Relikte, +10 Gold. Der Gegner wartet, solange es offen ist. Im Duell öffnet es `match.gd`,
   überall sonst (Hauptmenü, Weg, Händler) der Autoload `Pause` (Karten gibt es dort nicht).
 - **Abzeichen** (`Profile.badges`): pro Deck drei Plätze Leicht/Normal/Schwer im Deck-Menü; ein Run-Sieg
@@ -414,7 +426,10 @@ Run: Schwierigkeit, Hinweise, Tutorial im Hauptmenü anzeigen).
 - `godot --headless --path . res://tests/autoplay.tscn` → 5 komplette Runs automatisch
   (`DURAKI_DIFF=0/1/2` wählt die Schwierigkeit, `DURAKI_RUNS=n` die Anzahl)
 - `godot --headless --path . res://tests/tutorial_test.tscn` → Tutorial komplett durchspielen
-- `godot --headless --path . res://tests/daily_tests.tscn` → Tägliche Herausforderung und Statistik (16 Checks)
+- `godot --headless --path . res://tests/daily_tests.tscn` → Tägliche Herausforderung und Statistik (23 Checks)
+- `godot --headless --path . res://tests/flow_tests.tscn` → Ablauf: WEITER/Aufgeben doppelt, Boss-Geschenk nicht
+  nochmal kaufbar, Aufgeben/Pause werten den Run, Tägliche gleiche Karten und Auslage, Startspieler, Endlos-Räume,
+  Falle, Ergebnis-Überschriften (21 Checks)
 - `godot --headless --path . res://tests/cosmetics_tests.tscn` → Deck-Belohnungen: je Deck drei, Freischalten je Stufe,
   alle Räume mit allen Belohnungen bauen, Blender-Vorlagen (Rahmen, Krähe, Glöckchen, Flammen,
   Aschenbecher, Schachtel, Spiegel, Schnapsglas), Relief der Ränder (175 Checks)

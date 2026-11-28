@@ -78,14 +78,7 @@ func attach(duel: DurakMatch, me := DurakMatch.PLAYER) -> void:
 	_duel = duel
 	_me = me
 	duel.card_played.connect(_on_card_played)
-	# Nach dem Schieben zählt der Schiebende als Angreifer dieser Runde.
-	duel.transferred.connect(func(who: int, _card: Card) -> void:
-		_bout_attacker = who
-		if who == _me and first_transfer_mult > 0 and not _transfer_bonus_used:
-			_transfer_bonus_used = true
-			mult += first_transfer_mult
-			relic_triggered.emit(&"whirl")
-			changed.emit())
+	duel.transferred.connect(_on_transferred)
 	duel.bout_ended.connect(_on_bout_ended)
 	duel.finished.connect(_on_finished)
 
@@ -141,6 +134,18 @@ func _on_card_played(who: int, card: Card, as_attack: bool) -> void:
 			chips += trump_defense_chips
 			relic_triggered.emit(&"wolf_tooth")
 	changed.emit()
+
+
+## Nach dem Schieben zählt der Schiebende als Angreifer dieser Runde.
+## (Methode statt Lambda: ein Lambda hielte die Wertung fest, die Wertung hält das Duell –
+## dann würden beide nie freigegeben.)
+func _on_transferred(who: int, _card: Card) -> void:
+	_bout_attacker = who
+	if who == _me and first_transfer_mult > 0 and not _transfer_bonus_used:
+		_transfer_bonus_used = true
+		mult += first_transfer_mult
+		relic_triggered.emit(&"whirl")
+		changed.emit()
 
 
 func _on_bout_ended(defended: bool) -> void:

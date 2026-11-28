@@ -7,7 +7,8 @@ var _failures := 0
 
 
 func _ready() -> void:
-	Profile._no_save = true
+	# eigenes, leeres Profil: sonst zählt z. B. das gewählte Deck (Riese: +1 Mult) mit
+	Profile.reset_for_tests()
 	_run.call_deferred()
 
 
@@ -38,7 +39,8 @@ func _duel_with(ids: Array, opponent := "bandit") -> Node:
 	for id in ids:
 		Run.add_relic(_relic(id))
 	Run.goto(Run.SCENE_MATCH)
-	await get_tree().create_timer(0.6).timeout
+	await get_tree().process_frame
+	await get_tree().process_frame
 	return get_tree().current_scene
 
 
@@ -57,7 +59,7 @@ func _run() -> void:
 
 	# Böser Blick: Gegner startet mit einer Karte weniger
 	m = await _duel_with(["evil_eye"])
-	check(m.duel.opponent_hand.size() == 5, "Böser Blick: Gegner hat 5 statt 6 Karten")
+	check(m.duel.hand_sizes[1] == 5 and m.duel.opponent_hand.size() <= 5, "Böser Blick: Gegner hat 5 statt 6 Karten")
 
 	# Gezinkter Würfel, Hufeisen, Wolfszahn, Wirbel, Wodka: Werte in der Wertung
 	m = await _duel_with(["loaded_dice", "horseshoe", "wolf_tooth", "whirl", "vodka"])

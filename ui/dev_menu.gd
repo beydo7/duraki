@@ -15,6 +15,11 @@ var _status: Label
 var _groups := {}
 
 
+## F8 nur im Editor und in Debug-Exporten – im fertigen Spiel gibt es kein Entwicklermenü.
+static func allowed() -> bool:
+	return OS.is_debug_build()
+
+
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_STOP

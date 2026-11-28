@@ -71,8 +71,23 @@ const SHOP_ITEMS := 3
 const TUTORIAL_OPPONENT := "res://data/opponents/jester.tres"
 const TUTORIAL_TARGET := 150
 
+## Zufall für den Aufbau des Runs (Gegnerfolge, Startkarten des Decks). Alles, was während des
+## Runs passiert, hat eigene Zufallsströme aus Seed + Stelle im Run (`stream`): so bekommen bei
+## der Täglichen Herausforderung alle an derselben Stelle dieselben Karten, dieselbe Auslage und
+## dieselben Glückswürfe – egal, wie sie vorher gespielt haben.
 var rng := RandomNumberGenerator.new()
 var seed_value := 0
+## Zufall des aktuellen Händlerbesuchs (Auslage, Neu-Mischen, Boss-Geschenk)
+var shop_rng := RandomNumberGenerator.new()
+## Endlos-Modus: so viele Duelle sind schon gespielt (Stelle im Endlos-Lauf)
+var endless_duels := 0
+## Wie oft an einer Stelle schon ein Duell begonnen wurde ("Tisch:Endlos-Duell" → Anzahl)
+var _table_tries := {}
+## Stelle des laufenden Duells (für seine Zufallsströme), siehe begin_duel()
+var duel_key: Array = []
+var _handled_duel: Array = []
+## Run ist gewertet (Run-Ende erreicht): kein zweites Mal werten
+var finished := false
 var lives := 0:
 	set(v):
 		lives = v
@@ -241,6 +256,11 @@ func _reset(p_seed: int) -> void:
 	endless_score = 0
 	endless_decks = 0
 	endless_opponent = null
+	endless_duels = 0
+	_table_tries.clear()
+	duel_key = []
+	_handled_duel = []
+	finished = false
 	last_duel_points = 0
 	run_points = 0
 	daily = false
@@ -284,6 +304,28 @@ func deck_description() -> String:
 ## Rückseite der Karten in diesem Run.
 func deck_back() -> Texture2D:
 	return deck.back if deck != null and deck.back != null else null
+
+
+## Eigener, fester Zufallsstrom für eine Stelle im Run (`parts`, z. B. ["shop", 3]).
+func stream(parts: Array) -> RandomNumberGenerator:
+	var r := RandomNumberGenerator.new()
+	r.seed = hash([seed_value] + parts)
+	return r
+
+
+## Ein Duell beginnt (Duell-Szene): Stelle merken – Tisch, Endlos-Duell und der wievielte Versuch
+## an diesem Tisch. Aus ihr kommen Austeilen, Gegner-KI, Glückskarten und Items.
+func begin_duel() -> Array:
+	var spot := "%d:%d" % [floor_index, endless_duels if endless else -1]
+	var tries := int(_table_tries.get(spot, 0)) + 1
+	_table_tries[spot] = tries
+	duel_key = [floor_index, endless_duels if endless else -1, tries]
+	return duel_key
+
+
+## Zufallsstrom des laufenden Duells für einen Zweck (&"deal", &"ai", &"luck", &"item" …).
+func duel_stream(what: StringName) -> RandomNumberGenerator:
+	return stream(duel_key + [String(what)])
 
 
 func current_opponent() -> OpponentData:
@@ -361,6 +403,11 @@ func base_mult() -> int:
 ## Wird von der Match-Szene aufgerufen, sobald ein Duell vorbei ist.
 ## `loser` ist OPPONENT, wenn das Punkteziel erreicht wurde, sonst PLAYER.
 func on_match_finished(loser: int) -> void:
+	# jedes Duell nur einmal werten (z. B. „WEITER“ doppelt gedrückt)
+	if not duel_key.is_empty():
+		if duel_key == _handled_duel:
+			return
+		_handled_duel = duel_key.duplicate()
 	if tutorial:
 		tutorial = false
 		if loser == DurakMatch.OPPONENT:
@@ -453,6 +500,7 @@ func start_endless() -> void:
 
 func _on_endless_finished(loser: int) -> void:
 	endless_score += last_duel_points
+	endless_duels += 1
 	match loser:
 		DurakMatch.OPPONENT:
 			# Gegner ist Durak: Gold, neues Deck, neuer Gegner – direkt weiter
@@ -487,7 +535,8 @@ func _next_endless_opponent() -> OpponentData:
 			pool.append(o)
 	if pool.is_empty():
 		return endless_opponent
-	return pool[rng.randi_range(0, pool.size() - 1)]
+	var r := stream(["endless_opponent", endless_duels])
+	return pool[r.randi_range(0, pool.size() - 1)]
 
 
 ## Entwicklermenü: aktuellen Gegner überspringen (zählt als gewonnen, ohne Gold).
@@ -523,9 +572,9 @@ func dev_start_endless() -> void:
 func get_reward_choices(count := 2) -> Array[RelicData]:
 	var pool: Array[RelicData] = []
 	for r in _load_all(RELIC_DIR):
-		if not relics.any(func(owned: RelicData) -> bool: return owned.id == r.id):
+		if not has_relic(r.id):
 			pool.append(r)
-	_shuffle(pool)
+	_shuffle(pool, shop_rng)
 	return pool.slice(0, count)
 
 
@@ -533,6 +582,7 @@ func get_reward_choices(count := 2) -> Array[RelicData]:
 
 func open_shop() -> void:
 	reroll_price = REROLL_BASE_PRICE
+	shop_rng = stream(["shop", floor_index, endless_duels if endless else -1])
 	shop_offers = make_shop_offers()
 	changed.emit()
 	goto(SCENE_SHOP)
@@ -543,14 +593,15 @@ func open_shop() -> void:
 func make_shop_offers() -> Array[Dictionary]:
 	var offers: Array[Dictionary] = []
 	for r in get_reward_choices(2):
-		var o := _offer("RELIKT", r.display_name, r.description, 7 + rng.randi_range(0, 3),
+		var o := _offer("RELIKT", r.display_name, r.description, 7 + shop_rng.randi_range(0, 3),
 			r.visual(), Color(0.55, 0.22, 0.42), func() -> void: add_relic(r))
 		o.emoji = true # wie im Duell: freies Emoji statt Medaille
+		o.relic_id = r.id # schon im Besitz (z. B. als Boss-Geschenk)? Dann nicht mehr kaufbar
 		offers.append(o)
 	for i in 2:
 		offers.append(_card_offer())
 	var item_ids: Array = ITEMS.keys()
-	_shuffle(item_ids)
+	_shuffle(item_ids, shop_rng)
 	for id: StringName in item_ids.slice(0, SHOP_ITEMS):
 		var it: Dictionary = ITEMS[id]
 		var io := _offer("ITEM", it.name, it.text, it.price, it.emoji, Color.BLACK, func() -> void: add_item(id))
@@ -578,7 +629,7 @@ func take_boss_gift(relic: RelicData) -> void:
 
 
 func buy(offer: Dictionary) -> bool:
-	if offer.get("sold", false) or gold < offer.price:
+	if offer.get("sold", false) or gold < offer.price or is_owned(offer):
 		return false
 	if offer.kind == "ITEM" and not has_item_slot():
 		return false
@@ -587,6 +638,11 @@ func buy(offer: Dictionary) -> bool:
 	(offer.apply as Callable).call()
 	changed.emit()
 	return true
+
+
+## Angebot ist ein Relikt, das man schon hat (z. B. gerade als Boss-Geschenk gewählt)?
+func is_owned(offer: Dictionary) -> bool:
+	return offer.get("kind", "") == "RELIKT" and has_relic(offer.get("relic_id", &""))
 
 
 func reroll_shop() -> bool:
@@ -613,14 +669,14 @@ func _offer(kind: String, title: String, text: String, price: int, symbol: Varia
 
 func _card_offer() -> Dictionary:
 	# zufällige Karte, die noch keine Verbesserung hat
-	var suit := rng.randi_range(0, 3)
-	var rank := rng.randi_range(Card.MIN_RANK, Card.MAX_RANK)
+	var suit := shop_rng.randi_range(0, 3)
+	var rank := shop_rng.randi_range(Card.MIN_RANK, Card.MAX_RANK)
 	for attempt in 20:
 		if not card_enhancements.has("%d:%d" % [suit, rank]):
 			break
-		suit = rng.randi_range(0, 3)
-		rank = rng.randi_range(Card.MIN_RANK, Card.MAX_RANK)
-	var enh := rng.randi_range(1, Card.ENHANCEMENT_NAMES.size() - 1)
+		suit = shop_rng.randi_range(0, 3)
+		rank = shop_rng.randi_range(Card.MIN_RANK, Card.MAX_RANK)
+	var enh := shop_rng.randi_range(1, Card.ENHANCEMENT_NAMES.size() - 1)
 	var label := "%s%s" % [Card.RANK_NAMES[rank], Card.SUIT_SYMBOLS[suit]]
 	var colors := [Color.WHITE, Color(0.78, 0.58, 0.1), Color(0.25, 0.55, 0.8), Color(0.2, 0.6, 0.3)]
 	var key := "%d:%d" % [suit, rank]
@@ -642,35 +698,15 @@ func all_relics() -> Array[RelicData]:
 	return list
 
 
-## Alle Boni, die der Händler anbieten kann (für den Index; Kaufen wirkt hier nicht).
-func upgrade_catalog() -> Array[Dictionary]:
-	return _upgrade_pool()
-
-
-func _upgrade_pool() -> Array[Dictionary]:
-	var pool: Array[Dictionary] = []
-	for s in 4:
-		var suit_s := s
-		pool.append(_offer("VERBESSERUNG", "%s-Schliff" % Card.SUIT_NAMES[s],
-			"%s-Karten bringen +3 Chips." % Card.SUIT_NAMES[s], 5, Card.SUIT_SYMBOLS[s],
-			Color(0.65, 0.12, 0.12) if s < 2 else Color(0.1, 0.08, 0.15),
-			func() -> void: suit_chip_bonus[suit_s] = int(suit_chip_bonus.get(suit_s, 0)) + 3))
-	pool.append(_offer("VERBESSERUNG", "Trumpf-Kenner", "Jeder gespielte Trumpf: +1 Mult extra.", 6, "▲",
-		Color(0.45, 0.32, 0.8), func() -> void: trump_mult_bonus += 1))
-	pool.append(_offer("VERBESSERUNG", "Pflaster", "+1 Leben.", 6, "✚",
-		Color(0.7, 0.15, 0.2), func() -> void: lives += 1))
-	pool.append(_offer("VERBESSERUNG", "Sparschwein", "Zinsen bis zu +3 Gold mehr pro Sieg.", 5, "◆",
-		Color(0.78, 0.58, 0.1), func() -> void: interest_max_bonus += 3))
-	return pool
-
-
 func has_relic(id: StringName) -> bool:
 	return relics.any(func(r: RelicData) -> bool: return r.id == id)
 
 
 ## Matrjoschka: eine zufällige noch normale Karte des Decks bekommt eine Verbesserung.
 ## Gibt den Text zurück („10♥ wird Gold“) oder "" wenn alle schon verbessert sind.
-func enhance_random_card() -> String:
+func enhance_random_card(r: RandomNumberGenerator = null) -> String:
+	if r == null:
+		r = duel_stream(&"matrjoschka")
 	var free: Array = []
 	for suit in 4:
 		for rank in range(Card.MIN_RANK, Card.MAX_RANK + 1):
@@ -679,8 +715,8 @@ func enhance_random_card() -> String:
 				free.append([suit, rank, key])
 	if free.is_empty():
 		return ""
-	var pick: Array = free[rng.randi_range(0, free.size() - 1)]
-	var enh: int = [Card.Enhancement.GOLD, Card.Enhancement.GLASS, Card.Enhancement.LUCKY][rng.randi_range(0, 2)]
+	var pick: Array = free[r.randi_range(0, free.size() - 1)]
+	var enh: int = [Card.Enhancement.GOLD, Card.Enhancement.GLASS, Card.Enhancement.LUCKY][r.randi_range(0, 2)]
 	card_enhancements[pick[2]] = enh
 	changed.emit()
 	return "%s wird %s" % [Card.new(pick[0], pick[1]), Card.ENHANCEMENT_NAMES[enh]]
@@ -722,20 +758,35 @@ func goto(scene_path: String) -> void:
 	Fade.change_scene(scene_path)
 
 
-## Run vorzeitig beenden (zählt als verloren, Seelen für besiegte Tische gibt es trotzdem).
+## Läuft gerade ein echter Run, der noch nicht gewertet ist? (nicht Tutorial)
+func run_active() -> bool:
+	return not encounters.is_empty() and not tutorial and not tutorial_shop and not finished
+
+
+## Run vorzeitig beenden. Zählt als verloren (Seelen für besiegte Tische gibt es trotzdem) –
+## außer im Endlos-Modus: da sind alle drei Bosse schon besiegt, der Run ist gewonnen.
 func abandon() -> void:
-	_end_run(false)
+	if not run_active():
+		return
+	_end_run(endless)
 
 
 func _end_run(won: bool) -> void:
+	if finished:
+		return # schon gewertet (z. B. doppelt gedrückt)
+	finished = true
 	won_run = won
 	Profile.max_stat("best_run_points", run_points)
 	if daily and daily_counts:
 		Profile.daily_finish(daily_date, daily_attempt, run_points, mini(floor_index, encounters.size()), endless_score)
 	if endless:
 		last_endless_place = Profile.record_endless(endless_score, endless_decks, deck_name())
+	# Abzeichen und Tisch-Belohnung nur für eigene Decks (das Deck des Tages kann fremd sein)
+	var deck_id: StringName = deck.id if deck != null else Profile.DEFAULT_DECK
+	if not Profile.is_unlocked(deck_id):
+		deck_id = &""
 	last_souls = Profile.on_run_finished(won, mini(floor_index, encounters.size()), souls_factor(),
-		deck.id if deck != null else Profile.DEFAULT_DECK, difficulty)
+		deck_id, difficulty)
 	changed.emit()
 	goto(SCENE_RUN_END)
 
@@ -783,9 +834,11 @@ func _load_all(dir: String) -> Array[Resource]:
 	return result
 
 
-func _shuffle(arr: Array) -> void:
+func _shuffle(arr: Array, r: RandomNumberGenerator = null) -> void:
+	if r == null:
+		r = rng
 	for i in range(arr.size() - 1, 0, -1):
-		var j := rng.randi_range(0, i)
+		var j := r.randi_range(0, i)
 		var tmp = arr[i]
 		arr[i] = arr[j]
 		arr[j] = tmp

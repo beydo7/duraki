@@ -41,4 +41,7 @@ static func for_floor(floor_index: int) -> StringName:
 		return HINTERZIMMER
 	var r := RandomNumberGenerator.new()
 	r.seed = hash([Run.seed_value, floor_index, "raum"])
+	if Run.endless and floor_index >= Run.encounters.size():
+		# Endlos: jedes Duell in einem neuen Raum (sonst bliebe es immer derselbe)
+		r.seed = hash([Run.seed_value, floor_index, "raum", Run.endless_duels])
 	return ALL[r.randi() % ALL.size()]

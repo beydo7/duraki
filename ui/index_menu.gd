@@ -215,7 +215,7 @@ func _relics_tab() -> Control:
 		var r: RelicData = relics[i]
 		entries.append([r.visual(), colors[i % colors.size()], UIKit.P_GOLD,
 			r.display_name, r.description, _relic_details(r)])
-	return _medal_grid(entries, "Relikte gibt es beim Händler (7–10 G). Sie wirken den ganzen Run. Neue Relikte: data/relics/")
+	return _medal_grid(entries, "Relikte gibt es beim Händler (7–10 G). Sie wirken den ganzen Run.")
 
 
 func _relic_details(r: RelicData) -> String:
@@ -519,7 +519,7 @@ func _stats_tab() -> Control:
 	var tiles := [
 		["%d" % played, "Runs gespielt"],
 		["%d" % Profile.runs_won, "Runs gewonnen" + (" (%d %%)" % roundi(100.0 * Profile.runs_won / played) if played > 0 else "")],
-		["%d" % int(st.get("best_act", 0)), "Bester Akt (von %d)" % Run.ACTS],
+		["%d" % int(st.get("best_act", 0)), "Akte geschafft (bester Run, von %d)" % Run.ACTS],
 		["%d" % won, "Duelle gewonnen"],
 		["%d" % lost, "Duelle verloren"],
 		["%d" % int(st.get("bosses", 0)), "Bosse besiegt"],

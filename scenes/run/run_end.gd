@@ -57,8 +57,15 @@ func _ready() -> void:
 	var mode: String = Settings.DIFFICULTY_NAMES[Run.difficulty] + ("" if Run.hints else " · ohne Hinweise")
 	_stat("Schwierigkeit", "%s  (Seelen ×%s)" % [mode, RunSetupMenu.factor_text(Run.souls_factor())])
 	_stat("Seelen erhalten", "+%d  (jetzt %d)" % [Run.last_souls, Profile.souls])
-	%MenuButton.pressed.connect(func() -> void: Run.goto(Run.SCENE_MENU))
-	%AgainButton.pressed.connect(func() -> void: Run.start_new_run())
+	var leaving := [false] # nur einmal weiter (doppelter Druck)
+	%MenuButton.pressed.connect(func() -> void:
+		if not leaving[0]:
+			leaving[0] = true
+			Run.goto(Run.SCENE_MENU))
+	%AgainButton.pressed.connect(func() -> void:
+		if not leaving[0]:
+			leaving[0] = true
+			Run.start_new_run())
 	UIKit.hover(%MenuButton, 1.04)
 	UIKit.hover(%AgainButton, 1.04)
 	UIKit.appear(%Panel, 0.2, Vector2(-40, 0), 0.7)

@@ -62,7 +62,8 @@ func _process(delta: float) -> void:
 			skipped.append("%s(d=%.2f hold=%s)" % [c, nd.global_position.distance_to(w._rest_xf(nd).origin), w._hold.has(nd)])
 			continue
 		xs.append(nd._body.global_position.x)
-	if all_still and xs.size() >= 3:
+	# Fliegt gerade eine Karte in die Hand (z. B. Magnet), ist ihr Platz noch frei – das ist keine Lücke.
+	if all_still and skipped.is_empty() and xs.size() >= 3:
 		var gaps: Array[float] = []
 		for k in xs.size() - 1:
 			gaps.append(xs[k + 1] - xs[k])

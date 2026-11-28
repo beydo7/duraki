@@ -32,13 +32,21 @@ func _ready() -> void:
 	add_child(shade)
 	move_child(shade, 1)
 
-	%FightButton.pressed.connect(func() -> void: Run.goto(Run.SCENE_MATCH))
+	var leaving := [false] # nur einmal weiter (doppelter Druck)
+	%FightButton.pressed.connect(func() -> void:
+		if leaving[0]:
+			return
+		leaving[0] = true
+		Run.goto(Run.SCENE_MATCH))
 	var confirm := [false]
 	%AbandonButton.pressed.connect(func() -> void:
 		if not confirm[0]:
 			confirm[0] = true
 			%AbandonButton.text = "WIRKLICH AUFGEBEN?"
 			return
+		if leaving[0]:
+			return
+		leaving[0] = true
 		Run.abandon())
 	UIKit.hover(%FightButton, 1.04)
 	UIKit.hover(%AbandonButton, 1.03)

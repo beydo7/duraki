@@ -11,6 +11,8 @@ extends Node3D
 signal clicked(card: Card)
 ## Maustaste auf einer spielbaren Karte gedrückt (TableWorld entscheidet: Klick oder Ziehen)
 signal grabbed(node: Card3D)
+## Maustaste über der Karte losgelassen (kommt mit der Physik-Abfrage, siehe TableWorld._on_let_go)
+signal let_go(node: Card3D)
 signal hover_changed(card3d: Card3D, hovered: bool)
 
 const WIDTH := 0.10
@@ -265,9 +267,12 @@ func _on_input_event(_cam: Node, event: InputEvent, pos: Vector3, _normal: Vecto
 	if event is InputEventMouseMotion or event is InputEventMouseButton:
 		var local := to_local(pos)
 		_hover_uv = Vector2(clampf(local.x / WIDTH + 0.5, 0.0, 1.0), clampf(local.z / HEIGHT + 0.5, 0.0, 1.0))
-	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		if card != null and (playable or (not hints and in_hand)):
-			grabbed.emit(self)
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		if event.pressed:
+			if card != null and (playable or (not hints and in_hand)):
+				grabbed.emit(self)
+		else:
+			let_go.emit(self)
 
 
 func _set_hovered(value: bool) -> void:

@@ -70,13 +70,17 @@ func _ready() -> void:
 	world.deck_hovered.connect(func(on: bool) -> void: _deck_hover = on)
 	world.card_dropped.connect(_on_player_card)
 
-	ai = SimpleAI.new(Run.rng, Run.mistake_chance(opponent))
+	# eigene Zufallsströme dieses Duells (Tägliche: an derselben Stelle für alle gleich)
+	Run.begin_duel()
+	_item_rng = Run.duel_stream(&"item")
+	ai = SimpleAI.new(Run.duel_stream(&"ai"), Run.mistake_chance(opponent))
 	Card3D.hints = Run.hints
 	duel = DurakMatch.new()
 	var target := Run.score_target() if Run.current_opponent() != null else Run.SCORE_TARGETS[0]
 	if Run.endless:
 		target = 1 << 40 # Endlos: kein Ziel, gespielt wird bis einer Durak ist
 	score = ScoreTracker.new(target, Run.base_mult())
+	score.rng = Run.duel_stream(&"luck")
 	score.suit_chip_bonus = Run.suit_chip_bonus
 	score.trump_mult_bonus = Run.trump_mult_bonus
 	_apply_relics()
@@ -162,7 +166,12 @@ func _ready() -> void:
 			duel.finish_take()
 		else:
 			duel.pass_bout())
-	hud.continue_button.pressed.connect(func() -> void: Run.on_match_finished(_result()))
+	hud.continue_button.pressed.connect(func() -> void:
+		if _continued:
+			return # schon weiter (z. B. Enter doppelt gedrückt)
+		_continued = true
+		hud.continue_button.disabled = true
+		Run.on_match_finished(_result()))
 
 	hud.setup(opponent, _hud_target(), Run.floor_index, 0 if Run.tutorial else maxi(Run.encounters.size(), 1),
 		_floor_text())
@@ -186,7 +195,7 @@ func _ready() -> void:
 	# Böser Blick: der Gegner startet mit einer Karte weniger
 	var opp_hand := opponent.hand_size - (1 if Run.has_relic(&"evil_eye") else 0)
 	duel.burn_option_for = DurakMatch.PLAYER if Run.items.has(&"lighter") else -1
-	duel.start(Run.rng, Run.player_hand_size(), maxi(1, opp_hand), Run.apply_card_enhancements)
+	duel.start(Run.duel_stream(&"deal"), Run.player_hand_size(), maxi(1, opp_hand), Run.apply_card_enhancements)
 	Run.changed.connect(_on_run_changed)
 	if Run.has_relic(&"evil_eye"):
 		hud.flash_relic(&"evil_eye")
@@ -207,6 +216,10 @@ func _apply_relics() -> void:
 
 var _relic_count := -1
 var _lives_seen := -1
+## „WEITER“ nach dem Duell schon gedrückt
+var _continued := false
+## Zufall für Items (Magnet, Kartentausch)
+var _item_rng := RandomNumberGenerator.new()
 
 
 ## Run hat sich geändert (Relikt gekauft/geschenkt, Leben dazu): Wirkungen nachziehen.
@@ -418,7 +431,18 @@ func _on_finished(_loser: int) -> void:
 	var points_text := "%d / %d Punkte" % [score.total, score.target]
 	if Run.endless:
 		points_text = "+%d Punkte · gesamt %d" % [score.total, Run.endless_score + score.total]
-	hud.show_result(won, "SIEG!" if won else "DURAK!", _result_text(won), points_text)
+	hud.show_result(won, _result_title(won), _result_text(won), points_text)
+
+
+## Überschrift im Ergebnis: Sieg, selbst Durak, Unentschieden oder Ziel verfehlt.
+func _result_title(won: bool) -> String:
+	if won:
+		return "SIEG!"
+	if duel.loser == DurakMatch.PLAYER:
+		return "DURAK!"
+	if Run.endless:
+		return "UNENTSCHIEDEN" # Endlos zählt nur, wer Durak ist
+	return "ZIEL VERFEHLT"
 
 
 func _result_text(won: bool) -> String:
@@ -429,6 +453,8 @@ func _result_text(won: bool) -> String:
 	if Run.endless:
 		if won:
 			return "%s ist Durak! Neues Deck, neuer Gegner – deine Punkte bleiben." % opponent.display_name
+		if duel.loser != DurakMatch.PLAYER:
+			return "Unentschieden – keiner ist Durak. Neues Deck, neuer Gegner, keine Kerze verloren."
 		if Run.lives <= 1:
 			return "Du bist Durak und die letzte Kerze ist aus – der Endlos-Lauf endet hier."
 		return "Du bist Durak. Eine Kerze erlischt – zum Händler, dann geht es weiter."
@@ -508,7 +534,16 @@ func _item_usable(id: StringName) -> bool:
 		&"magnet":
 			# nur, wenn auch sichtbar etwas auf dem Ablagestapel liegt
 			return not duel.discard_pile.is_empty() and world.has_discard()
+		&"trap":
+			return _trap_useful()
 	return true
+
+
+## Falle bringt nur etwas, solange der Gegner in dieser Runde noch schieben könnte:
+## du greifst an, er hat noch nichts geschlagen, und die Falle liegt nicht schon.
+func _trap_useful() -> bool:
+	return duel.attacker == DurakMatch.PLAYER and not duel.taking \
+		and duel.no_transfer_for != DurakMatch.OPPONENT and duel.defense_cards.count(null) == duel.defense_cards.size()
 
 
 func _refresh_items() -> void:
@@ -536,9 +571,9 @@ func _use_item(i: int) -> void:
 				hud.toast("Magnet: der Ablagestapel ist noch leer.", MatchHUD.COLOR_GOLD)
 				return
 			# erst der Welt sagen, woher die Karte kommt – sonst fliegt sie vom Nachziehstapel
-			var got: Card = duel.discard_pile[Run.rng.randi_range(0, duel.discard_pile.size() - 1)]
+			var got: Card = duel.discard_pile[_item_rng.randi_range(0, duel.discard_pile.size() - 1)]
 			world.take_from_discard(got)
-			duel.pull_from_discard(Run.rng, got)
+			duel.pull_from_discard(_item_rng, got)
 			_consume_item(i)
 			Sfx.play(&"magnet")
 			hud.toast("Magnet: %s vom Ablagestapel geholt." % got, MatchHUD.COLOR_GOLD)
@@ -570,7 +605,7 @@ func _use_item(i: int) -> void:
 					if si < 0 or not duel.player_hand.has(card):
 						return
 					world.send_to_deck(card)
-					if duel.swap_with_bottom(card, Run.rng):
+					if duel.swap_with_bottom(card, _item_rng):
 						_consume_item(si)
 						Sfx.play(&"card_take")
 					else:
@@ -584,6 +619,9 @@ func _use_item(i: int) -> void:
 			_render_score()
 			hud.toast("Maske: deine nächste Punkterunde zählt doppelt.", MatchHUD.COLOR_GOLD)
 		&"trap":
+			if not _trap_useful():
+				hud.toast("Falle: wirkt nur in deinem Angriff, bevor %s etwas geschlagen hat." % opponent.display_name, MatchHUD.COLOR_GOLD)
+				return
 			_consume_item(i)
 			duel.no_transfer_for = DurakMatch.OPPONENT
 			Sfx.play(&"bottle_knock", 0.7)
@@ -658,7 +696,8 @@ func refresh_after_dev() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_F8 and duel != null:
+	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_F8 and duel != null \
+			and DevMenu.allowed():
 		get_viewport().set_input_as_handled()
 		_open_dev_menu()
 		return

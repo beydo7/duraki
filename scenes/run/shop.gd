@@ -15,6 +15,8 @@ const ENH_COLORS := [Color.WHITE, UIKit.P_GOLD, Color(0.55, 0.82, 1.0), Color(0.
 var _gold_shown := -1
 ## Alle Waren der Auslage: {offer, btn, price}; wird beim Kauf direkt aktualisiert
 var _wares: Array[Dictionary] = []
+## „Weiter“ schon gedrückt (doppelter Druck darf nicht zweimal weiterschalten)
+var _leaving := false
 
 
 func _ready() -> void:
@@ -36,6 +38,10 @@ func _ready() -> void:
 	move_child(bd, 0)
 
 	%ContinueButton.pressed.connect(func() -> void:
+		if _leaving:
+			return
+		_leaving = true
+		%ContinueButton.disabled = true
 		if Run.tutorial_shop:
 			Run.tutorial_shop = false
 			Run.goto(Run.SCENE_MENU) # Tutorial zu Ende
@@ -428,12 +434,16 @@ func _apply_state(entry: Dictionary) -> void:
 	var sold: bool = offer.sold
 	var affordable: bool = Run.gold >= offer.price
 	var full: bool = offer.kind == "ITEM" and not Run.has_item_slot()
-	btn.disabled = sold or not affordable or full
+	var owned: bool = Run.is_owned(offer) and not sold # z. B. gerade als Boss-Geschenk gewählt
+	btn.disabled = sold or not affordable or full or owned
 	btn.modulate = Color(1, 1, 1, 0.38) if sold else (Color.WHITE if affordable else Color(0.75, 0.72, 0.72, 0.85))
 	btn.tooltip_text = "Zu wenig Gold" if not affordable and not sold else ""
 	if full and not sold:
 		btn.tooltip_text = "Keine freien Item-Plätze"
 		btn.modulate = Color(0.75, 0.72, 0.72, 0.85)
+	if owned:
+		btn.tooltip_text = "Hast du schon"
+		btn.modulate = Color(1, 1, 1, 0.38)
 	btn.mouse_filter = Control.MOUSE_FILTER_IGNORE if sold else Control.MOUSE_FILTER_STOP
 	var center: CenterContainer = entry.price
 	for c in center.get_children():
